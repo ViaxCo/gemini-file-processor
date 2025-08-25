@@ -1,39 +1,75 @@
 import { useState } from 'react'
 import { processFileWithAI } from '../services/aiService'
 
+export interface FileResult {
+  file: File
+  response: string
+  isProcessing: boolean
+  isCompleted: boolean
+  error?: string
+}
+
 export const useAIProcessor = () => {
-  const [response, setResponse] = useState<string>('')
+  const [fileResults, setFileResults] = useState<FileResult[]>([])
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
 
-  const processFile = async (file: File, instruction: string): Promise<void> => {
-    if (!file || !instruction.trim()) {
-      alert('Please select a file and provide instructions')
+  const processFiles = async (files: File[], instruction: string): Promise<void> => {
+    if (!files.length || !instruction.trim()) {
+      alert('Please select files and provide instructions')
       return
     }
 
     setIsProcessing(true)
-    setResponse('')
+    
+    // Initialize results for all files
+    const initialResults: FileResult[] = files.map(file => ({
+      file,
+      response: '',
+      isProcessing: true,
+      isCompleted: false
+    }))
+    
+    setFileResults(initialResults)
 
-    try {
-      await processFileWithAI(file, instruction, (chunk: string) => {
-        setResponse(prev => prev + chunk)
-      })
-    } catch (error) {
-      console.error('Error processing file:', error)
-      setResponse('Error processing file: ' + (error instanceof Error ? error.message : String(error)))
-    } finally {
-      setIsProcessing(false)
-    }
+    // Process all files in parallel
+    const promises = files.map(async (file, index) => {
+      try {
+        await processFileWithAI(file, instruction, (chunk: string) => {
+          setFileResults(prev => prev.map((result, i) => 
+            i === index ? { ...result, response: result.response + chunk } : result
+          ))
+        })
+        
+        // Mark as completed
+        setFileResults(prev => prev.map((result, i) => 
+          i === index ? { ...result, isProcessing: false, isCompleted: true } : result
+        ))
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error)
+        setFileResults(prev => prev.map((result, i) => 
+          i === index ? { 
+            ...result, 
+            isProcessing: false, 
+            isCompleted: true,
+            error: error instanceof Error ? error.message : String(error)
+          } : result
+        ))
+      }
+    })
+
+    // Wait for all files to complete
+    await Promise.all(promises)
+    setIsProcessing(false)
   }
 
-  const clearResponse = (): void => {
-    setResponse('')
+  const clearResults = (): void => {
+    setFileResults([])
   }
 
   return {
-    response,
+    fileResults,
     isProcessing,
-    processFile,
-    clearResponse
+    processFiles,
+    clearResults
   }
 }

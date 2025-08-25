@@ -7,12 +7,12 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
   }
 }
 
-export const downloadAsMarkdown = (content: string): void => {
+export const downloadAsMarkdown = (content: string, filename?: string): void => {
   const blob = new Blob([content], { type: 'text/markdown' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `ai-response-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.md`
+  a.download = filename || `ai-response-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.md`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
