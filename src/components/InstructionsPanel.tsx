@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, Zap } from 'lucide-react'
+import { Loader2, Zap, Check } from 'lucide-react'
 
 interface InstructionsPanelProps {
   onProcess: (instruction: string) => void
@@ -25,7 +25,8 @@ export const InstructionsPanel = ({
     savedInstructions,
     saveInstruction,
     loadInstruction,
-    deleteInstruction
+    deleteInstruction,
+    isSaved
   } = useInstructions()
   
   const [showInstructionsModal, setShowInstructionsModal] = useState<boolean>(false)
@@ -45,21 +46,35 @@ export const InstructionsPanel = ({
       <Card>
         <CardHeader>
           <CardTitle>Custom Instructions</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Button
               onClick={() => setShowInstructionsModal(true)}
               variant="outline"
               size="sm"
+              className="text-xs sm:text-sm"
             >
-              Saved Instructions
+              <span className="hidden sm:inline">Saved Instructions</span>
+              <span className="sm:hidden">Saved</span>
             </Button>
             <Button
               onClick={saveInstruction}
               disabled={!instruction.trim()}
-              variant="secondary"
+              variant={isSaved ? "default" : "secondary"}
               size="sm"
+              className={`text-xs sm:text-sm transition-all duration-200 ${isSaved ? "bg-green-600 hover:bg-green-700" : ""}`}
             >
-              Save Current
+              {isSaved ? (
+                <>
+                  <Check className="w-3 h-3 mr-1" />
+                  <span className="hidden sm:inline">Saved!</span>
+                  <span className="sm:hidden">Saved!</span>
+                </>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">Save Current</span>
+                  <span className="sm:hidden">Save</span>
+                </>
+              )}
             </Button>
           </div>
         </CardHeader>
@@ -76,25 +91,27 @@ export const InstructionsPanel = ({
               }
             }}
             placeholder="Enter your instructions for Gemini AI to process the file content..."
-            className="h-32 resize-none mb-4"
+            className="h-24 sm:h-32 resize-none mb-4 text-sm sm:text-base"
           />
           
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <Button
               onClick={() => onProcess(instruction)}
               disabled={!canProcess || !instruction.trim() || isProcessing}
-              className="flex-1"
-              size="lg"
+              className="flex-1 text-sm sm:text-base"
+              size="default"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing...
+                  <span className="hidden sm:inline">Processing...</span>
+                  <span className="sm:hidden">Processing</span>
                 </>
               ) : (
                 <>
                   <Zap className="w-4 h-4" />
-                  Process File
+                  <span className="hidden sm:inline">Process File</span>
+                  <span className="sm:hidden">Process</span>
                 </>
               )}
             </Button>
@@ -102,7 +119,8 @@ export const InstructionsPanel = ({
             <Button
               onClick={handleClearAll}
               variant="secondary"
-              size="lg"
+              size="default"
+              className="text-sm sm:text-base"
             >
               Clear All
             </Button>

@@ -83,22 +83,22 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
 
   return (
     <Card className="mb-4">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div
-          className="flex items-center justify-between cursor-pointer min-w-0"
+          className="flex items-center justify-between cursor-pointer min-w-0 overflow-hidden"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <div className="flex items-center space-x-3 min-w-0 flex-1 overflow-hidden">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 overflow-hidden">
             <div className="flex-shrink-0">{getStatusIcon()}</div>
             <div className="min-w-0 flex-1 overflow-hidden">
-              <CardTitle className="text-lg truncate overflow-hidden" title={result.file.name}>{result.file.name}</CardTitle>
-              <p className="text-sm text-muted-foreground truncate overflow-hidden" title={`${getStatusText()} • ${(result.file.size / 1024).toFixed(2)} KB`}>
+              <CardTitle className="text-sm sm:text-base lg:text-lg truncate overflow-hidden whitespace-nowrap" title={result.file.name}>{result.file.name}</CardTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate overflow-hidden whitespace-nowrap" title={`${getStatusText()} • ${(result.file.size / 1024).toFixed(2)} KB`}>
                 {getStatusText()} • {(result.file.size / 1024).toFixed(2)} KB
               </p>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
             {result.response && (result.isCompleted || result.isProcessing) && (
               <>
                 <Button
@@ -109,9 +109,10 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                   variant="outline"
                   size="sm"
                   disabled={!result.response}
+                  className="text-xs px-2 py-1 min-w-0"
                 >
-                  <Copy className="w-4 h-4" />
-                  {copyFeedback || 'Copy'}
+                  <Copy className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline ml-1 whitespace-nowrap">{copyFeedback || 'Copy'}</span>
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -121,13 +122,16 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                   variant="outline"
                   size="sm"
                   disabled={!result.response}
+                  className="text-xs px-2 py-1 min-w-0"
                 >
-                  <Download className="w-4 h-4" />
-                  Download
+                  <Download className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline ml-1 whitespace-nowrap">Download</span>
                 </Button>
               </>
             )}
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <div className="flex-shrink-0">
+              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -148,7 +152,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
             )}
           </div>
           
-          <div className="h-96 relative">
+          <div className="h-48 sm:h-64 lg:h-96 relative overflow-hidden">
             <div 
               ref={scrollViewportRef}
               onScroll={handleScroll}
@@ -156,38 +160,38 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
             >
               {result.error ? (
                 <div className="h-full flex items-center justify-center text-red-500">
-                  <div className="text-center">
-                    <AlertCircle className="w-16 h-16 mx-auto mb-4" strokeWidth={1} />
-                    <p className="text-lg font-medium">Processing Error</p>
-                    <p className="text-sm">{result.error}</p>
+                  <div className="text-center px-4">
+                    <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4" strokeWidth={1} />
+                    <p className="text-base sm:text-lg font-medium">Processing Error</p>
+                    <p className="text-xs sm:text-sm">{result.error}</p>
                   </div>
                 </div>
               ) : result.response ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div className="text-sm sm:text-base leading-relaxed max-w-none overflow-hidden">
                   {showMarkdown ? (
-                    <div className="text-foreground leading-relaxed">
+                    <div className="text-foreground leading-relaxed break-words overflow-wrap-anywhere">
                       <Streamdown>{result.response}</Streamdown>
                     </div>
                   ) : (
-                    <pre className="whitespace-pre-wrap font-sans text-foreground leading-relaxed">
+                    <pre className="whitespace-pre-wrap font-sans text-foreground leading-relaxed break-words overflow-wrap-anywhere max-w-full overflow-x-auto">
                       {result.response}
                     </pre>
                   )}
                 </div>
               ) : (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
+                  <div className="text-center px-4">
                     {result.isProcessing ? (
                       <>
-                        <Loader2 className="w-16 h-16 mx-auto mb-4 animate-spin" strokeWidth={1} />
-                        <p className="text-lg font-medium text-foreground">Processing...</p>
-                        <p className="text-sm">AI is analyzing your file</p>
+                        <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 animate-spin" strokeWidth={1} />
+                        <p className="text-base sm:text-lg font-medium text-foreground">Processing...</p>
+                        <p className="text-xs sm:text-sm">AI is analyzing your file</p>
                       </>
                     ) : (
                       <>
-                        <FileText className="w-16 h-16 mx-auto mb-4" strokeWidth={1} />
-                        <p className="text-lg font-medium text-foreground">Waiting to process</p>
-                        <p className="text-sm">File will be processed shortly</p>
+                        <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4" strokeWidth={1} />
+                        <p className="text-base sm:text-lg font-medium text-foreground">Waiting to process</p>
+                        <p className="text-xs sm:text-sm">File will be processed shortly</p>
                       </>
                     )}
                   </div>
@@ -226,11 +230,11 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
           <CardTitle>AI Responses</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-96 flex items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <FileText className="w-16 h-16 mx-auto mb-4" strokeWidth={1} />
-              <p className="text-lg font-medium text-foreground">No files processed yet</p>
-              <p className="text-sm">Upload files and add instructions to get started</p>
+          <div className="h-48 sm:h-64 lg:h-96 flex items-center justify-center text-muted-foreground">
+            <div className="text-center px-4">
+              <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4" strokeWidth={1} />
+              <p className="text-base sm:text-lg font-medium text-foreground">No files processed yet</p>
+              <p className="text-xs sm:text-sm">Upload files and add instructions to get started</p>
             </div>
           </div>
         </CardContent>
@@ -239,17 +243,19 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Processing Results ({fileResults.length} files)</h2>
+    <div className="space-y-4 overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 className="text-lg sm:text-xl lg:text-2xl font-bold break-words overflow-hidden">Processing Results ({fileResults.length} files)</h2>
         {allCompleted && completedResults.length > 0 && (
           <Button
             onClick={handleDownloadAll}
             variant="default"
-            className="ml-4"
+            size="sm"
+            className="text-xs sm:text-sm flex-shrink-0"
           >
             <DownloadCloud className="w-4 h-4" />
-            {downloadAllFeedback || 'Download All'}
+            <span className="hidden sm:inline whitespace-nowrap">{downloadAllFeedback || 'Download All'}</span>
+            <span className="sm:hidden whitespace-nowrap">{downloadAllFeedback || 'Download'}</span>
           </Button>
         )}
       </div>

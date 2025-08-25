@@ -24,19 +24,19 @@ export const InstructionsModal = ({
 }: InstructionsModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-[calc(100vw-2rem)] max-h-[85vh] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Saved Instructions</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-96">
+        <ScrollArea className="max-h-[60vh]">
           {savedInstructions.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No saved instructions yet.</p>
           ) : (
             <div className="space-y-3 pr-4">
               {savedInstructions.map((instr, index) => (
                 <div key={index} className="p-4 bg-muted rounded-lg">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-foreground flex-1 text-sm leading-relaxed">{instr}</p>
+                  <div className="flex flex-col gap-3">
+                    <p className="text-foreground text-sm leading-relaxed">{instr}</p>
                     <div className="flex gap-2">
                       <Button
                         onClick={() => onLoadInstruction(instr)}

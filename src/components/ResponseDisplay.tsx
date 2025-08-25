@@ -73,30 +73,30 @@ export const ResponseDisplay = ({ response }: ResponseDisplayProps) => {
         )}
       </CardHeader>
       <CardContent>
-        <div className="h-96 relative">
+        <div className="h-48 sm:h-64 lg:h-96 relative overflow-hidden">
           <div 
             ref={scrollViewportRef}
             onScroll={handleScroll}
             className="size-full overflow-auto rounded-md p-1"
           >
           {response ? (
-            <div className="prose prose-sm max-w-none dark:prose-invert">
+            <div className="text-sm sm:text-base leading-relaxed max-w-none overflow-hidden">
               {showMarkdown ? (
-                <div className="text-foreground leading-relaxed">
+                <div className="text-foreground leading-relaxed break-words overflow-wrap-anywhere">
                   <Streamdown>{response}</Streamdown>
                 </div>
               ) : (
-                <pre className="whitespace-pre-wrap font-sans text-foreground leading-relaxed">
+                <pre className="whitespace-pre-wrap font-sans text-foreground leading-relaxed break-words overflow-wrap-anywhere max-w-full overflow-x-auto">
                   {response}
                 </pre>
               )}
             </div>
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <MessageCircle className="w-16 h-16 mx-auto mb-4" strokeWidth={1} />
-                <p className="text-lg font-medium text-foreground">No response yet</p>
-                <p className="text-sm">Upload a file and add instructions to get started</p>
+              <div className="text-center px-4">
+                <MessageCircle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4" strokeWidth={1} />
+                <p className="text-base sm:text-lg font-medium text-foreground">No response yet</p>
+                <p className="text-xs sm:text-sm">Upload a file and add instructions to get started</p>
               </div>
             </div>
           )}
@@ -104,17 +104,22 @@ export const ResponseDisplay = ({ response }: ResponseDisplayProps) => {
         </div>
         
         {response && (
-          <div className="mt-4 pt-4 border-t flex gap-2">
+          <div className="mt-4 pt-4 border-t flex flex-col sm:flex-row gap-2">
             <Button
               onClick={handleCopyResponse}
               variant="outline"
+              size="sm"
+              className="text-xs sm:text-sm"
             >
               <Copy className="w-4 h-4" />
-              {copyFeedback || 'Copy Response'}
+              <span className="hidden sm:inline">{copyFeedback || 'Copy Response'}</span>
+              <span className="sm:hidden">{copyFeedback || 'Copy'}</span>
             </Button>
             <Button
               onClick={handleDownloadResponse}
               variant="outline"
+              size="sm"
+              className="text-xs sm:text-sm"
             >
               <Download className="w-4 h-4" />
               Download

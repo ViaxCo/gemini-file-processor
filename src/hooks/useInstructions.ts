@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 export const useInstructions = () => {
   const [instruction, setInstruction] = useState<string>('')
   const [savedInstructions, setSavedInstructions] = useState<string[]>([])
+  const [isSaved, setIsSaved] = useState<boolean>(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('customInstructions')
@@ -33,6 +34,12 @@ export const useInstructions = () => {
       localStorage.setItem('customInstructions', JSON.stringify(updated))
     }
     localStorage.setItem('lastInstruction', instruction)
+    
+    // Show feedback
+    setIsSaved(true)
+    setTimeout(() => {
+      setIsSaved(false)
+    }, 2000)
   }
 
   const loadInstruction = (instructionText: string): void => {
@@ -56,6 +63,7 @@ export const useInstructions = () => {
     saveInstruction,
     loadInstruction,
     deleteInstruction,
-    clearInstruction
+    clearInstruction,
+    isSaved
   }
 }
