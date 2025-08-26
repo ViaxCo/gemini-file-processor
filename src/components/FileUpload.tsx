@@ -113,7 +113,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       <CardContent className="w-full max-w-full overflow-hidden">
         <div
           className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-all duration-300 w-full max-w-full overflow-hidden ${files.length > 0
-              ? 'border-green-400 bg-green-50 dark:bg-green-950 dark:border-green-600'
+              ? 'border-primary bg-primary/10'
               : 'border-border hover:border-primary hover:bg-accent/50'
             }`}
           onDragOver={handleDragOver}
@@ -122,7 +122,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
         >
           {files.length > 0 ? (
             <div className="space-y-3 sm:space-y-4">
-              <CheckCircle className="w-8 h-8 sm:w-10 lg:w-12 sm:h-10 lg:h-12 mx-auto mb-2 text-green-600" />
+              <CheckCircle className="w-8 h-8 sm:w-10 lg:w-12 sm:h-10 lg:h-12 mx-auto mb-2 text-primary" />
               <p className="font-medium text-foreground text-sm sm:text-base">{files.length} file{files.length > 1 ? 's' : ''} selected</p>
 
               <div className="max-h-24 sm:max-h-32 overflow-y-auto space-y-2 w-full max-w-full">

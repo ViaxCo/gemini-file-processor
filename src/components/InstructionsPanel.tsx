@@ -63,7 +63,7 @@ export const InstructionsPanel = ({
               disabled={!instruction.trim()}
               variant={isSaved ? "default" : "secondary"}
               size="sm"
-              className={`text-xs sm:text-sm transition-all duration-200 ${isSaved ? "bg-green-600 hover:bg-green-700" : ""}`}
+              className={`text-xs sm:text-sm transition-all duration-200 ${isSaved ? "bg-primary hover:bg-primary/90" : ""}`}
             >
               {isSaved ? (
                 <>

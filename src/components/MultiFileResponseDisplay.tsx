@@ -74,15 +74,15 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
 
   const getStatusIcon = () => {
     if (result.error) {
-      return <AlertCircle className="w-4 h-4 text-red-500" />
+      return <AlertCircle className="w-4 h-4 text-destructive" />
     }
     if (result.isCompleted) {
-      return <CheckCircle className="w-4 h-4 text-green-500" />
+      return <CheckCircle className="w-4 h-4 text-primary" />
     }
     if (result.isProcessing) {
-      return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+      return <Loader2 className="w-4 h-4 text-primary animate-spin" />
     }
-    return <FileText className="w-4 h-4 text-gray-500" />
+    return <FileText className="w-4 h-4 text-muted-foreground" />
   }
 
   const getStatusText = () => {

@@ -55,17 +55,17 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
 
   return (
     <Card className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center space-x-2">
           {isAuthenticated ? (
             <>
-              <Cloud className="h-5 w-5 text-green-600" />
-              <span className="font-medium text-green-600">Connected to Google Drive</span>
+              <Cloud className="h-5 w-5 text-primary shrink-0" />
+              <span className="font-medium text-primary text-sm sm:text-base">Connected to Google Drive</span>
             </>
           ) : (
             <>
-              <CloudOff className="h-5 w-5 text-gray-500" />
-              <span className="font-medium text-gray-500">Not connected to Google Drive</span>
+              <CloudOff className="h-5 w-5 text-muted-foreground shrink-0" />
+              <span className="font-medium text-sm sm:text-base text-muted-foreground">Not connected to Google Drive</span>
             </>
           )}
         </div>
@@ -105,7 +105,7 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
           <Button 
             onClick={handleAuth}
             disabled={isAuthenticating}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isAuthenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Connect to Google Drive
@@ -114,7 +114,7 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
       </div>
 
       {!isAuthenticated && (
-        <div className="text-xs text-gray-500 space-y-1">
+        <div className="text-xs text-muted-foreground space-y-1">
           <p>Connect your Google Drive to:</p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>Select folders for saving processed files</li>
