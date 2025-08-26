@@ -5,9 +5,10 @@ import { CheckCircle, Upload, X } from "lucide-react"
 interface FileUploadProps {
   files: File[]
   onFilesChange: (files: File[]) => void
+  onClearFiles?: () => void
 }
 
-export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
+export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadProps) => {
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault()
     e.currentTarget.style.borderColor = 'hsl(var(--primary))'
@@ -102,7 +103,7 @@ export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
                 {files.map((file, index) => (
                   <div key={index} className="flex items-center justify-between bg-background rounded-md p-2 border min-w-0 w-full">
                     <div className="flex-1 text-left min-w-0 pr-2">
-                      <p className="text-xs sm:text-sm font-medium break-words overflow-wrap-anywhere" title={file.name}>{file.name}</p>
+                      <p className="text-xs sm:text-sm font-medium break-all overflow-wrap-anywhere word-break-break-word" title={file.name}>{file.name}</p>
                       <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</p>
                     </div>
                     <Button
@@ -136,15 +137,28 @@ export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
             id="file-input"
           />
 
-          <Button
-            onClick={() => document.getElementById('file-input')?.click()}
-            className="mt-3 sm:mt-4 text-sm sm:text-base"
-            variant="default"
-            size="sm"
-            disabled={files.length >= 10}
-          >
-            {files.length > 0 ? 'Add More Files' : 'Browse Files'}
-          </Button>
+          <div className="mt-3 sm:mt-4 flex flex-col gap-2 sm:gap-3 lg:items-center">
+            <Button
+              onClick={() => document.getElementById('file-input')?.click()}
+              className="text-sm sm:text-base"
+              variant="default"
+              size="sm"
+              disabled={files.length >= 10}
+            >
+              {files.length > 0 ? 'Add More Files' : 'Browse Files'}
+            </Button>
+            
+            {files.length > 0 && onClearFiles && (
+              <Button
+                onClick={onClearFiles}
+                variant="outline"
+                size="sm"
+                className="text-sm sm:text-base"
+              >
+                Clear Files
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

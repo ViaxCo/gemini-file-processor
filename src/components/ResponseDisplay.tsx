@@ -1,10 +1,10 @@
-import { useRef, useEffect, useState } from 'react'
-import { Streamdown } from 'streamdown'
-import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Toggle } from '@/components/ui/toggle'
-import { MessageCircle, Copy, Download } from 'lucide-react'
+import { Copy, Download, MessageCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Streamdown } from 'streamdown'
+import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils'
 
 interface ResponseDisplayProps {
   response: string
@@ -69,12 +69,12 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
             variant="outline"
             size="sm"
           >
-            {showMarkdown ? 'Raw' : 'Markdown'}
+            {showMarkdown ? 'Raw' : 'Formatted'}
           </Toggle>
         )}
       </CardHeader>
       <CardContent>
-        <div className="h-48 sm:h-64 lg:h-96 relative overflow-hidden">
+        <div className="h-48 sm:h-64 lg:h-140 relative overflow-hidden">
           <div
             ref={scrollViewportRef}
             onScroll={handleScroll}

@@ -222,7 +222,7 @@ export function GoogleDriveFolderSelector({ onFolderSelect, isAuthenticated: aut
       {/* Folders list */}
       <div
         ref={scrollContainerRef}
-        className="space-y-1 max-h-40 sm:max-h-48 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="space-y-1 max-h-40 sm:max-h-90 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       >
         {isLoadingFolders ? (
           <div className="flex items-center justify-center py-4">

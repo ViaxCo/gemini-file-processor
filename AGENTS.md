@@ -54,3 +54,5 @@ Requires `VITE_GEMINI_API_KEY` environment variable for Gemini API access.
 - Only stage changes when explicitly requested
 - Only commit when explicitly requested
 - Always run build to ensure everything is working fine
+
+- when i say look at the browser, i mean the tab is already loaded with the page. don't navigate there

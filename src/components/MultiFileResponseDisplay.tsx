@@ -147,7 +147,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                 variant="outline"
                 size="sm"
               >
-                {showMarkdown ? 'Raw' : 'Markdown'}
+                {showMarkdown ? 'Raw' : 'Formatted'}
               </Toggle>
             )}
           </div>

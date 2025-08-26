@@ -25,6 +25,10 @@ function App(): JSX.Element {
     clearResults()
   }
 
+  const handleClearFiles = (): void => {
+    setFiles([])
+  }
+
   const handleFolderSelect = (folderId: string | null, folderName: string) => {
     setSelectedFolderId(folderId)
     setSelectedFolderName(folderName)
@@ -67,15 +71,16 @@ function App(): JSX.Element {
           )}
         </div>
 
-        {files.length <= 1 ? (
+        {files.length <= 1 && fileResults.length <= 1 ? (
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
             <div className="space-y-4 sm:space-y-6">
-              <FileUpload files={files} onFilesChange={setFiles} />
+              <FileUpload files={files} onFilesChange={setFiles} onClearFiles={handleClearFiles} />
               <InstructionsPanel
                 onProcess={handleProcess}
                 onClearAll={handleClearAll}
                 isProcessing={isProcessing}
                 canProcess={canProcess}
+                fileCount={files.length}
               />
             </div>
             <ResponseDisplay 
@@ -86,12 +91,13 @@ function App(): JSX.Element {
         ) : (
           <div className="space-y-4 sm:space-y-6">
             <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-              <FileUpload files={files} onFilesChange={setFiles} />
+              <FileUpload files={files} onFilesChange={setFiles} onClearFiles={handleClearFiles} />
               <InstructionsPanel
                 onProcess={handleProcess}
                 onClearAll={handleClearAll}
                 isProcessing={isProcessing}
                 canProcess={canProcess}
+                fileCount={files.length}
               />
             </div>
             <MultiFileResponseDisplay fileResults={fileResults} />

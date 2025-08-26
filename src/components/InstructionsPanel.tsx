@@ -11,13 +11,15 @@ interface InstructionsPanelProps {
   onClearAll: () => void
   isProcessing: boolean
   canProcess: boolean
+  fileCount?: number
 }
 
 export const InstructionsPanel = ({ 
   onProcess, 
   onClearAll, 
   isProcessing, 
-  canProcess 
+  canProcess,
+  fileCount = 0
 }: InstructionsPanelProps) => {
   const {
     instruction,
@@ -110,7 +112,9 @@ export const InstructionsPanel = ({
               ) : (
                 <>
                   <Zap className="w-4 h-4" />
-                  <span className="hidden sm:inline">Process File</span>
+                  <span className="hidden sm:inline">
+                    Process File{fileCount > 1 ? 's' : ''}
+                  </span>
                   <span className="sm:hidden">Process</span>
                 </>
               )}

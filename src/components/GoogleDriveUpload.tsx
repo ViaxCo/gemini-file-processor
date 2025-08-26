@@ -13,7 +13,7 @@ import { Card } from './ui/card'
 import { Input } from './ui/input'
 
 interface GoogleDriveUploadProps {
-  fileResults: Array<{ file: File; response: string }>
+  fileResults: Array<{ file: File; response: string; isProcessing: boolean; isCompleted: boolean }>
   selectedFolderId?: string | null
   selectedFolderName?: string
   onUploadComplete?: (uploadedFiles: Array<{ name: string; url: string }>) => void
@@ -129,7 +129,7 @@ export function GoogleDriveUpload({
   }
 
   return (
-    <Card className="p-4 space-y-4">
+    <Card className="p-4 space-y-4 max-w-full overflow-hidden">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">Upload to Google Drive</h3>
         {fileResults.length > 1 && (
@@ -160,7 +160,7 @@ export function GoogleDriveUpload({
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-3 max-h-[500px] lg:max-h-[400px] xl:max-h-[500px] overflow-y-auto lg:overflow-y-auto">
         {fileResults.map((result) => {
           const isUploaded = uploadedFiles.some(f => f.originalFileName === result.file.name)
           const uploadedFile = uploadedFiles.find(f => f.originalFileName === result.file.name)
@@ -168,9 +168,11 @@ export function GoogleDriveUpload({
           return (
             <div key={result.file.name} className="border rounded-md p-3 space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
                   <FileText className="h-4 w-4 shrink-0 text-blue-600" />
-                  <span className="text-sm font-medium">{result.file.name}</span>
+                  <span className="text-sm font-medium truncate" title={result.file.name}>
+                    {result.file.name}
+                  </span>
                   {isUploaded && (
                     <CheckCircle className="h-4 w-4 shrink-0 text-green-600" />
                   )}
@@ -192,7 +194,7 @@ export function GoogleDriveUpload({
                   </div>
                   <Button
                     onClick={() => handleSingleUpload(result)}
-                    disabled={isUploading || isProcessing || !fileNames[result.file.name]?.trim()}
+                    disabled={isUploading || result.isProcessing || !result.isCompleted || !fileNames[result.file.name]?.trim()}
                     size="sm"
                     className="w-full"
                   >
@@ -205,9 +207,9 @@ export function GoogleDriveUpload({
 
               {isUploaded && uploadedFile && (
                 <div className="bg-green-50 border border-green-200 rounded-md p-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-green-800">
-                      Uploaded as: <span className="font-medium">{uploadedFile.name}</span>
+                  <div className="flex items-center justify-between min-w-0">
+                    <span className="text-sm text-green-800 min-w-0 flex-1">
+                      Uploaded as: <span className="font-medium truncate inline-block max-w-[200px]" title={uploadedFile.name}>{uploadedFile.name}</span>
                     </span>
                     <Button
                       variant="ghost"
