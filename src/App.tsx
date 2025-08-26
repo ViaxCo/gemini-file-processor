@@ -60,6 +60,7 @@ function App(): JSX.Element {
                   fileResults={fileResults}
                   selectedFolderId={selectedFolderId}
                   selectedFolderName={selectedFolderName}
+                  isProcessing={isProcessing}
                 />
               )}
             </div>
@@ -77,7 +78,10 @@ function App(): JSX.Element {
                 canProcess={canProcess}
               />
             </div>
-            <ResponseDisplay response={fileResults[0]?.response || ''} />
+            <ResponseDisplay 
+              response={fileResults[0]?.response || ''} 
+              isProcessing={isProcessing && fileResults.length > 0 && !fileResults[0]?.isCompleted}
+            />
           </div>
         ) : (
           <div className="space-y-4 sm:space-y-6">

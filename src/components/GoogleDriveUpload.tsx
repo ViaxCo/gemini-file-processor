@@ -17,13 +17,15 @@ interface GoogleDriveUploadProps {
   selectedFolderId?: string | null
   selectedFolderName?: string
   onUploadComplete?: (uploadedFiles: Array<{ name: string; url: string }>) => void
+  isProcessing?: boolean
 }
 
 export function GoogleDriveUpload({
   fileResults,
   selectedFolderId,
   selectedFolderName,
-  onUploadComplete
+  onUploadComplete,
+  isProcessing = false
 }: GoogleDriveUploadProps): JSX.Element {
   const { isAuthenticated, uploadToGoogleDocs, isUploading, error } = useGoogleDrive()
 
@@ -133,7 +135,7 @@ export function GoogleDriveUpload({
         {fileResults.length > 1 && (
           <Button
             onClick={handleBatchUpload}
-            disabled={isUploading}
+            disabled={isUploading || isProcessing}
             size="sm"
             className="bg-green-600 hover:bg-green-700 text-white"
           >
@@ -190,7 +192,7 @@ export function GoogleDriveUpload({
                   </div>
                   <Button
                     onClick={() => handleSingleUpload(result)}
-                    disabled={isUploading || !fileNames[result.file.name]?.trim()}
+                    disabled={isUploading || isProcessing || !fileNames[result.file.name]?.trim()}
                     size="sm"
                     className="w-full"
                   >

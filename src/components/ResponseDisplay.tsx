@@ -8,9 +8,10 @@ import { MessageCircle, Copy, Download } from 'lucide-react'
 
 interface ResponseDisplayProps {
   response: string
+  isProcessing?: boolean
 }
 
-export const ResponseDisplay = ({ response }: ResponseDisplayProps) => {
+export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true)
   const [copyFeedback, setCopyFeedback] = useState<string>('')
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false)
@@ -110,6 +111,7 @@ export const ResponseDisplay = ({ response }: ResponseDisplayProps) => {
               variant="outline"
               size="sm"
               className="text-xs sm:text-sm"
+              disabled={isProcessing}
             >
               <Copy className="w-4 h-4" />
               <span className="hidden sm:inline">{copyFeedback || 'Copy Response'}</span>
@@ -120,6 +122,7 @@ export const ResponseDisplay = ({ response }: ResponseDisplayProps) => {
               variant="outline"
               size="sm"
               className="text-xs sm:text-sm"
+              disabled={isProcessing}
             >
               <Download className="w-4 h-4" />
               Download

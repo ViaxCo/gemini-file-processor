@@ -108,7 +108,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                   }}
                   variant="outline"
                   size="sm"
-                  disabled={!result.response}
+                  disabled={!result.response || result.isProcessing}
                   className="text-xs px-2 py-1 min-w-0"
                 >
                   <Copy className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -121,7 +121,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                   }}
                   variant="outline"
                   size="sm"
-                  disabled={!result.response}
+                  disabled={!result.response || result.isProcessing}
                   className="text-xs px-2 py-1 min-w-0"
                 >
                   <Download className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -211,6 +211,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
 
   const completedResults = fileResults.filter(result => result.isCompleted && !result.error && result.response)
   const allCompleted = fileResults.length > 0 && fileResults.every(result => result.isCompleted)
+  const isAnyProcessing = fileResults.some(result => result.isProcessing)
 
   const handleDownloadAll = (): void => {
     if (completedResults.length === 0) return
@@ -252,6 +253,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
             variant="default"
             size="sm"
             className="text-xs sm:text-sm flex-shrink-0"
+            disabled={isAnyProcessing}
           >
             <DownloadCloud className="w-4 h-4" />
             <span className="hidden sm:inline whitespace-nowrap">{downloadAllFeedback || 'Download All'}</span>
