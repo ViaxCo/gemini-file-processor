@@ -49,7 +49,8 @@ Requires `VITE_GEMINI_API_KEY` environment variable for Gemini API access.
 ## Development Notes
 
 - Use context7 to look up documentation for all packages
-- Don't run the dev server (user runs it themselves)
+- Don't run the dev server or preview (user runs it themselves)
 - Use browser MCP for debugging browser issues
+- Only stage changes when explicitly requested
 - Only commit when explicitly requested
 - Always run build to ensure everything is working fine
