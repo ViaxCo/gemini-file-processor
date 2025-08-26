@@ -74,7 +74,7 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
         )}
       </CardHeader>
       <CardContent>
-        <div className="h-48 sm:h-64 lg:h-140 relative overflow-hidden">
+        <div className="h-48 sm:h-64 lg:h-143 relative overflow-hidden">
           <div
             ref={scrollViewportRef}
             onScroll={handleScroll}
