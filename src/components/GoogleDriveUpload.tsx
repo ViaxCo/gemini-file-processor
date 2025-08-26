@@ -145,10 +145,13 @@ export function GoogleDriveUpload({
             onClick={handleBatchUpload}
             disabled={Object.values(uploadStatuses).some(status => status === 'uploading') || isProcessing}
             size="sm"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center min-w-0 px-2 sm:px-4 text-xs sm:text-sm"
           >
-            {Object.values(uploadStatuses).some(status => status === 'uploading') && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            Upload All
+            {Object.values(uploadStatuses).some(status => status === 'uploading') && <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-spin flex-shrink-0" />}
+            <span className="truncate">
+              <span className="hidden sm:inline">Upload All</span>
+              <span className="sm:hidden">Upload</span>
+            </span>
           </Button>
         )}
       </div>
@@ -205,11 +208,14 @@ export function GoogleDriveUpload({
                     onClick={() => handleSingleUpload(result)}
                     disabled={isUploadingThisFile || result.isProcessing || !result.isCompleted || !fileNames[result.file.name]?.trim()}
                     size="sm"
-                    className="w-full"
+                    className="w-full flex items-center justify-center min-w-0 px-2 sm:px-4 text-xs sm:text-sm"
                   >
-                    {isUploadingThisFile && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-                    <Upload className="w-4 h-4 mr-1" />
-                    Upload to Google Docs
+                    {isUploadingThisFile && <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-spin flex-shrink-0" />}
+                    {!isUploadingThisFile && <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />}
+                    <span className="truncate">
+                      <span className="hidden sm:inline">Upload to Google Docs</span>
+                      <span className="sm:hidden">Upload</span>
+                    </span>
                   </Button>
                 </div>
               )}

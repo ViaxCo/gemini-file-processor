@@ -47,16 +47,20 @@ function App(): JSX.Element {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 max-w-7xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight text-foreground mb-2">
-              Gemini File Processor
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Upload up to 10 text files and let Gemini AI process them in parallel with your custom instructions
-            </p>
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground mb-2">
+                Gemini File Processor
+              </h1>
+              <p className="text-sm sm:text-base lg:text-lg text-muted-foreground leading-relaxed">
+                Upload up to 10 text files and let Gemini AI process them in parallel with your custom instructions
+              </p>
+            </div>
+            <div className="flex-shrink-0 self-start lg:self-auto">
+              <ThemeToggle />
+            </div>
           </div>
-          <ThemeToggle />
         </div>
 
         {/* Google Drive Integration Section */}

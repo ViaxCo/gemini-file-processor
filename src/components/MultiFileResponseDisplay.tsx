@@ -118,12 +118,9 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
               <CardTitle className="text-sm sm:text-base lg:text-lg truncate overflow-hidden whitespace-nowrap" title={result.file.name}>{result.file.name}</CardTitle>
               <div className="flex items-center gap-2 mt-1">
                 {getStatusBadge()}
-                <span className="text-xs text-muted-foreground">
-                  {(result.file.size / 1024).toFixed(2)} KB
-                </span>
               </div>
               {result.response && (result.isCompleted || result.isProcessing) && (
-                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mt-2">
+                <div className="flex items-center gap-1 mt-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -131,16 +128,16 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                           e.stopPropagation()
                           handleCopy()
                         }}
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         disabled={!result.response || result.isProcessing}
-                        className="text-xs px-2 py-1 min-w-0"
+                        className="h-7 w-7 p-0 hover:bg-muted/50"
                       >
-                        <Copy className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span className="hidden sm:inline ml-1 whitespace-nowrap">{copyFeedback || 'Copy'}</span>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span className="sr-only">{copyFeedback || 'Copy'}</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Copy response to clipboard</TooltipContent>
+                    <TooltipContent>{copyFeedback || 'Copy response to clipboard'}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -149,13 +146,13 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                           e.stopPropagation()
                           handleDownload()
                         }}
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         disabled={!result.response || result.isProcessing}
-                        className="text-xs px-2 py-1 min-w-0"
+                        className="h-7 w-7 p-0 hover:bg-muted/50"
                       >
-                        <Download className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span className="hidden sm:inline ml-1 whitespace-nowrap">Download</span>
+                        <Download className="w-3.5 h-3.5" />
+                        <span className="sr-only">Download</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Download as markdown file</TooltipContent>
@@ -277,7 +274,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
         )}
       </CardHeader>
       <CardContent>
-        <div className="space-y-4 max-h-[500px] lg:max-h-[680px] xl:max-h-[700px] overflow-y-auto lg:overflow-y-auto pr-2">
+        <div className="space-y-4 max-h-[500px] lg:max-h-[700px] overflow-y-auto lg:overflow-y-auto pr-2">
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">

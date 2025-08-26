@@ -264,7 +264,7 @@ export function GoogleDriveFolderSelector({ onFolderSelect, isAuthenticated: aut
                     variant="ghost"
                     size="sm"
                     onClick={() => handleFolderSelect(folder)}
-                    className="h-5 sm:h-6 px-1 sm:px-2 text-xs hover:bg-accent-foreground/10"
+                    className="h-5 sm:h-6 px-1 sm:px-2 text-xs hover:bg-muted/100 transition-colors"
                   >
                     Select
                   </Button>
@@ -272,7 +272,7 @@ export function GoogleDriveFolderSelector({ onFolderSelect, isAuthenticated: aut
                     variant="ghost"
                     size="sm"
                     onClick={() => handleFolderNavigation(folder)}
-                    className="h-5 sm:h-6 px-1 sm:px-2 hover:bg-accent-foreground/10"
+                    className="h-5 sm:h-6 px-1 sm:px-2 hover:bg-muted/100 transition-colors"
                   >
                     <ChevronRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </Button>

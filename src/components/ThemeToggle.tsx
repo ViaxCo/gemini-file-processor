@@ -7,9 +7,21 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 import { useTheme } from '../contexts/theme-context'
+import { useState, useEffect } from 'react'
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()
+  const [isLargeScreen, setIsLargeScreen] = useState(false)
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsLargeScreen(window.innerWidth >= 1024) // lg breakpoint
+    }
+
+    checkScreenSize()
+    window.addEventListener('resize', checkScreenSize)
+    return () => window.removeEventListener('resize', checkScreenSize)
+  }, [])
 
   return (
     <DropdownMenu>
@@ -20,7 +32,7 @@ export function ThemeToggle() {
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align={isLargeScreen ? "end" : "start"}>
         <DropdownMenuItem onClick={() => setTheme('light')} className={theme === 'light' ? 'bg-accent' : ''}>
           <Sun className="mr-2 h-4 w-4" />
           <span>Light</span>

@@ -55,21 +55,30 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
 
   return (
     <Card className="p-4 space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center space-x-2">
+      <div className="flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center space-x-2 min-w-0 flex-1">
           {isAuthenticated ? (
             <>
-              <Cloud className="h-5 w-5 text-primary shrink-0" />
-              <span className="font-medium text-primary text-sm sm:text-base">Connected to Google Drive</span>
+              <Cloud className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+              <span className="font-medium text-primary text-xs sm:text-sm md:text-base truncate">
+                <span className="hidden xs:inline">Connected to Google Drive</span>
+                <span className="xs:hidden">Connected</span>
+              </span>
             </>
           ) : (
             <>
-              <CloudOff className="h-5 w-5 text-muted-foreground shrink-0" />
-              <span className="font-medium text-sm sm:text-base text-muted-foreground">Not connected to Google Drive</span>
+              <CloudOff className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
+              <span className="font-medium text-xs sm:text-sm md:text-base text-muted-foreground truncate">
+                <span className="hidden xs:inline">Not connected to Google Drive</span>
+                <span className="xs:hidden">Not connected</span>
+              </span>
             </>
           )}
         </div>
-        <Badge variant={isAuthenticated ? "default" : "outline"}>
+        <Badge 
+          variant={isAuthenticated ? "default" : "outline"} 
+          className="shrink-0 text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 sm:text-xs"
+        >
           {isAuthenticated ? "Connected" : "Disconnected"}
         </Badge>
       </div>
