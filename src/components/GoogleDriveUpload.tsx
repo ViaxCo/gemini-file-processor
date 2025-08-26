@@ -47,6 +47,12 @@ export function GoogleDriveUpload({
     }
   }, [fileResults])
 
+  React.useEffect(() => {
+    if (isProcessing) {
+      setUploadedFiles([])
+    }
+  }, [isProcessing])
+
   const handleFileNameChange = (originalFileName: string, newName: string) => {
     setFileNames(prev => ({
       ...prev,

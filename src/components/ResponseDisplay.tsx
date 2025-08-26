@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Toggle } from '@/components/ui/toggle'
-import { Copy, Download, MessageCircle } from 'lucide-react'
+import { Copy, Download, MessageCircle, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Streamdown } from 'streamdown'
 import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils'
@@ -80,7 +80,15 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
             onScroll={handleScroll}
             className="size-full overflow-auto rounded-md p-1"
           >
-            {response ? (
+            {isProcessing && !response ? (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                <div className="text-center px-4">
+                  <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 animate-spin" strokeWidth={1} />
+                  <p className="text-base sm:text-lg font-medium text-foreground">Processing...</p>
+                  <p className="text-xs sm:text-sm">AI is analyzing your file</p>
+                </div>
+              </div>
+            ) : response ? (
               <div className="text-sm sm:text-base leading-relaxed max-w-none overflow-hidden">
                 {showMarkdown ? (
                   <div className="text-foreground leading-relaxed break-words overflow-wrap-anywhere">
