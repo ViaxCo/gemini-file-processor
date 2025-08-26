@@ -156,13 +156,11 @@ export function GoogleDriveUpload({
         )}
       </div>
 
-      {selectedFolderName && (
-        <div className="p-2 bg-primary/10 border border-primary/20 rounded-md">
-          <p className="text-sm text-primary">
-            Destination: <span className="font-medium">{selectedFolderName}</span>
-          </p>
-        </div>
-      )}
+      <div className="p-2 bg-primary/10 border border-primary/20 rounded-md">
+        <p className="text-sm text-primary">
+          Destination: <span className="font-medium">{selectedFolderName || 'Root (My Drive)'}</span>
+        </p>
+      </div>
 
       {error && (
         <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start space-x-2">

@@ -274,7 +274,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
         )}
       </CardHeader>
       <CardContent>
-        <div className="space-y-4 max-h-[500px] lg:max-h-[700px] overflow-y-auto lg:overflow-y-auto pr-2">
+        <div className="space-y-4 max-h-[500px] lg:max-h-[760px] overflow-y-auto lg:overflow-y-auto pr-2">
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
