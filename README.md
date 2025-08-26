@@ -29,22 +29,26 @@ A modern React application that processes multiple files in parallel using Googl
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone <repository-url>
    cd upload-to-doc
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Set up environment variables:
+
    ```bash
    cp .env.example .env
    ```
-   
+
    Edit `.env` and add your API keys:
+
    ```env
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
    # Optional: For Google Drive integration
@@ -53,6 +57,7 @@ A modern React application that processes multiple files in parallel using Googl
    ```
 
 4. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -104,9 +109,11 @@ The application follows a component-based architecture with:
 ## Environment Variables
 
 Required:
+
 - `VITE_GEMINI_API_KEY` - Your Google Gemini API key
 
 Optional (for Google Drive integration):
+
 - `VITE_GOOGLE_CLIENT_ID` - OAuth 2.0 Client ID
 - `VITE_GOOGLE_API_KEY` - Google API key with Drive/Docs access
 

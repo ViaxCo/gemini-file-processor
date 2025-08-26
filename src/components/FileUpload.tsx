@@ -1,110 +1,116 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { CheckCircle, Upload, X, AlertTriangle } from "lucide-react"
-import { toast } from "sonner"
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { CheckCircle, Upload, X, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface FileUploadProps {
-  files: File[]
-  onFilesChange: (files: File[]) => void
-  onClearFiles?: () => void
+  files: File[];
+  onFilesChange: (files: File[]) => void;
+  onClearFiles?: () => void;
 }
 
 export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadProps) => {
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
-    e.preventDefault()
-    e.currentTarget.style.borderColor = 'hsl(var(--primary))'
-    e.currentTarget.style.backgroundColor = 'hsl(var(--accent) / 0.5)'
-  }
+    e.preventDefault();
+    e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+    e.currentTarget.style.backgroundColor = 'hsl(var(--accent) / 0.5)';
+  };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
-    e.preventDefault()
-    e.currentTarget.style.borderColor = ''
-    e.currentTarget.style.backgroundColor = ''
-  }
+    e.preventDefault();
+    e.currentTarget.style.borderColor = '';
+    e.currentTarget.style.backgroundColor = '';
+  };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>): void => {
-    e.preventDefault()
-    e.currentTarget.style.borderColor = ''
-    e.currentTarget.style.backgroundColor = ''
+    e.preventDefault();
+    e.currentTarget.style.borderColor = '';
+    e.currentTarget.style.backgroundColor = '';
 
-    const droppedFiles = Array.from(e.dataTransfer.files)
-    addFiles(droppedFiles)
-  }
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    addFiles(droppedFiles);
+  };
 
   const addFiles = (newFiles: File[]): void => {
-    const textFiles = newFiles.filter(file => file.type === 'text/plain')
+    const textFiles = newFiles.filter((file) => file.type === 'text/plain');
 
     if (textFiles.length !== newFiles.length) {
       toast.error('Invalid file type', {
-        description: 'Please upload only text files (.txt)'
-      })
-      return
+        description: 'Please upload only text files (.txt)',
+      });
+      return;
     }
 
     // Check for duplicates (same name and size)
-    const duplicates: string[] = []
-    const uniqueFiles = textFiles.filter(newFile => {
-      const isDuplicate = files.some(existingFile =>
-        existingFile.name === newFile.name && existingFile.size === newFile.size
-      )
+    const duplicates: string[] = [];
+    const uniqueFiles = textFiles.filter((newFile) => {
+      const isDuplicate = files.some(
+        (existingFile) => existingFile.name === newFile.name && existingFile.size === newFile.size,
+      );
       if (isDuplicate) {
-        duplicates.push(newFile.name)
+        duplicates.push(newFile.name);
       }
-      return !isDuplicate
-    })
+      return !isDuplicate;
+    });
 
     if (duplicates.length > 0) {
       toast.warning('Duplicate files ignored', {
-        description: `The following files are already uploaded: ${duplicates.join(', ')}`
-      })
+        description: `The following files are already uploaded: ${duplicates.join(', ')}`,
+      });
     }
 
     if (uniqueFiles.length === 0) {
-      return
+      return;
     }
 
-    const totalFiles = files.length + uniqueFiles.length
+    const totalFiles = files.length + uniqueFiles.length;
     if (totalFiles > 10) {
       toast.error('File limit exceeded', {
-        description: 'Maximum of 10 files allowed'
-      })
-      return
+        description: 'Maximum of 10 files allowed',
+      });
+      return;
     }
 
-    onFilesChange([...files, ...uniqueFiles])
-    toast.success(`${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`)
-  }
+    onFilesChange([...files, ...uniqueFiles]);
+    toast.success(
+      `${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`,
+    );
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const selectedFiles = e.target.files
+    const selectedFiles = e.target.files;
     if (selectedFiles) {
-      addFiles(Array.from(selectedFiles))
+      addFiles(Array.from(selectedFiles));
     }
-  }
+  };
 
   const removeFile = (index: number): void => {
-    const newFiles = files.filter((_, i) => i !== index)
-    onFilesChange(newFiles)
-  }
+    const newFiles = files.filter((_, i) => i !== index);
+    onFilesChange(newFiles);
+  };
 
   return (
     <Card className="w-full max-w-full overflow-hidden">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Upload Text Files</CardTitle>
-          <Badge variant={files.length >= 10 ? "destructive" : files.length > 7 ? "outline" : "secondary"}>
+          <Badge
+            variant={
+              files.length >= 10 ? 'destructive' : files.length > 7 ? 'outline' : 'secondary'
+            }
+          >
             {files.length}/10 files
           </Badge>
         </div>
         {files.length >= 9 && (
-          <Alert variant={files.length >= 10 ? "destructive" : "default"} className="mt-2">
+          <Alert variant={files.length >= 10 ? 'destructive' : 'default'} className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              {files.length >= 10 
-                ? "Maximum file limit reached. Remove files to add more." 
+              {files.length >= 10
+                ? 'Maximum file limit reached. Remove files to add more.'
                 : "You're approaching the file limit (10 files max)."}
             </AlertDescription>
           </Alert>
@@ -112,25 +118,38 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       </CardHeader>
       <CardContent className="w-full max-w-full overflow-hidden">
         <div
-          className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-all duration-300 w-full max-w-full overflow-hidden ${files.length > 0
+          className={`w-full max-w-full overflow-hidden rounded-lg border-2 border-dashed p-4 text-center transition-all duration-300 sm:p-6 lg:p-8 ${
+            files.length > 0
               ? 'border-primary bg-primary/10'
               : 'border-border hover:border-primary hover:bg-accent/50'
-            }`}
+          }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           {files.length > 0 ? (
             <div className="space-y-3 sm:space-y-4">
-              <CheckCircle className="w-8 h-8 sm:w-10 lg:w-12 sm:h-10 lg:h-12 mx-auto mb-2 text-primary" />
-              <p className="font-medium text-foreground text-sm sm:text-base">{files.length} file{files.length > 1 ? 's' : ''} selected</p>
+              <CheckCircle className="text-primary mx-auto mb-2 h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
+              <p className="text-foreground text-sm font-medium sm:text-base">
+                {files.length} file{files.length > 1 ? 's' : ''} selected
+              </p>
 
-              <div className="max-h-24 sm:max-h-32 overflow-y-auto space-y-2 w-full max-w-full">
+              <div className="max-h-24 w-full max-w-full space-y-2 overflow-y-auto sm:max-h-32">
                 {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between bg-background rounded-md p-2 border min-w-0 w-full">
-                    <div className="flex-1 text-left min-w-0 pr-2">
-                      <p className="text-xs sm:text-sm font-medium break-all overflow-wrap-anywhere word-break-break-word" title={file.name}>{file.name}</p>
-                      <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</p>
+                  <div
+                    key={index}
+                    className="bg-background flex w-full min-w-0 items-center justify-between rounded-md border p-2"
+                  >
+                    <div className="min-w-0 flex-1 pr-2 text-left">
+                      <p
+                        className="overflow-wrap-anywhere word-break-break-word text-xs font-medium break-all sm:text-sm"
+                        title={file.name}
+                      >
+                        {file.name}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {(file.size / 1024).toFixed(2)} KB
+                      </p>
                     </div>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -138,7 +157,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
                           onClick={() => removeFile(index)}
                           variant="ghost"
                           size="sm"
-                          className="ml-1 sm:ml-2 h-6 w-6 p-0 flex-shrink-0"
+                          className="ml-1 h-6 w-6 flex-shrink-0 p-0 sm:ml-2"
                         >
                           <X className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
@@ -151,11 +170,11 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
             </div>
           ) : (
             <div className="space-y-2">
-              <Upload className="w-8 h-8 sm:w-10 lg:w-12 sm:h-10 lg:h-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-foreground">
+              <Upload className="text-muted-foreground mx-auto mb-2 h-8 w-8 sm:mb-4 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
+              <p className="text-foreground text-sm font-medium sm:text-base lg:text-lg">
                 Drag & drop your text files here
               </p>
-              <p className="text-sm text-muted-foreground">or</p>
+              <p className="text-muted-foreground text-sm">or</p>
             </div>
           )}
 
@@ -168,7 +187,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
             id="file-input"
           />
 
-          <div className="mt-3 sm:mt-4 flex flex-col gap-2 sm:gap-3 lg:items-center">
+          <div className="mt-3 flex flex-col gap-2 sm:mt-4 sm:gap-3 lg:items-center">
             <Button
               onClick={() => document.getElementById('file-input')?.click()}
               className="text-sm sm:text-base"
@@ -178,7 +197,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
             >
               {files.length > 0 ? 'Add More Files' : 'Browse Files'}
             </Button>
-            
+
             {files.length > 0 && onClearFiles && (
               <Button
                 onClick={onClearFiles}
@@ -193,5 +212,5 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
         </div>
       </CardContent>
     </Card>
-  )
-}
+  );
+};

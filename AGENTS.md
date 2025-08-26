@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- `npm run build` - Build the application (always run this to ensure everything is working)
+- `npm run build` - Build the application
 - `npm run lint` - Lint the codebase with ESLint
 - `npm run preview` - Preview the built application
 - `npm run dev` - Development server (don't run this, user runs it themselves)
@@ -65,7 +65,7 @@ See `GOOGLE_DRIVE_SETUP.md` for detailed Google Drive setup instructions.
 - Use browser MCP for debugging browser issues
 - Only stage changes when explicitly requested
 - Only commit when explicitly requested
-- Always run build to ensure everything is working fine
+- Always run `npm run lint`, `npm run prettier`, and then `npm run build` to ensure everything is working and formatted correctly
 - when i say look at the browser, i mean the tab is already loaded with the page. don't navigate there
 - When using shadcn components, use the MCP
   server.

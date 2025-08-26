@@ -1,70 +1,70 @@
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Toggle } from '@/components/ui/toggle'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Copy, Download, MessageCircle, Loader2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { Streamdown } from 'streamdown'
-import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils'
-import { toast } from 'sonner'
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Toggle } from '@/components/ui/toggle';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Copy, Download, MessageCircle, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Streamdown } from 'streamdown';
+import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils';
+import { toast } from 'sonner';
 
 interface ResponseDisplayProps {
-  response: string
-  isProcessing?: boolean
+  response: string;
+  isProcessing?: boolean;
 }
 
 export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisplayProps) => {
-  const [showMarkdown, setShowMarkdown] = useState<boolean>(true)
-  const [copyFeedback, setCopyFeedback] = useState<string>('')
-  const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false)
-  const [lastResponseLength, setLastResponseLength] = useState<number>(0)
-  const scrollViewportRef = useRef<HTMLDivElement>(null)
+  const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
+  const [copyFeedback, setCopyFeedback] = useState<string>('');
+  const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
+  const [lastResponseLength, setLastResponseLength] = useState<number>(0);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Reset scrolling state when response is cleared or starts fresh
     if (response.length === 0) {
-      setIsUserScrolling(false)
-      setLastResponseLength(0)
-      return
+      setIsUserScrolling(false);
+      setLastResponseLength(0);
+      return;
     }
 
     // Auto-scroll only when response is actively being streamed and user hasn't manually scrolled
     if (scrollViewportRef.current && response.length > lastResponseLength && !isUserScrolling) {
-      scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight
+      scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
     }
-    setLastResponseLength(response.length)
-  }, [response, lastResponseLength, isUserScrolling])
+    setLastResponseLength(response.length);
+  }, [response, lastResponseLength, isUserScrolling]);
 
   const handleScroll = () => {
     if (scrollViewportRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollViewportRef.current
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5 // 5px tolerance
+      const { scrollTop, scrollHeight, clientHeight } = scrollViewportRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px tolerance
 
       // If user scrolled up from bottom, mark as user scrolling
       if (!isAtBottom) {
-        setIsUserScrolling(true)
+        setIsUserScrolling(true);
       } else {
         // If user scrolled back to bottom, resume auto-scrolling
-        setIsUserScrolling(false)
+        setIsUserScrolling(false);
       }
     }
-  }
+  };
 
   const handleCopyResponse = async (): Promise<void> => {
-    const success = await copyToClipboard(response)
+    const success = await copyToClipboard(response);
     if (success) {
-      toast.success('Response copied to clipboard')
+      toast.success('Response copied to clipboard');
     } else {
-      toast.error('Failed to copy response')
+      toast.error('Failed to copy response');
     }
-    setCopyFeedback(success ? 'Copied!' : 'Failed to copy')
-    setTimeout(() => setCopyFeedback(''), 2000)
-  }
+    setCopyFeedback(success ? 'Copied!' : 'Failed to copy');
+    setTimeout(() => setCopyFeedback(''), 2000);
+  };
 
   const handleDownloadResponse = (): void => {
-    downloadAsMarkdown(response)
-    toast.success('File downloaded successfully')
-  }
+    downloadAsMarkdown(response);
+    toast.success('File downloaded successfully');
+  };
 
   return (
     <Card>
@@ -82,7 +82,7 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
         )}
       </CardHeader>
       <CardContent>
-        <div className="h-48 sm:h-64 lg:h-143 relative overflow-hidden">
+        <div className="relative h-48 overflow-hidden sm:h-64 lg:h-143">
           <div
             ref={scrollViewportRef}
             onScroll={handleScroll}
@@ -90,9 +90,11 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
           >
             {isProcessing && !response ? (
               <div className="h-full space-y-4 p-4">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">AI is analyzing your file...</span>
+                <div className="mb-4 flex items-center space-x-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-muted-foreground text-sm">
+                    AI is analyzing your file...
+                  </span>
                 </div>
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
@@ -107,23 +109,30 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
                 </div>
               </div>
             ) : response ? (
-              <div className="text-sm sm:text-base leading-relaxed max-w-none overflow-hidden">
+              <div className="max-w-none overflow-hidden text-sm leading-relaxed sm:text-base">
                 {showMarkdown ? (
-                  <div className="text-foreground leading-relaxed break-words overflow-wrap-anywhere">
+                  <div className="text-foreground overflow-wrap-anywhere leading-relaxed break-words">
                     <Streamdown>{response}</Streamdown>
                   </div>
                 ) : (
-                  <pre className="whitespace-pre-wrap font-sans text-foreground leading-relaxed break-words overflow-wrap-anywhere max-w-full overflow-x-auto">
+                  <pre className="text-foreground overflow-wrap-anywhere max-w-full overflow-x-auto font-sans leading-relaxed break-words whitespace-pre-wrap">
                     {response}
                   </pre>
                 )}
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                <div className="text-center px-4">
-                  <MessageCircle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4" strokeWidth={1} />
-                  <p className="text-base sm:text-lg font-medium text-foreground">No response yet</p>
-                  <p className="text-xs sm:text-sm">Upload a file and add instructions to get started</p>
+              <div className="text-muted-foreground flex h-full items-center justify-center">
+                <div className="px-4 text-center">
+                  <MessageCircle
+                    className="mx-auto mb-4 h-12 w-12 sm:h-16 sm:w-16"
+                    strokeWidth={1}
+                  />
+                  <p className="text-foreground text-base font-medium sm:text-lg">
+                    No response yet
+                  </p>
+                  <p className="text-xs sm:text-sm">
+                    Upload a file and add instructions to get started
+                  </p>
                 </div>
               </div>
             )}
@@ -131,7 +140,7 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
         </div>
 
         {response && (
-          <div className="mt-4 pt-4 border-t flex flex-col sm:flex-row gap-2">
+          <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
             <Button
               onClick={handleCopyResponse}
               variant="outline"
@@ -139,7 +148,7 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
               className="text-xs sm:text-sm"
               disabled={isProcessing}
             >
-              <Copy className="w-4 h-4" />
+              <Copy className="h-4 w-4" />
               <span className="hidden sm:inline">{copyFeedback || 'Copy Response'}</span>
               <span className="sm:hidden">{copyFeedback || 'Copy'}</span>
             </Button>
@@ -150,12 +159,12 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
               className="text-xs sm:text-sm"
               disabled={isProcessing}
             >
-              <Download className="w-4 h-4" />
+              <Download className="h-4 w-4" />
               Download
             </Button>
           </div>
         )}
       </CardContent>
     </Card>
-  )
-}
+  );
+};

@@ -1,85 +1,79 @@
-import React, { useEffect } from 'react'
-import { Button } from './ui/button'
-import { Card } from './ui/card'
-import { Badge } from './ui/badge'
-import { Alert, AlertDescription } from './ui/alert'
-import { useGoogleDrive } from '../hooks/useGoogleDrive'
-import { Cloud, CloudOff, Loader2, AlertCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import React, { useEffect } from 'react';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Badge } from './ui/badge';
+import { Alert, AlertDescription } from './ui/alert';
+import { useGoogleDrive } from '../hooks/useGoogleDrive';
+import { Cloud, CloudOff, Loader2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface GoogleDriveAuthProps {
-  onAuthChange?: (isAuthenticated: boolean) => void
+  onAuthChange?: (isAuthenticated: boolean) => void;
 }
 
 export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Element {
-  const {
-    isAuthenticated,
-    isAuthenticating,
-    authenticate,
-    logout,
-    error,
-    clearError
-  } = useGoogleDrive()
+  const { isAuthenticated, isAuthenticating, authenticate, logout, error, clearError } =
+    useGoogleDrive();
 
   useEffect(() => {
-    onAuthChange?.(isAuthenticated)
+    onAuthChange?.(isAuthenticated);
     if (isAuthenticated) {
-      toast.success('Successfully connected to Google Drive!')
+      toast.success('Successfully connected to Google Drive!');
     }
-  }, [isAuthenticated, onAuthChange])
+  }, [isAuthenticated, onAuthChange]);
 
   // Handle auth callback from popup
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return
-      
+      if (event.origin !== window.location.origin) return;
+
       if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
         // Handle successful authentication
-        console.log('Google auth successful')
+        console.log('Google auth successful');
       }
-    }
+    };
 
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [])
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const handleAuth = () => {
-    clearError()
-    authenticate()
-  }
+    clearError();
+    authenticate();
+  };
 
   const handleLogout = async () => {
-    clearError()
-    await logout()
-  }
+    clearError();
+    await logout();
+  };
 
   return (
-    <Card className="p-4 space-y-4">
+    <Card className="space-y-4 p-4">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
-        <div className="flex items-center space-x-2 min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 items-center space-x-2">
           {isAuthenticated ? (
             <>
-              <Cloud className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-              <span className="font-medium text-primary text-xs sm:text-sm md:text-base truncate">
-                <span className="hidden xs:inline">Connected to Google Drive</span>
+              <Cloud className="text-primary h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
+              <span className="text-primary truncate text-xs font-medium sm:text-sm md:text-base">
+                <span className="xs:inline hidden">Connected to Google Drive</span>
                 <span className="xs:hidden">Connected</span>
               </span>
             </>
           ) : (
             <>
-              <CloudOff className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
-              <span className="font-medium text-xs sm:text-sm md:text-base text-muted-foreground truncate">
-                <span className="hidden xs:inline">Not connected to Google Drive</span>
+              <CloudOff className="text-muted-foreground h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
+              <span className="text-muted-foreground truncate text-xs font-medium sm:text-sm md:text-base">
+                <span className="xs:inline hidden">Not connected to Google Drive</span>
                 <span className="xs:hidden">Not connected</span>
               </span>
             </>
           )}
         </div>
-        <Badge 
-          variant={isAuthenticated ? "default" : "outline"} 
-          className="shrink-0 text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 sm:text-xs"
+        <Badge
+          variant={isAuthenticated ? 'default' : 'outline'}
+          className="shrink-0 px-1.5 py-0.5 text-xs sm:px-2 sm:py-1 sm:text-xs"
         >
-          {isAuthenticated ? "Connected" : "Disconnected"}
+          {isAuthenticated ? 'Connected' : 'Disconnected'}
         </Badge>
       </div>
 
@@ -92,7 +86,7 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
               variant="ghost"
               size="sm"
               onClick={clearError}
-              className="ml-2 text-destructive hover:text-destructive/80"
+              className="text-destructive hover:text-destructive/80 ml-2"
             >
               Dismiss
             </Button>
@@ -102,30 +96,26 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
 
       <div className="flex space-x-2">
         {isAuthenticated ? (
-          <Button 
-            onClick={handleLogout}
-            variant="outline"
-            disabled={isAuthenticating}
-          >
-            {isAuthenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          <Button onClick={handleLogout} variant="outline" disabled={isAuthenticating}>
+            {isAuthenticating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Disconnect
           </Button>
         ) : (
-          <Button 
+          <Button
             onClick={handleAuth}
             disabled={isAuthenticating}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
-            {isAuthenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {isAuthenticating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Connect to Google Drive
           </Button>
         )}
       </div>
 
       {!isAuthenticated && (
-        <div className="text-xs text-muted-foreground space-y-1">
+        <div className="text-muted-foreground space-y-1 text-xs">
           <p>Connect your Google Drive to:</p>
-          <ul className="list-disc list-inside space-y-1 ml-2">
+          <ul className="ml-2 list-inside list-disc space-y-1">
             <li>Select folders for saving processed files</li>
             <li>Save as Google Docs with custom names</li>
             <li>Automatically convert markdown to document format</li>
@@ -133,5 +123,5 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
         </div>
       )}
     </Card>
-  )
+  );
 }

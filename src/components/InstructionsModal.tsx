@@ -1,19 +1,19 @@
-import { Button } from "@/components/ui/button"
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface InstructionsModalProps {
-  isOpen: boolean
-  onClose: () => void
-  savedInstructions: string[]
-  onLoadInstruction: (instruction: string) => void
-  onDeleteInstruction: (index: number) => void
+  isOpen: boolean;
+  onClose: () => void;
+  savedInstructions: string[];
+  onLoadInstruction: (instruction: string) => void;
+  onDeleteInstruction: (index: number) => void;
 }
 
 export const InstructionsModal = ({
@@ -21,32 +21,26 @@ export const InstructionsModal = ({
   onClose,
   savedInstructions,
   onLoadInstruction,
-  onDeleteInstruction
+  onDeleteInstruction,
 }: InstructionsModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] max-h-[85vh] sm:max-w-2xl">
+      <DialogContent className="max-h-[85vh] max-w-[calc(100vw-2rem)] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Saved Instructions</DialogTitle>
-          <DialogDescription>
-            View, load, or delete your saved instructions.
-          </DialogDescription>
+          <DialogDescription>View, load, or delete your saved instructions.</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
           {savedInstructions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No saved instructions yet.</p>
+            <p className="text-muted-foreground py-8 text-center">No saved instructions yet.</p>
           ) : (
             <div className="space-y-3 pr-4">
               {savedInstructions.map((instr, index) => (
-                <div key={index} className="p-4 bg-muted rounded-lg">
+                <div key={index} className="bg-muted rounded-lg p-4">
                   <div className="flex flex-col gap-3">
                     <p className="text-foreground text-sm leading-relaxed">{instr}</p>
                     <div className="flex gap-2">
-                      <Button
-                        onClick={() => onLoadInstruction(instr)}
-                        size="sm"
-                        variant="default"
-                      >
+                      <Button onClick={() => onLoadInstruction(instr)} size="sm" variant="default">
                         Load
                       </Button>
                       <Button
@@ -65,5 +59,5 @@ export const InstructionsModal = ({
         </ScrollArea>
       </DialogContent>
     </Dialog>
-  )
-}
+  );
+};

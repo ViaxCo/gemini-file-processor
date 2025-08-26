@@ -1,23 +1,16 @@
-import {
-  AlertCircle,
-  CheckCircle,
-  ExternalLink,
-  FileText,
-  Loader2,
-  Upload
-} from 'lucide-react'
-import React, { useState } from 'react'
-import { useGoogleDrive } from '../hooks/useGoogleDrive'
-import { Button } from './ui/button'
-import { Card } from './ui/card'
-import { Input } from './ui/input'
+import { AlertCircle, CheckCircle, ExternalLink, FileText, Loader2, Upload } from 'lucide-react';
+import React, { useState } from 'react';
+import { useGoogleDrive } from '../hooks/useGoogleDrive';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Input } from './ui/input';
 
 interface GoogleDriveUploadProps {
-  fileResults: Array<{ file: File; response: string; isProcessing: boolean; isCompleted: boolean }>
-  selectedFolderId?: string | null
-  selectedFolderName?: string
-  onUploadComplete?: (uploadedFiles: Array<{ name: string; url: string }>) => void
-  isProcessing?: boolean
+  fileResults: Array<{ file: File; response: string; isProcessing: boolean; isCompleted: boolean }>;
+  selectedFolderId?: string | null;
+  selectedFolderName?: string;
+  onUploadComplete?: (uploadedFiles: Array<{ name: string; url: string }>) => void;
+  isProcessing?: boolean;
 }
 
 export function GoogleDriveUpload({
@@ -25,129 +18,135 @@ export function GoogleDriveUpload({
   selectedFolderId,
   selectedFolderName,
   onUploadComplete,
-  isProcessing = false
+  isProcessing = false,
 }: GoogleDriveUploadProps): JSX.Element {
-  const { isAuthenticated, uploadToGoogleDocs, uploadStatuses, error } = useGoogleDrive()
+  const { isAuthenticated, uploadToGoogleDocs, uploadStatuses, error } = useGoogleDrive();
 
-  const [fileNames, setFileNames] = useState<Record<string, string>>({})
-  const [uploadedFiles, setUploadedFiles] = useState<Array<{ name: string; url: string; originalFileName: string }>>([])
+  const [fileNames, setFileNames] = useState<Record<string, string>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<
+    Array<{ name: string; url: string; originalFileName: string }>
+  >([]);
 
   // Initialize file names with default values
   React.useEffect(() => {
-    const defaultNames: Record<string, string> = {}
+    const defaultNames: Record<string, string> = {};
     fileResults.forEach((result) => {
       if (!fileNames[result.file.name]) {
         // Generate default name from original filename
-        const baseName = result.file.name?.replace(/\.[^/.]+$/, '') // Remove extension
-        defaultNames[result.file.name] = baseName
+        const baseName = result.file.name?.replace(/\.[^/.]+$/, ''); // Remove extension
+        defaultNames[result.file.name] = baseName;
       }
-    })
+    });
     if (Object.keys(defaultNames).length > 0) {
-      setFileNames(prev => ({ ...defaultNames, ...prev }))
+      setFileNames((prev) => ({ ...defaultNames, ...prev }));
     }
-  }, [fileResults])
+  }, [fileResults]);
 
   React.useEffect(() => {
     if (isProcessing) {
-      setUploadedFiles([])
+      setUploadedFiles([]);
     }
-  }, [isProcessing])
+  }, [isProcessing]);
 
   const handleFileNameChange = (originalFileName: string, newName: string) => {
-    setFileNames(prev => ({
+    setFileNames((prev) => ({
       ...prev,
-      [originalFileName]: newName
-    }))
-  }
+      [originalFileName]: newName,
+    }));
+  };
 
   const handleSingleUpload = async (result: { file: File; response: string }) => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) return;
 
-    const fileName = fileNames[result.file.name] || result.file.name
+    const fileName = fileNames[result.file.name] || result.file.name;
 
     try {
       const uploadedFile = await uploadToGoogleDocs(
         result.file.name, // Pass fileId
         fileName,
         result.response,
-        selectedFolderId
-      )
+        selectedFolderId,
+      );
 
       const newUploadedFile = {
         name: fileName,
         url: uploadedFile.webViewLink || '#',
-        originalFileName: result.file.name
-      }
+        originalFileName: result.file.name,
+      };
 
-      setUploadedFiles(prev => [...prev, newUploadedFile])
-      onUploadComplete?.([newUploadedFile])
+      setUploadedFiles((prev) => [...prev, newUploadedFile]);
+      onUploadComplete?.([newUploadedFile]);
     } catch (error) {
-      console.error('Upload failed:', error)
+      console.error('Upload failed:', error);
     }
-  }
+  };
 
   const handleBatchUpload = async () => {
-    if (!isAuthenticated || fileResults.length === 0) return
+    if (!isAuthenticated || fileResults.length === 0) return;
 
     try {
       const uploadPromises = fileResults.map(async (result) => {
-        const fileName = fileNames[result.file.name] || result.file.name
+        const fileName = fileNames[result.file.name] || result.file.name;
         const uploadedFile = await uploadToGoogleDocs(
           result.file.name, // Pass fileId
           fileName,
           result.response,
-          selectedFolderId
-        )
+          selectedFolderId,
+        );
 
         return {
           name: fileName,
           url: uploadedFile.webViewLink || '#',
-          originalFileName: result.file.name
-        }
-      })
+          originalFileName: result.file.name,
+        };
+      });
 
-      const results = await Promise.all(uploadPromises)
-      setUploadedFiles(prev => [...prev, ...results])
-      onUploadComplete?.(results)
+      const results = await Promise.all(uploadPromises);
+      setUploadedFiles((prev) => [...prev, ...results]);
+      onUploadComplete?.(results);
     } catch (error) {
-      console.error('Batch upload failed:', error)
+      console.error('Batch upload failed:', error);
     }
-  }
+  };
 
   if (!isAuthenticated) {
     return (
       <Card className="p-4">
-        <div className="text-center text-muted-foreground">
-          <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <div className="text-muted-foreground text-center">
+          <Upload className="mx-auto mb-2 h-8 w-8 opacity-50" />
           <p className="text-sm">Connect to Google Drive to upload files</p>
         </div>
       </Card>
-    )
+    );
   }
 
   if (fileResults.length === 0) {
     return (
       <Card className="p-4">
-        <div className="text-center text-muted-foreground">
-          <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <div className="text-muted-foreground text-center">
+          <FileText className="mx-auto mb-2 h-8 w-8 opacity-50" />
           <p className="text-sm">Process files to enable Google Drive upload</p>
         </div>
       </Card>
-    )
+    );
   }
 
   return (
-    <Card className="p-4 space-y-4 max-w-full overflow-hidden">
+    <Card className="max-w-full space-y-4 overflow-hidden p-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">Upload to Google Drive</h3>
-        {fileResults.some(result => uploadStatuses[result.file.name] !== 'completed') && (
+        {fileResults.some((result) => uploadStatuses[result.file.name] !== 'completed') && (
           <Button
             onClick={handleBatchUpload}
-            disabled={Object.values(uploadStatuses).some(status => status === 'uploading') || isProcessing}
+            disabled={
+              Object.values(uploadStatuses).some((status) => status === 'uploading') || isProcessing
+            }
             size="sm"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center min-w-0 px-2 sm:px-4 text-xs sm:text-sm"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground flex min-w-0 items-center justify-center px-2 text-xs sm:px-4 sm:text-sm"
           >
-            {Object.values(uploadStatuses).some(status => status === 'uploading') && <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-spin flex-shrink-0" />}
+            {Object.values(uploadStatuses).some((status) => status === 'uploading') && (
+              <Loader2 className="mr-1 h-3 w-3 flex-shrink-0 animate-spin sm:h-4 sm:w-4" />
+            )}
             <span className="truncate">
               <span className="hidden sm:inline">Upload All</span>
               <span className="sm:hidden">Upload</span>
@@ -156,43 +155,44 @@ export function GoogleDriveUpload({
         )}
       </div>
 
-      <div className="p-2 bg-primary/10 border border-primary/20 rounded-md">
-        <p className="text-sm text-primary">
-          Destination: <span className="font-medium">{selectedFolderName || 'Root (My Drive)'}</span>
+      <div className="bg-primary/10 border-primary/20 rounded-md border p-2">
+        <p className="text-primary text-sm">
+          Destination:{' '}
+          <span className="font-medium">{selectedFolderName || 'Root (My Drive)'}</span>
         </p>
       </div>
 
       {error && (
-        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start space-x-2">
-          <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="bg-destructive/10 border-destructive/20 flex items-start space-x-2 rounded-md border p-3">
+          <AlertCircle className="text-destructive mt-0.5 h-4 w-4 flex-shrink-0" />
+          <p className="text-destructive text-sm">{error}</p>
         </div>
       )}
 
-      <div className="space-y-3 max-h-[500px] lg:max-h-[400px] xl:max-h-[500px] overflow-y-auto lg:overflow-y-auto">
+      <div className="max-h-[500px] space-y-3 overflow-y-auto lg:max-h-[400px] lg:overflow-y-auto xl:max-h-[500px]">
         {fileResults.map((result) => {
-          const isUploaded = uploadStatuses[result.file.name] === 'completed'
-          const isUploadingThisFile = uploadStatuses[result.file.name] === 'uploading'
-          const uploadedFile = isUploaded ? uploadedFiles.find(f => f.originalFileName === result.file.name) : undefined
+          const isUploaded = uploadStatuses[result.file.name] === 'completed';
+          const isUploadingThisFile = uploadStatuses[result.file.name] === 'uploading';
+          const uploadedFile = isUploaded
+            ? uploadedFiles.find((f) => f.originalFileName === result.file.name)
+            : undefined;
 
           return (
-            <div key={result.file.name} className="border rounded-md p-3 space-y-3">
+            <div key={result.file.name} className="space-y-3 rounded-md border p-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <FileText className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="text-sm font-medium truncate" title={result.file.name}>
+                <div className="flex min-w-0 flex-1 items-center space-x-2">
+                  <FileText className="text-primary h-4 w-4 shrink-0" />
+                  <span className="truncate text-sm font-medium" title={result.file.name}>
                     {result.file.name}
                   </span>
-                  {isUploaded && (
-                    <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                  )}
+                  {isUploaded && <CheckCircle className="text-primary h-4 w-4 shrink-0" />}
                 </div>
               </div>
 
               {!isUploaded && (
                 <div className="space-y-2">
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">
+                    <label className="text-muted-foreground mb-1 block text-xs">
                       Document name in Google Drive:
                     </label>
                     <Input
@@ -204,12 +204,21 @@ export function GoogleDriveUpload({
                   </div>
                   <Button
                     onClick={() => handleSingleUpload(result)}
-                    disabled={isUploadingThisFile || result.isProcessing || !result.isCompleted || !fileNames[result.file.name]?.trim()}
+                    disabled={
+                      isUploadingThisFile ||
+                      result.isProcessing ||
+                      !result.isCompleted ||
+                      !fileNames[result.file.name]?.trim()
+                    }
                     size="sm"
-                    className="w-full flex items-center justify-center min-w-0 px-2 sm:px-4 text-xs sm:text-sm"
+                    className="flex w-full min-w-0 items-center justify-center px-2 text-xs sm:px-4 sm:text-sm"
                   >
-                    {isUploadingThisFile && <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-spin flex-shrink-0" />}
-                    {!isUploadingThisFile && <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />}
+                    {isUploadingThisFile && (
+                      <Loader2 className="mr-1 h-3 w-3 flex-shrink-0 animate-spin sm:h-4 sm:w-4" />
+                    )}
+                    {!isUploadingThisFile && (
+                      <Upload className="mr-1 h-3 w-3 flex-shrink-0 sm:h-4 sm:w-4" />
+                    )}
                     <span className="truncate">
                       <span className="hidden sm:inline">Upload to Google Docs</span>
                       <span className="sm:hidden">Upload</span>
@@ -219,11 +228,16 @@ export function GoogleDriveUpload({
               )}
 
               {isUploaded && uploadedFile && (
-                <div className="bg-primary/10 border border-primary/20 rounded-md p-2">
-                  <div className="flex items-center justify-between min-w-0">
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-sm text-primary whitespace-nowrap">Uploaded as:</span>
-                      <span className="font-medium text-sm text-primary break-all" title={uploadedFile.name}>{uploadedFile.name}</span>
+                <div className="bg-primary/10 border-primary/20 rounded-md border p-2">
+                  <div className="flex min-w-0 items-center justify-between">
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-primary text-sm whitespace-nowrap">Uploaded as:</span>
+                      <span
+                        className="text-primary text-sm font-medium break-all"
+                        title={uploadedFile.name}
+                      >
+                        {uploadedFile.name}
+                      </span>
                     </div>
                     <Button
                       variant="ghost"
@@ -231,24 +245,24 @@ export function GoogleDriveUpload({
                       onClick={() => window.open(uploadedFile.url, '_blank')}
                       className="text-primary hover:text-primary hover:bg-primary/10"
                     >
-                      <ExternalLink className="w-3 h-3 mr-1" />
+                      <ExternalLink className="mr-1 h-3 w-3" />
                       Open
                     </Button>
                   </div>
                 </div>
               )}
             </div>
-          )
+          );
         })}
       </div>
 
       {uploadedFiles.length > 0 && (
-        <div className="pt-2 border-t">
-          <p className="text-sm text-primary">
+        <div className="border-t pt-2">
+          <p className="text-primary text-sm">
             ✓ {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} uploaded successfully
           </p>
         </div>
       )}
     </Card>
-  )
+  );
 }

@@ -1,25 +1,25 @@
-import { useInstructions } from '../hooks/useInstructions'
-import { InstructionsModal } from './InstructionsModal'
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
-import { Loader2, Zap, Check } from 'lucide-react'
+import { useInstructions } from '../hooks/useInstructions';
+import { InstructionsModal } from './InstructionsModal';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Zap, Check } from 'lucide-react';
 
 interface InstructionsPanelProps {
-  onProcess: (instruction: string) => void
-  onClearAll: () => void
-  isProcessing: boolean
-  canProcess: boolean
-  fileCount?: number
+  onProcess: (instruction: string) => void;
+  onClearAll: () => void;
+  isProcessing: boolean;
+  canProcess: boolean;
+  fileCount?: number;
 }
 
-export const InstructionsPanel = ({ 
-  onProcess, 
-  onClearAll, 
-  isProcessing, 
+export const InstructionsPanel = ({
+  onProcess,
+  onClearAll,
+  isProcessing,
   canProcess,
-  fileCount = 0
+  fileCount = 0,
 }: InstructionsPanelProps) => {
   const {
     instruction,
@@ -28,27 +28,27 @@ export const InstructionsPanel = ({
     saveInstruction,
     loadInstruction,
     deleteInstruction,
-    isSaved
-  } = useInstructions()
-  
-  const [showInstructionsModal, setShowInstructionsModal] = useState<boolean>(false)
+    isSaved,
+  } = useInstructions();
+
+  const [showInstructionsModal, setShowInstructionsModal] = useState<boolean>(false);
 
   const handleLoadInstruction = (instructionText: string): void => {
-    loadInstruction(instructionText)
-    setShowInstructionsModal(false)
-  }
+    loadInstruction(instructionText);
+    setShowInstructionsModal(false);
+  };
 
   const handleClearAll = (): void => {
-    setInstruction('')
-    onClearAll()
-  }
+    setInstruction('');
+    onClearAll();
+  };
 
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle>Custom Instructions</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               onClick={() => setShowInstructionsModal(true)}
               variant="outline"
@@ -61,13 +61,13 @@ export const InstructionsPanel = ({
             <Button
               onClick={saveInstruction}
               disabled={!instruction.trim()}
-              variant={isSaved ? "default" : "secondary"}
+              variant={isSaved ? 'default' : 'secondary'}
               size="sm"
-              className={`text-xs sm:text-sm transition-all duration-200 ${isSaved ? "bg-primary hover:bg-primary/90" : ""}`}
+              className={`text-xs transition-all duration-200 sm:text-sm ${isSaved ? 'bg-primary hover:bg-primary/90' : ''}`}
             >
               {isSaved ? (
                 <>
-                  <Check className="w-3 h-3 mr-1" />
+                  <Check className="mr-1 h-3 w-3" />
                   <span className="hidden sm:inline">Saved!</span>
                   <span className="sm:hidden">Saved!</span>
                 </>
@@ -86,17 +86,17 @@ export const InstructionsPanel = ({
             onChange={(e) => setInstruction(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault()
+                e.preventDefault();
                 if (canProcess && instruction.trim() && !isProcessing) {
-                  onProcess(instruction)
+                  onProcess(instruction);
                 }
               }
             }}
             placeholder="Enter your instructions for Gemini AI to process the file content..."
-            className="h-24 sm:h-32 resize-none mb-4 text-sm sm:text-base"
+            className="mb-4 h-24 resize-none text-sm sm:h-32 sm:text-base"
           />
-          
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <Button
               onClick={() => onProcess(instruction)}
               disabled={!canProcess || !instruction.trim() || isProcessing}
@@ -105,21 +105,19 @@ export const InstructionsPanel = ({
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   <span className="hidden sm:inline">Processing...</span>
                   <span className="sm:hidden">Processing</span>
                 </>
               ) : (
                 <>
-                  <Zap className="w-4 h-4" />
-                  <span className="hidden sm:inline">
-                    Process File{fileCount > 1 ? 's' : ''}
-                  </span>
+                  <Zap className="h-4 w-4" />
+                  <span className="hidden sm:inline">Process File{fileCount > 1 ? 's' : ''}</span>
                   <span className="sm:hidden">Process</span>
                 </>
               )}
             </Button>
-            
+
             <Button
               onClick={handleClearAll}
               variant="secondary"
@@ -140,5 +138,5 @@ export const InstructionsPanel = ({
         onDeleteInstruction={deleteInstruction}
       />
     </>
-  )
-}
+  );
+};

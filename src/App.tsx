@@ -1,60 +1,61 @@
-import { useState } from 'react'
-import { FileUpload } from './components/FileUpload'
-import { InstructionsPanel } from './components/InstructionsPanel'
-import { ResponseDisplay } from './components/ResponseDisplay'
-import { MultiFileResponseDisplay } from './components/MultiFileResponseDisplay'
-import { GoogleDriveAuth } from './components/GoogleDriveAuth'
-import { GoogleDriveFolderSelector } from './components/GoogleDriveFolderSelector'
-import { GoogleDriveUpload } from './components/GoogleDriveUpload'
-import { ThemeToggle } from './components/ThemeToggle'
-import { useAIProcessor } from './hooks/useAIProcessor'
-import { useGoogleDrive } from './hooks/useGoogleDrive'
-import { Toaster } from './components/ui/sonner'
-import { Card, CardContent } from './components/ui/card'
-import { Separator } from './components/ui/separator'
+import { useState } from 'react';
+import { FileUpload } from './components/FileUpload';
+import { InstructionsPanel } from './components/InstructionsPanel';
+import { ResponseDisplay } from './components/ResponseDisplay';
+import { MultiFileResponseDisplay } from './components/MultiFileResponseDisplay';
+import { GoogleDriveAuth } from './components/GoogleDriveAuth';
+import { GoogleDriveFolderSelector } from './components/GoogleDriveFolderSelector';
+import { GoogleDriveUpload } from './components/GoogleDriveUpload';
+import { ThemeToggle } from './components/ThemeToggle';
+import { useAIProcessor } from './hooks/useAIProcessor';
+import { useGoogleDrive } from './hooks/useGoogleDrive';
+import { Toaster } from './components/ui/sonner';
+import { Card, CardContent } from './components/ui/card';
+import { Separator } from './components/ui/separator';
 
 function App(): JSX.Element {
-  const [files, setFiles] = useState<File[]>([])
-  const [isGoogleDriveConnected, setIsGoogleDriveConnected] = useState(false)
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
-  const [selectedFolderName, setSelectedFolderName] = useState<string>('')
-  const { fileResults, isProcessing, processFiles, clearResults } = useAIProcessor()
-  const { uploadStatuses } = useGoogleDrive()
+  const [files, setFiles] = useState<File[]>([]);
+  const [isGoogleDriveConnected, setIsGoogleDriveConnected] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [selectedFolderName, setSelectedFolderName] = useState<string>('');
+  const { fileResults, isProcessing, processFiles, clearResults } = useAIProcessor();
+  const { uploadStatuses } = useGoogleDrive();
 
   const handleProcess = async (instruction: string): Promise<void> => {
-    if (files.length === 0) return
-    await processFiles(files, instruction)
-  }
+    if (files.length === 0) return;
+    await processFiles(files, instruction);
+  };
 
   const handleClearAll = (): void => {
-    setFiles([])
-    clearResults()
-  }
+    setFiles([]);
+    clearResults();
+  };
 
   const handleClearFiles = (): void => {
-    setFiles([])
-  }
+    setFiles([]);
+  };
 
   const handleFolderSelect = (folderId: string | null, folderName: string) => {
-    setSelectedFolderId(folderId)
-    setSelectedFolderName(folderName)
-  }
+    setSelectedFolderId(folderId);
+    setSelectedFolderName(folderName);
+  };
 
-  const canProcess = files.length > 0
-  const hasResults = fileResults.length > 0
+  const canProcess = files.length > 0;
+  const hasResults = fileResults.length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 max-w-7xl">
+    <div className="bg-background min-h-screen">
+      <div className="container mx-auto max-w-7xl p-4">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div className="flex-1">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground mb-2">
+              <h1 className="text-foreground mb-2 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                 Gemini File Processor
               </h1>
-              <p className="text-sm sm:text-base lg:text-lg text-muted-foreground leading-relaxed">
-                Upload up to 10 text files and let Gemini AI process them in parallel with your custom instructions
+              <p className="text-muted-foreground text-sm leading-relaxed sm:text-base lg:text-lg">
+                Upload up to 10 text files and let Gemini AI process them in parallel with your
+                custom instructions
               </p>
             </div>
             <div className="flex-shrink-0 self-start lg:self-auto">
@@ -66,10 +67,10 @@ function App(): JSX.Element {
         {/* Google Drive Integration Section */}
         <Card className="mb-8">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4 text-foreground">Google Drive Integration</h2>
+            <h2 className="text-foreground mb-4 text-xl font-semibold">Google Drive Integration</h2>
             <div className="space-y-4">
               <GoogleDriveAuth onAuthChange={setIsGoogleDriveConnected} />
-              
+
               {isGoogleDriveConnected && (
                 <>
                   <Separator />
@@ -107,11 +108,11 @@ function App(): JSX.Element {
               fileCount={files.length}
             />
           </div>
-          
+
           {/* Right Column - Results */}
           {files.length <= 1 && fileResults.length <= 1 ? (
-            <ResponseDisplay 
-              response={fileResults[0]?.response || ''} 
+            <ResponseDisplay
+              response={fileResults[0]?.response || ''}
               isProcessing={isProcessing && fileResults.length > 0 && !fileResults[0]?.isCompleted}
             />
           ) : (
@@ -121,7 +122,7 @@ function App(): JSX.Element {
       </div>
       <Toaster />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

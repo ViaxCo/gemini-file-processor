@@ -54,17 +54,19 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 ### 4. Configure Environment Variables
 
 1. Copy `.env.example` to `.env`:
+
    ```bash
    cp .env.example .env
    ```
 
 2. Edit the `.env` file and add your credentials:
+
    ```env
    # Google Drive API Configuration
    VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
    VITE_GOOGLE_API_KEY=your_google_api_key_here
    # Note: VITE_GOOGLE_REDIRECT_URI is no longer needed with Google Identity Services
-   
+
    # Gemini API Key (existing)
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
    ```
@@ -81,6 +83,7 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 ### 5. Test the Integration
 
 1. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -94,18 +97,21 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 ## How to Use
 
 ### Authentication
+
 1. Click the "Connect to Google Drive" button
 2. A Google OAuth popup will appear
 3. Grant the necessary permissions
 4. The app will show "Connected to Google Drive" when successful
 
 ### Selecting Folders
+
 1. After authentication, use the folder selector to browse your Drive
 2. Navigate through folders using the chevron buttons
 3. Click "Select" on the desired folder
 4. You can also create new folders directly from the interface
 
 ### Uploading Files
+
 1. Process your files with Gemini AI as usual
 2. Once processing is complete, the Google Drive upload section will appear
 3. Customize the document names for each file
@@ -113,6 +119,7 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 5. Files will be saved as Google Docs in your selected folder
 
 ### Features
+
 - **Markdown Conversion**: Automatically converts markdown-like content (headers, bullet points) to Google Docs format
 - **Custom Naming**: Set custom names for each uploaded document
 - **Folder Organization**: Save files to specific folders or create new ones
@@ -124,16 +131,19 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 ### Common Issues
 
 **"Authentication failed" error:**
+
 - Ensure your Client ID and API key are correct
 - Check that the APIs are enabled in Google Cloud Console
 - Verify the authorized JavaScript origins include your domain
 
 **"Failed to list folders" error:**
+
 - Make sure the Google Drive API is enabled
 - Check that your API key has the correct permissions
 - Ensure the user has granted the necessary OAuth scopes
 
 **"Failed to create Google Doc" error:**
+
 - Verify the Google Docs API is enabled
 - Check that your API key includes access to the Docs API
 - Ensure the user has write permissions to the selected folder
@@ -141,6 +151,7 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 ### Development vs Production
 
 For production deployment, remember to:
+
 1. Update the authorized JavaScript origins in Google Cloud Console to include your production domain
 2. The redirect URI is handled automatically by Google Identity Services, so no manual configuration needed
 3. Consider restricting your API key to specific referrers for security
@@ -157,6 +168,7 @@ For production deployment, remember to:
 ## Need Help?
 
 If you encounter issues:
+
 1. Check the browser console for error messages
 2. Verify all environment variables are set correctly
 3. Ensure all required APIs are enabled in Google Cloud Console
@@ -167,6 +179,7 @@ The Google Drive integration enhances your file processing workflow by automatic
 ## Recent Updates
 
 ### Version 2.0 Features
+
 - **Multi-file Upload**: Process and upload multiple files simultaneously to Google Drive
 - **Enhanced UI Feedback**: Loading indicators and clear status messages during upload
 - **Automatic File Clearing**: Uploaded files are automatically cleared from the interface after processing
@@ -174,7 +187,9 @@ The Google Drive integration enhances your file processing workflow by automatic
 - **Batch Operations**: Upload all processed files at once with custom naming
 
 ### Integration with Gemini AI
+
 The Google Drive integration works seamlessly with the Gemini AI file processor:
+
 1. Upload and process files with Gemini AI
 2. Review AI-generated responses
 3. Customize document names for Google Drive upload
