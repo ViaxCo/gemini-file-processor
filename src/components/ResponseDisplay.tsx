@@ -1,10 +1,12 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Toggle } from '@/components/ui/toggle'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Copy, Download, MessageCircle, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Streamdown } from 'streamdown'
 import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils'
+import { toast } from 'sonner'
 
 interface ResponseDisplayProps {
   response: string
@@ -50,12 +52,18 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
 
   const handleCopyResponse = async (): Promise<void> => {
     const success = await copyToClipboard(response)
+    if (success) {
+      toast.success('Response copied to clipboard')
+    } else {
+      toast.error('Failed to copy response')
+    }
     setCopyFeedback(success ? 'Copied!' : 'Failed to copy')
     setTimeout(() => setCopyFeedback(''), 2000)
   }
 
   const handleDownloadResponse = (): void => {
     downloadAsMarkdown(response)
+    toast.success('File downloaded successfully')
   }
 
   return (
@@ -81,11 +89,21 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
             className="size-full overflow-auto rounded-md p-1"
           >
             {isProcessing && !response ? (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                <div className="text-center px-4">
-                  <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 animate-spin" strokeWidth={1} />
-                  <p className="text-base sm:text-lg font-medium text-foreground">Processing...</p>
-                  <p className="text-xs sm:text-sm">AI is analyzing your file</p>
+              <div className="h-full space-y-4 p-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">AI is analyzing your file...</span>
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/5" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-1/2" />
                 </div>
               </div>
             ) : response ? (

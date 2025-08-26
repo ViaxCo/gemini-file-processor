@@ -5,7 +5,12 @@ import { FileResult } from '../hooks/useAIProcessor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Toggle } from '@/components/ui/toggle'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChevronDown, ChevronUp, Copy, Download, FileText, Loader2, CheckCircle, AlertCircle, DownloadCloud } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface MultiFileResponseDisplayProps {
   fileResults: FileResult[]
@@ -53,12 +58,18 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
 
   const handleCopy = async (): Promise<void> => {
     const success = await copyToClipboard(result.response)
+    if (success) {
+      toast.success('Response copied to clipboard')
+    } else {
+      toast.error('Failed to copy response')
+    }
     setCopyFeedback(success ? 'Copied!' : 'Failed to copy')
     setTimeout(() => setCopyFeedback(''), 2000)
   }
 
   const handleDownload = (): void => {
     downloadAsMarkdown(result.response, `${result.file.name.replace('.txt', '')}_processed.md`)
+    toast.success('File downloaded successfully')
   }
 
   const getStatusIcon = () => {
@@ -81,6 +92,19 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
     return 'Waiting'
   }
 
+  const getStatusBadge = () => {
+    if (result.error) {
+      return <Badge variant="destructive">Error</Badge>
+    }
+    if (result.isCompleted) {
+      return <Badge variant="default">Completed</Badge>
+    }
+    if (result.isProcessing) {
+      return <Badge variant="secondary">Processing...</Badge>
+    }
+    return <Badge variant="outline">Waiting</Badge>
+  }
+
   return (
     <Card className="w-full gap-0">
       <CardHeader className='pb-2'>
@@ -92,37 +116,50 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
             <div className="flex-shrink-0">{getStatusIcon()}</div>
             <div className="min-w-0 flex-1 overflow-hidden">
               <CardTitle className="text-sm sm:text-base lg:text-lg truncate overflow-hidden whitespace-nowrap" title={result.file.name}>{result.file.name}</CardTitle>
-              <p className="text-xs sm:text-sm text-muted-foreground truncate overflow-hidden whitespace-nowrap" title={`${getStatusText()} • ${(result.file.size / 1024).toFixed(2)} KB`}>
-                {getStatusText()} • {(result.file.size / 1024).toFixed(2)} KB
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                {getStatusBadge()}
+                <span className="text-xs text-muted-foreground">
+                  {(result.file.size / 1024).toFixed(2)} KB
+                </span>
+              </div>
               {result.response && (result.isCompleted || result.isProcessing) && (
                 <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mt-2">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleCopy()
-                    }}
-                    variant="outline"
-                    size="sm"
-                    disabled={!result.response || result.isProcessing}
-                    className="text-xs px-2 py-1 min-w-0"
-                  >
-                    <Copy className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                    <span className="hidden sm:inline ml-1 whitespace-nowrap">{copyFeedback || 'Copy'}</span>
-                  </Button>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDownload()
-                    }}
-                    variant="outline"
-                    size="sm"
-                    disabled={!result.response || result.isProcessing}
-                    className="text-xs px-2 py-1 min-w-0"
-                  >
-                    <Download className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                    <span className="hidden sm:inline ml-1 whitespace-nowrap">Download</span>
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCopy()
+                        }}
+                        variant="outline"
+                        size="sm"
+                        disabled={!result.response || result.isProcessing}
+                        className="text-xs px-2 py-1 min-w-0"
+                      >
+                        <Copy className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="hidden sm:inline ml-1 whitespace-nowrap">{copyFeedback || 'Copy'}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy response to clipboard</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDownload()
+                        }}
+                        variant="outline"
+                        size="sm"
+                        disabled={!result.response || result.isProcessing}
+                        className="text-xs px-2 py-1 min-w-0"
+                      >
+                        <Download className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="hidden sm:inline ml-1 whitespace-nowrap">Download</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Download as markdown file</TooltipContent>
+                  </Tooltip>
                 </div>
               )}
             </div>
@@ -180,6 +217,10 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
   const completedResults = fileResults.filter(result => result.isCompleted && !result.error && result.response)
   const allCompleted = fileResults.length > 0 && fileResults.every(result => result.isCompleted)
   const isAnyProcessing = fileResults.some(result => result.isProcessing)
+  const completedCount = fileResults.filter(result => result.isCompleted).length
+  const errorCount = fileResults.filter(result => result.error).length
+  const processingCount = fileResults.filter(result => result.isProcessing).length
+  const progressPercentage = fileResults.length > 0 ? (completedCount / fileResults.length) * 100 : 0
 
   const handleDownloadAll = (): void => {
     if (completedResults.length === 0) return
@@ -188,6 +229,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
       downloadAsMarkdown(result.response, `${result.file.name.replace('.txt', '')}_processed.md`)
     })
     
+    toast.success(`Downloaded ${completedResults.length} file${completedResults.length > 1 ? 's' : ''} successfully`)
     setDownloadAllFeedback('Downloaded all files!')
     setTimeout(() => setDownloadAllFeedback(''), 3000)
   }
@@ -216,23 +258,54 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg sm:text-xl">AI Responses</CardTitle>
         {allCompleted && completedResults.length > 0 && (
-          <Button
-            onClick={handleDownloadAll}
-            variant="default"
-            size="sm"
-            className="text-xs sm:text-sm flex-shrink-0"
-            disabled={isAnyProcessing}
-          >
-            <DownloadCloud className="w-4 h-4" />
-            <span className="hidden sm:inline whitespace-nowrap">{downloadAllFeedback || 'Download All'}</span>
-            <span className="sm:hidden whitespace-nowrap">{downloadAllFeedback || 'Download'}</span>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleDownloadAll}
+                variant="default"
+                size="sm"
+                className="text-xs sm:text-sm flex-shrink-0"
+                disabled={isAnyProcessing}
+              >
+                <DownloadCloud className="w-4 h-4" />
+                <span className="hidden sm:inline whitespace-nowrap">{downloadAllFeedback || 'Download All'}</span>
+                <span className="sm:hidden whitespace-nowrap">{downloadAllFeedback || 'Download'}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Download all completed files as markdown</TooltipContent>
+          </Tooltip>
         )}
       </CardHeader>
       <CardContent>
         <div className="space-y-4 max-h-[500px] lg:max-h-[680px] xl:max-h-[700px] overflow-y-auto lg:overflow-y-auto pr-2">
-          <div className="text-sm text-muted-foreground">
-            Processing Results ({fileResults.length} file{fileResults.length !== 1 ? 's' : ''})
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                Processing Results ({fileResults.length} file{fileResults.length !== 1 ? 's' : ''})
+              </span>
+              <div className="flex gap-2">
+                {completedCount > 0 && <Badge variant="default">{completedCount} completed</Badge>}
+                {processingCount > 0 && <Badge variant="secondary">{processingCount} processing</Badge>}
+                {errorCount > 0 && <Badge variant="destructive">{errorCount} error{errorCount > 1 ? 's' : ''}</Badge>}
+              </div>
+            </div>
+            {isAnyProcessing && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Progress</span>
+                  <span>{Math.round(progressPercentage)}%</span>
+                </div>
+                <Progress value={progressPercentage} className="h-2" />
+              </div>
+            )}
+            {errorCount > 0 && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {errorCount} file{errorCount > 1 ? 's' : ''} failed to process. Check individual files for details.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           
           {fileResults.length === 0 ? (

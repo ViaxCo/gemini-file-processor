@@ -1,8 +1,11 @@
 import React, { useEffect } from 'react'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
+import { Badge } from './ui/badge'
+import { Alert, AlertDescription } from './ui/alert'
 import { useGoogleDrive } from '../hooks/useGoogleDrive'
-import { Cloud, CloudOff, Loader2 } from 'lucide-react'
+import { Cloud, CloudOff, Loader2, AlertCircle } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface GoogleDriveAuthProps {
   onAuthChange?: (isAuthenticated: boolean) => void
@@ -20,6 +23,9 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
 
   useEffect(() => {
     onAuthChange?.(isAuthenticated)
+    if (isAuthenticated) {
+      toast.success('Successfully connected to Google Drive!')
+    }
   }, [isAuthenticated, onAuthChange])
 
   // Handle auth callback from popup
@@ -49,32 +55,40 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
 
   return (
     <Card className="p-4 space-y-4">
-      <div className="flex items-center space-x-2">
-        {isAuthenticated ? (
-          <>
-            <Cloud className="h-5 w-5 text-green-600" />
-            <span className="font-medium text-green-600">Connected to Google Drive</span>
-          </>
-        ) : (
-          <>
-            <CloudOff className="h-5 w-5 text-gray-500" />
-            <span className="font-medium text-gray-500">Not connected to Google Drive</span>
-          </>
-        )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          {isAuthenticated ? (
+            <>
+              <Cloud className="h-5 w-5 text-green-600" />
+              <span className="font-medium text-green-600">Connected to Google Drive</span>
+            </>
+          ) : (
+            <>
+              <CloudOff className="h-5 w-5 text-gray-500" />
+              <span className="font-medium text-gray-500">Not connected to Google Drive</span>
+            </>
+          )}
+        </div>
+        <Badge variant={isAuthenticated ? "default" : "outline"}>
+          {isAuthenticated ? "Connected" : "Disconnected"}
+        </Badge>
       </div>
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600">{error}</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearError}
-            className="mt-1 text-red-600 hover:text-red-700"
-          >
-            Dismiss
-          </Button>
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{error}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearError}
+              className="ml-2 text-destructive hover:text-destructive/80"
+            >
+              Dismiss
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="flex space-x-2">

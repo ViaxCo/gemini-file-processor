@@ -1,6 +1,10 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Upload, X } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { CheckCircle, Upload, X, AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
 
 interface FileUploadProps {
   files: File[]
@@ -34,7 +38,9 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
     const textFiles = newFiles.filter(file => file.type === 'text/plain')
 
     if (textFiles.length !== newFiles.length) {
-      alert('Please upload only text files (.txt)')
+      toast.error('Invalid file type', {
+        description: 'Please upload only text files (.txt)'
+      })
       return
     }
 
@@ -51,7 +57,9 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
     })
 
     if (duplicates.length > 0) {
-      alert(`The following files are already uploaded: ${duplicates.join(', ')}`)
+      toast.warning('Duplicate files ignored', {
+        description: `The following files are already uploaded: ${duplicates.join(', ')}`
+      })
     }
 
     if (uniqueFiles.length === 0) {
@@ -60,11 +68,14 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
 
     const totalFiles = files.length + uniqueFiles.length
     if (totalFiles > 10) {
-      alert('Maximum of 10 files allowed')
+      toast.error('File limit exceeded', {
+        description: 'Maximum of 10 files allowed'
+      })
       return
     }
 
     onFilesChange([...files, ...uniqueFiles])
+    toast.success(`${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`)
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -82,7 +93,22 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
   return (
     <Card className="w-full max-w-full overflow-hidden">
       <CardHeader>
-        <CardTitle>Upload Text Files (Max 10)</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Upload Text Files</CardTitle>
+          <Badge variant={files.length >= 10 ? "destructive" : files.length > 7 ? "outline" : "secondary"}>
+            {files.length}/10 files
+          </Badge>
+        </div>
+        {files.length >= 9 && (
+          <Alert variant={files.length >= 10 ? "destructive" : "default"} className="mt-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {files.length >= 10 
+                ? "Maximum file limit reached. Remove files to add more." 
+                : "You're approaching the file limit (10 files max)."}
+            </AlertDescription>
+          </Alert>
+        )}
       </CardHeader>
       <CardContent className="w-full max-w-full overflow-hidden">
         <div
@@ -106,14 +132,19 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
                       <p className="text-xs sm:text-sm font-medium break-all overflow-wrap-anywhere word-break-break-word" title={file.name}>{file.name}</p>
                       <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</p>
                     </div>
-                    <Button
-                      onClick={() => removeFile(index)}
-                      variant="ghost"
-                      size="sm"
-                      className="ml-1 sm:ml-2 h-6 w-6 p-0 flex-shrink-0"
-                    >
-                      <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => removeFile(index)}
+                          variant="ghost"
+                          size="sm"
+                          className="ml-1 sm:ml-2 h-6 w-6 p-0 flex-shrink-0"
+                        >
+                          <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Remove file</TooltipContent>
+                    </Tooltip>
                   </div>
                 ))}
               </div>

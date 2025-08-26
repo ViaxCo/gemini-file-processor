@@ -8,6 +8,7 @@ import { GoogleDriveFolderSelector } from './components/GoogleDriveFolderSelecto
 import { GoogleDriveUpload } from './components/GoogleDriveUpload'
 import { useAIProcessor } from './hooks/useAIProcessor'
 import { useGoogleDrive } from './hooks/useGoogleDrive'
+import { Toaster } from './components/ui/sonner'
 
 function App(): JSX.Element {
   const [files, setFiles] = useState<File[]>([])
@@ -95,6 +96,7 @@ function App(): JSX.Element {
           )}
         </div>
       </div>
+      <Toaster />
     </div>
   )
 }
