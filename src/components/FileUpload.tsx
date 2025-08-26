@@ -24,23 +24,23 @@ export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
     e.preventDefault()
     e.currentTarget.style.borderColor = ''
     e.currentTarget.style.backgroundColor = ''
-    
+
     const droppedFiles = Array.from(e.dataTransfer.files)
     addFiles(droppedFiles)
   }
 
   const addFiles = (newFiles: File[]): void => {
     const textFiles = newFiles.filter(file => file.type === 'text/plain')
-    
+
     if (textFiles.length !== newFiles.length) {
       alert('Please upload only text files (.txt)')
       return
     }
-    
+
     // Check for duplicates (same name and size)
     const duplicates: string[] = []
     const uniqueFiles = textFiles.filter(newFile => {
-      const isDuplicate = files.some(existingFile => 
+      const isDuplicate = files.some(existingFile =>
         existingFile.name === newFile.name && existingFile.size === newFile.size
       )
       if (isDuplicate) {
@@ -48,21 +48,21 @@ export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
       }
       return !isDuplicate
     })
-    
+
     if (duplicates.length > 0) {
       alert(`The following files are already uploaded: ${duplicates.join(', ')}`)
     }
-    
+
     if (uniqueFiles.length === 0) {
       return
     }
-    
+
     const totalFiles = files.length + uniqueFiles.length
     if (totalFiles > 10) {
       alert('Maximum of 10 files allowed')
       return
     }
-    
+
     onFilesChange([...files, ...uniqueFiles])
   }
 
@@ -85,11 +85,10 @@ export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
       </CardHeader>
       <CardContent className="w-full max-w-full overflow-hidden">
         <div
-          className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-all duration-300 w-full max-w-full overflow-hidden ${
-            files.length > 0
+          className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-all duration-300 w-full max-w-full overflow-hidden ${files.length > 0
               ? 'border-green-400 bg-green-50 dark:bg-green-950 dark:border-green-600'
               : 'border-border hover:border-primary hover:bg-accent/50'
-          }`}
+            }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -98,8 +97,8 @@ export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
             <div className="space-y-3 sm:space-y-4">
               <CheckCircle className="w-8 h-8 sm:w-10 lg:w-12 sm:h-10 lg:h-12 mx-auto mb-2 text-green-600" />
               <p className="font-medium text-foreground text-sm sm:text-base">{files.length} file{files.length > 1 ? 's' : ''} selected</p>
-              
-              <div className="max-h-24 sm:max-h-32 overflow-y-auto overflow-x-hidden space-y-2 w-full max-w-full">
+
+              <div className="max-h-24 sm:max-h-32 overflow-y-auto space-y-2 w-full max-w-full">
                 {files.map((file, index) => (
                   <div key={index} className="flex items-center justify-between bg-background rounded-md p-2 border min-w-0 w-full">
                     <div className="flex-1 text-left min-w-0 pr-2">
@@ -127,7 +126,7 @@ export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
               <p className="text-sm text-muted-foreground">or</p>
             </div>
           )}
-          
+
           <input
             type="file"
             onChange={handleFileSelect}
@@ -136,7 +135,7 @@ export const FileUpload = ({ files, onFilesChange }: FileUploadProps) => {
             className="hidden"
             id="file-input"
           />
-          
+
           <Button
             onClick={() => document.getElementById('file-input')?.click()}
             className="mt-3 sm:mt-4 text-sm sm:text-base"
