@@ -1,5 +1,1 @@
-- use context7 to look up documentation for all packages.
-- always run build to ensure everything is working fine.
-- don't run the dev server. I am running it myself.
-- If you need to debug anything in the browser, use browser mcp.
-- only commit when i tell you to.
+AGENTS.md

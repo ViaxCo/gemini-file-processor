@@ -1,5 +1,0 @@
-This is a test file with some sample content. 
-
-Here's a paragraph with multiple lines to test how the typography looks in the response display.
-
-And another paragraph to see the overall formatting and spacing.
