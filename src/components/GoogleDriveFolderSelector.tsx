@@ -251,7 +251,7 @@ export function GoogleDriveFolderSelector({ onFolderSelect, isAuthenticated: aut
             {folders.map((folder) => (
               <div
                 key={folder.id}
-                className="flex items-center justify-between p-2 hover:bg-accent rounded-md group touch-manipulation transition-colors"
+                className="flex items-center justify-between p-2 hover:bg-primary/10 rounded-md group touch-manipulation transition-colors"
               >
                 <div className="flex items-center space-x-2 flex-1 min-w-0 overflow-hidden">
                   <Folder className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" />
@@ -264,7 +264,7 @@ export function GoogleDriveFolderSelector({ onFolderSelect, isAuthenticated: aut
                     variant="ghost"
                     size="sm"
                     onClick={() => handleFolderSelect(folder)}
-                    className="h-5 sm:h-6 px-1 sm:px-2 text-xs hover:bg-muted/100 transition-colors"
+                    className="h-5 sm:h-6 px-1 sm:px-2 text-xs text-primary hover:text-primary hover:bg-primary/10"
                   >
                     Select
                   </Button>
@@ -272,7 +272,7 @@ export function GoogleDriveFolderSelector({ onFolderSelect, isAuthenticated: aut
                     variant="ghost"
                     size="sm"
                     onClick={() => handleFolderNavigation(folder)}
-                    className="h-5 sm:h-6 px-1 sm:px-2 hover:bg-muted/100 transition-colors"
+                    className="h-5 sm:h-6 px-1 sm:px-2 text-primary hover:text-primary hover:bg-primary/10"
                   >
                     <ChevronRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </Button>
