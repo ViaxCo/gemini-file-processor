@@ -169,7 +169,7 @@ export function GoogleDriveUpload({
         </div>
       )}
 
-      <div className="max-h-[500px] space-y-3 overflow-y-auto lg:max-h-[400px] lg:overflow-y-auto xl:max-h-120">
+      <div className="max-h-[500px] space-y-3 overflow-y-auto lg:max-h-120 lg:overflow-y-auto">
         {fileResults.map((result) => {
           const isUploaded = uploadStatuses[result.file.name] === 'completed';
           const isUploadingThisFile = uploadStatuses[result.file.name] === 'uploading';
