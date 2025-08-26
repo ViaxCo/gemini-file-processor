@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -27,6 +28,9 @@ export const InstructionsModal = ({
       <DialogContent className="max-w-[calc(100vw-2rem)] max-h-[85vh] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Saved Instructions</DialogTitle>
+          <DialogDescription>
+            View, load, or delete your saved instructions.
+          </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
           {savedInstructions.length === 0 ? (
