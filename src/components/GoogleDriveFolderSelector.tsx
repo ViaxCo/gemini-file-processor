@@ -212,7 +212,7 @@ export function GoogleDriveFolderSelector({ onFolderSelect, isAuthenticated: aut
             variant="ghost"
             size="sm"
             onClick={() => handleFolderSelect(null)}
-            className="text-blue-600 hover:text-blue-700 text-xs sm:text-sm shrink-0 self-start sm:self-auto"
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-100 text-xs sm:text-sm shrink-0 self-start sm:self-auto"
           >
             Clear
           </Button>

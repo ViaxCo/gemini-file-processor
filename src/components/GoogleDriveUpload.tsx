@@ -215,7 +215,7 @@ export function GoogleDriveUpload({
                       variant="ghost"
                       size="sm"
                       onClick={() => window.open(uploadedFile.url, '_blank')}
-                      className="text-green-600 hover:text-green-700"
+                      className="text-green-600 hover:text-green-700 bg-green-100"
                     >
                       <ExternalLink className="w-3 h-3 mr-1" />
                       Open
