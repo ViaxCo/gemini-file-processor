@@ -3,10 +3,16 @@ import { FileUpload } from './components/FileUpload'
 import { InstructionsPanel } from './components/InstructionsPanel'
 import { ResponseDisplay } from './components/ResponseDisplay'
 import { MultiFileResponseDisplay } from './components/MultiFileResponseDisplay'
+import { GoogleDriveAuth } from './components/GoogleDriveAuth'
+import { GoogleDriveFolderSelector } from './components/GoogleDriveFolderSelector'
+import { GoogleDriveUpload } from './components/GoogleDriveUpload'
 import { useAIProcessor } from './hooks/useAIProcessor'
 
 function App(): JSX.Element {
   const [files, setFiles] = useState<File[]>([])
+  const [isGoogleDriveConnected, setIsGoogleDriveConnected] = useState(false)
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [selectedFolderName, setSelectedFolderName] = useState<string>('')
   const { fileResults, isProcessing, processFiles, clearResults } = useAIProcessor()
 
   const handleProcess = async (instruction: string): Promise<void> => {
@@ -19,10 +25,16 @@ function App(): JSX.Element {
     clearResults()
   }
 
+  const handleFolderSelect = (folderId: string | null, folderName: string) => {
+    setSelectedFolderId(folderId)
+    setSelectedFolderName(folderName)
+  }
+
   const canProcess = files.length > 0
+  const hasResults = fileResults.length > 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-2 sm:p-4 overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-2 sm:p-4">
       <div className="max-w-4xl mx-auto min-w-0">
         <div className="text-center mb-4 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
@@ -31,6 +43,27 @@ function App(): JSX.Element {
           <p className="text-sm sm:text-base lg:text-lg text-gray-600 px-2">
             Upload up to 10 text files and let Gemini AI process them in parallel with your custom instructions
           </p>
+        </div>
+
+        {/* Google Drive Integration Section */}
+        <div className="mb-6 space-y-4">
+          <GoogleDriveAuth onAuthChange={setIsGoogleDriveConnected} />
+
+          {isGoogleDriveConnected && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <GoogleDriveFolderSelector
+                onFolderSelect={handleFolderSelect}
+                isAuthenticated={isGoogleDriveConnected}
+              />
+              {hasResults && (
+                <GoogleDriveUpload
+                  fileResults={fileResults}
+                  selectedFolderId={selectedFolderId}
+                  selectedFolderName={selectedFolderName}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {files.length <= 1 ? (
