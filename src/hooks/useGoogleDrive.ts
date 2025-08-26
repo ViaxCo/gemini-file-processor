@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
-import { GoogleDriveService, DriveFolder, DriveFile, GoogleDriveConfig } from '../services/googleDriveService'
+import { useCallback, useEffect, useState } from 'react'
+import { DriveFile, DriveFolder, GoogleDriveConfig, GoogleDriveService } from '../services/googleDriveService'
 
 export interface UseGoogleDriveReturn {
   // Authentication
@@ -56,7 +56,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     const checkAuth = async () => {
       // Check if we already have a stored token
       const hasStoredToken = localStorage.getItem('google_drive_token') !== null
-      
+
       if (hasStoredToken) {
         setIsAuthenticated(true)
         // Wait a bit longer for GAPI to initialize and restore token
@@ -139,7 +139,6 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setFolders(result.folders)
       setNextPageToken(result.nextPageToken)
       setHasMoreFolders(!!result.nextPageToken)
-      console.log(`Loaded ${result.folders.length} folders`, result.folders)
     } catch (err) {
       console.error('Error loading folders:', err)
       setError(err instanceof Error ? err.message : 'Failed to load folders')
@@ -167,7 +166,6 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setFolders(prevFolders => [...prevFolders, ...result.folders])
       setNextPageToken(result.nextPageToken)
       setHasMoreFolders(!!result.nextPageToken)
-      console.log(`Loaded ${result.folders.length} more folders`)
     } catch (err) {
       console.error('Error loading more folders:', err)
       setError(err instanceof Error ? err.message : 'Failed to load more folders')
@@ -190,8 +188,8 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   }, [driveService, loadFolders])
 
   const uploadToGoogleDocs = useCallback(async (
-    title: string, 
-    content: string, 
+    title: string,
+    content: string,
     folderId?: string
   ): Promise<DriveFile> => {
     setIsUploading(true)

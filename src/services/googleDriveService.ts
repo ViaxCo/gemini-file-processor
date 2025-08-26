@@ -1,3 +1,5 @@
+import MarkdownIt from 'markdown-it'
+
 declare global {
   interface Window {
     google: any
@@ -28,11 +30,11 @@ export class GoogleDriveService {
   private isGapiLoaded = false
   private isSignedIn = false
   private tokenClient: any = null
+  private md = new MarkdownIt()
 
-  // OAuth 2.0 scope for Google Drive and Google Docs
+  // OAuth 2.0 scope for Google Drive
   private readonly DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
-  private readonly DOCS_DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/docs/v1/rest'
-  private readonly SCOPES = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/documents'
+  private readonly SCOPES = 'https://www.googleapis.com/auth/drive'
 
   constructor(config: GoogleDriveConfig) {
     this.config = config
@@ -60,7 +62,7 @@ export class GoogleDriveService {
           try {
             await window.gapi.client.init({
               apiKey: this.config.apiKey,
-              discoveryDocs: [this.DISCOVERY_DOC, this.DOCS_DISCOVERY_DOC]
+              discoveryDocs: [this.DISCOVERY_DOC]
             })
 
             // Initialize Google Identity Services
@@ -364,43 +366,59 @@ export class GoogleDriveService {
     }
 
     try {
-      // First, create the document
-      const docResponse = await window.gapi.client.docs.documents.create({
-        resource: {
-          title
-        }
+      const markdownHtml = this.md.render(content)
+      const styledHtml = `
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: 'Calibri', sans-serif;
+                font-size: 12pt;
+                text-align: justify;
+                line-height: 1.5;
+              }
+            </style>
+          </head>
+          <body>
+            ${markdownHtml}
+          </body>
+        </html>
+      `
+
+      const boundary = '-------314159265358979323846'
+      const delimiter = `\r\n--${boundary}\r\n`
+      const close_delim = `\r\n--${boundary}--`
+
+      const fileMetadata = {
+        name: title,
+        mimeType: 'application/vnd.google-apps.document',
+        ...(folderId && { parents: [folderId] }),
+      }
+
+      const multipartRequestBody =
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(fileMetadata) +
+        delimiter +
+        'Content-Type: text/html; charset=UTF-8\r\n\r\n' +
+        styledHtml +
+        close_delim
+
+      const request = window.gapi.client.request({
+        path: '/upload/drive/v3/files',
+        method: 'POST',
+        params: { uploadType: 'multipart' },
+        headers: {
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body: multipartRequestBody,
       })
 
-      const documentId = docResponse.result.documentId
-
-      if (!documentId) {
-        throw new Error('Failed to create document')
-      }
-
-      // Convert content to Google Docs format and update the document
-      const requests = this.convertContentToDocsRequests(content)
-
-      if (requests.length > 0) {
-        await window.gapi.client.docs.documents.batchUpdate({
-          documentId,
-          resource: {
-            requests
-          }
-        })
-      }
-
-      // Move to folder if specified
-      if (folderId) {
-        await window.gapi.client.drive.files.update({
-          fileId: documentId,
-          addParents: folderId,
-          fields: 'id,parents'
-        })
-      }
-
+      const response = await request
+      
       // Get the document info
       const fileResponse = await window.gapi.client.drive.files.get({
-        fileId: documentId,
+        fileId: response.result.id,
         fields: 'id,name,mimeType,webViewLink'
       })
 
@@ -409,75 +427,6 @@ export class GoogleDriveService {
       console.error('Error creating Google Doc:', error)
       throw new Error('Failed to create Google Doc')
     }
-  }
-
-  private convertContentToDocsRequests(content: string): any[] {
-    const requests: any[] = []
-    const lines = content.split('\n')
-    let index = 1 // Start after the title
-
-    for (const line of lines) {
-      if (line.trim() === '') {
-        // Insert paragraph break
-        requests.push({
-          insertText: {
-            location: { index },
-            text: '\n'
-          }
-        })
-        index += 1
-        continue
-      }
-
-      let text = line
-      let style: any = {}
-
-      // Handle headers
-      if (line.startsWith('### ')) {
-        text = line.substring(4)
-        style = {
-          namedStyleType: 'HEADING_3'
-        }
-      } else if (line.startsWith('## ')) {
-        text = line.substring(3)
-        style = {
-          namedStyleType: 'HEADING_2'
-        }
-      } else if (line.startsWith('# ')) {
-        text = line.substring(2)
-        style = {
-          namedStyleType: 'HEADING_1'
-        }
-      } else if (line.startsWith('- ') || line.startsWith('* ')) {
-        text = '• ' + line.substring(2) // Convert to bullet point
-      }
-
-      // Insert the text
-      requests.push({
-        insertText: {
-          location: { index },
-          text: text + '\n'
-        }
-      })
-
-      // Apply styling if needed
-      if (Object.keys(style).length > 0) {
-        requests.push({
-          updateParagraphStyle: {
-            range: {
-              startIndex: index,
-              endIndex: index + text.length
-            },
-            paragraphStyle: style,
-            fields: 'namedStyleType'
-          }
-        })
-      }
-
-      index += text.length + 1
-    }
-
-    return requests
   }
 
   async searchFiles(query: string, folderId?: string): Promise<DriveFile[]> {
