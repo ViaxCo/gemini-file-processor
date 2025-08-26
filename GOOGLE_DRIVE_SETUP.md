@@ -76,6 +76,8 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 
    **Note**: The redirect URI is no longer needed as Google Identity Services handles authentication popups automatically.
 
+   **Security Note**: Keep your `.env` file secure and never commit it to version control. Add it to your `.gitignore` if not already present.
+
 ### 5. Test the Integration
 
 1. Start the development server:
@@ -139,9 +141,11 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 ### Development vs Production
 
 For production deployment, remember to:
-1. Update the authorized JavaScript origins in Google Cloud Console
-2. Update the `VITE_GOOGLE_REDIRECT_URI` environment variable
+1. Update the authorized JavaScript origins in Google Cloud Console to include your production domain
+2. The redirect URI is handled automatically by Google Identity Services, so no manual configuration needed
 3. Consider restricting your API key to specific referrers for security
+4. Use environment-specific API keys for production vs development
+5. Enable API key restrictions in Google Cloud Console for enhanced security
 
 ## Security Best Practices
 
@@ -159,3 +163,22 @@ If you encounter issues:
 4. Check that your OAuth consent screen is properly configured
 
 The Google Drive integration enhances your file processing workflow by automatically saving processed content to your preferred Google Drive location in a properly formatted Google Docs format.
+
+## Recent Updates
+
+### Version 2.0 Features
+- **Multi-file Upload**: Process and upload multiple files simultaneously to Google Drive
+- **Enhanced UI Feedback**: Loading indicators and clear status messages during upload
+- **Automatic File Clearing**: Uploaded files are automatically cleared from the interface after processing
+- **Improved Error Handling**: Better error messages and recovery options
+- **Batch Operations**: Upload all processed files at once with custom naming
+
+### Integration with Gemini AI
+The Google Drive integration works seamlessly with the Gemini AI file processor:
+1. Upload and process files with Gemini AI
+2. Review AI-generated responses
+3. Customize document names for Google Drive upload
+4. Save processed content as formatted Google Docs
+5. Get direct links to access uploaded documents
+
+This creates a complete workflow from AI processing to permanent document storage.
