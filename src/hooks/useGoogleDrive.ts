@@ -22,8 +22,8 @@ export interface UseGoogleDriveReturn {
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>
 
   // File operations
-  uploadToGoogleDocs: (title: string, content: string, folderId?: string) => Promise<DriveFile>
-  isUploading: boolean
+  uploadToGoogleDocs: (fileId: string, title: string, content: string, folderId?: string) => Promise<DriveFile>
+  uploadStatuses: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>
 
   // Error handling
   error: string | null
@@ -47,7 +47,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   const [hasMoreFolders, setHasMoreFolders] = useState(false)
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined)
   const [currentParentId, setCurrentParentId] = useState<string | undefined>(undefined)
-  const [isUploading, setIsUploading] = useState(false)
+  const [uploadStatuses, setUploadStatuses] = useState<Record<string, 'idle' | 'uploading' | 'completed' | 'error'>>({})
   const [error, setError] = useState<string | null>(null)
   const [hasInitialLoad, setHasInitialLoad] = useState(false)
 
@@ -188,11 +188,12 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   }, [driveService, loadFolders])
 
   const uploadToGoogleDocs = useCallback(async (
+    fileId: string,
     title: string,
     content: string,
     folderId?: string
   ): Promise<DriveFile> => {
-    setIsUploading(true)
+    setUploadStatuses(prev => ({ ...prev, [fileId]: 'uploading' }))
     setError(null)
     try {
       const file = await driveService.createGoogleDoc(
@@ -200,13 +201,13 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
         content,
         folderId || selectedFolder?.id
       )
+      setUploadStatuses(prev => ({ ...prev, [fileId]: 'completed' }))
       return file
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload to Google Docs'
       setError(errorMessage)
+      setUploadStatuses(prev => ({ ...prev, [fileId]: 'error' }))
       throw new Error(errorMessage)
-    } finally {
-      setIsUploading(false)
     }
   }, [driveService, selectedFolder])
 
@@ -232,7 +233,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
 
     // File operations
     uploadToGoogleDocs,
-    isUploading,
+    uploadStatuses,
 
     // Error handling
     error,

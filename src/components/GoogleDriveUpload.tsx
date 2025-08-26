@@ -27,7 +27,7 @@ export function GoogleDriveUpload({
   onUploadComplete,
   isProcessing = false
 }: GoogleDriveUploadProps): JSX.Element {
-  const { isAuthenticated, uploadToGoogleDocs, isUploading, error } = useGoogleDrive()
+  const { isAuthenticated, uploadToGoogleDocs, uploadStatuses, error } = useGoogleDrive()
 
   const [fileNames, setFileNames] = useState<Record<string, string>>({})
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ name: string; url: string; originalFileName: string }>>([])
@@ -67,6 +67,7 @@ export function GoogleDriveUpload({
 
     try {
       const uploadedFile = await uploadToGoogleDocs(
+        result.file.name, // Pass fileId
         fileName,
         result.response,
         selectedFolderId
@@ -92,6 +93,7 @@ export function GoogleDriveUpload({
       const uploadPromises = fileResults.map(async (result) => {
         const fileName = fileNames[result.file.name] || result.file.name
         const uploadedFile = await uploadToGoogleDocs(
+          result.file.name, // Pass fileId
           fileName,
           result.response,
           selectedFolderId
@@ -138,14 +140,14 @@ export function GoogleDriveUpload({
     <Card className="p-4 space-y-4 max-w-full overflow-hidden">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">Upload to Google Drive</h3>
-        {fileResults.length > 1 && (
+        {fileResults.some(result => uploadStatuses[result.file.name] !== 'completed') && (
           <Button
             onClick={handleBatchUpload}
-            disabled={isUploading || isProcessing}
+            disabled={Object.values(uploadStatuses).some(status => status === 'uploading') || isProcessing}
             size="sm"
             className="bg-green-600 hover:bg-green-700 text-white"
           >
-            {isUploading && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+            {Object.values(uploadStatuses).some(status => status === 'uploading') && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
             Upload All
           </Button>
         )}
@@ -168,8 +170,9 @@ export function GoogleDriveUpload({
 
       <div className="space-y-3 max-h-[500px] lg:max-h-[400px] xl:max-h-[500px] overflow-y-auto lg:overflow-y-auto">
         {fileResults.map((result) => {
-          const isUploaded = uploadedFiles.some(f => f.originalFileName === result.file.name)
-          const uploadedFile = uploadedFiles.find(f => f.originalFileName === result.file.name)
+          const isUploaded = uploadStatuses[result.file.name] === 'completed'
+          const isUploadingThisFile = uploadStatuses[result.file.name] === 'uploading'
+          const uploadedFile = isUploaded ? uploadedFiles.find(f => f.originalFileName === result.file.name) : undefined
 
           return (
             <div key={result.file.name} className="border rounded-md p-3 space-y-3">
@@ -200,11 +203,11 @@ export function GoogleDriveUpload({
                   </div>
                   <Button
                     onClick={() => handleSingleUpload(result)}
-                    disabled={isUploading || result.isProcessing || !result.isCompleted || !fileNames[result.file.name]?.trim()}
+                    disabled={isUploadingThisFile || result.isProcessing || !result.isCompleted || !fileNames[result.file.name]?.trim()}
                     size="sm"
                     className="w-full"
                   >
-                    {isUploading && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                    {isUploadingThisFile && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
                     <Upload className="w-4 h-4 mr-1" />
                     Upload to Google Docs
                   </Button>
@@ -214,9 +217,10 @@ export function GoogleDriveUpload({
               {isUploaded && uploadedFile && (
                 <div className="bg-green-50 border border-green-200 rounded-md p-2">
                   <div className="flex items-center justify-between min-w-0">
-                    <span className="text-sm text-green-800 min-w-0 flex-1">
-                      Uploaded as: <span className="font-medium truncate inline-block max-w-[200px]" title={uploadedFile.name}>{uploadedFile.name}</span>
-                    </span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm text-green-800 whitespace-nowrap">Uploaded as:</span>
+                      <span className="font-medium text-sm text-green-800 break-all" title={uploadedFile.name}>{uploadedFile.name}</span>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"

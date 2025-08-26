@@ -7,6 +7,7 @@ import { GoogleDriveAuth } from './components/GoogleDriveAuth'
 import { GoogleDriveFolderSelector } from './components/GoogleDriveFolderSelector'
 import { GoogleDriveUpload } from './components/GoogleDriveUpload'
 import { useAIProcessor } from './hooks/useAIProcessor'
+import { useGoogleDrive } from './hooks/useGoogleDrive'
 
 function App(): JSX.Element {
   const [files, setFiles] = useState<File[]>([])
@@ -14,6 +15,7 @@ function App(): JSX.Element {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [selectedFolderName, setSelectedFolderName] = useState<string>('')
   const { fileResults, isProcessing, processFiles, clearResults } = useAIProcessor()
+  const { uploadStatuses } = useGoogleDrive()
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return
@@ -65,44 +67,33 @@ function App(): JSX.Element {
                   selectedFolderId={selectedFolderId}
                   selectedFolderName={selectedFolderName}
                   isProcessing={isProcessing}
+                  uploadStatuses={uploadStatuses}
                 />
               )}
             </div>
           )}
         </div>
 
-        {files.length <= 1 && fileResults.length <= 1 ? (
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-            <div className="space-y-4 sm:space-y-6">
-              <FileUpload files={files} onFilesChange={setFiles} onClearFiles={handleClearFiles} />
-              <InstructionsPanel
-                onProcess={handleProcess}
-                onClearAll={handleClearAll}
-                isProcessing={isProcessing}
-                canProcess={canProcess}
-                fileCount={files.length}
-              />
-            </div>
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+          <div className="space-y-4 sm:space-y-6">
+            <FileUpload files={files} onFilesChange={setFiles} onClearFiles={handleClearFiles} />
+            <InstructionsPanel
+              onProcess={handleProcess}
+              onClearAll={handleClearAll}
+              isProcessing={isProcessing}
+              canProcess={canProcess}
+              fileCount={files.length}
+            />
+          </div>
+          {files.length <= 1 && fileResults.length <= 1 ? (
             <ResponseDisplay 
               response={fileResults[0]?.response || ''} 
               isProcessing={isProcessing && fileResults.length > 0 && !fileResults[0]?.isCompleted}
             />
-          </div>
-        ) : (
-          <div className="space-y-4 sm:space-y-6">
-            <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-              <FileUpload files={files} onFilesChange={setFiles} onClearFiles={handleClearFiles} />
-              <InstructionsPanel
-                onProcess={handleProcess}
-                onClearAll={handleClearAll}
-                isProcessing={isProcessing}
-                canProcess={canProcess}
-                fileCount={files.length}
-              />
-            </div>
+          ) : (
             <MultiFileResponseDisplay fileResults={fileResults} />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
