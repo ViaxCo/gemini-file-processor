@@ -173,7 +173,7 @@ body {
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
@@ -209,7 +209,7 @@ body {
 
   /* Focus improvements */
   :focus-visible {
-    @apply ring-ring ring-offset-background ring-2 ring-offset-2 outline-none;
+    @apply ring-2 ring-ring ring-offset-2 ring-offset-background outline-none;
   }
 
   /* Scrollbar styling for webkit browsers */
@@ -223,7 +223,7 @@ body {
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-lg;
+    @apply rounded-lg bg-border;
   }
 
   ::-webkit-scrollbar-thumb:hover {

@@ -32,13 +32,13 @@ export const InstructionsModal = ({
         </DialogHeader>
         <ScrollArea className="max-h-[60vh]">
           {savedInstructions.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center">No saved instructions yet.</p>
+            <p className="py-8 text-center text-muted-foreground">No saved instructions yet.</p>
           ) : (
             <div className="space-y-3 pr-4">
               {savedInstructions.map((instr, index) => (
-                <div key={index} className="bg-muted rounded-lg p-4">
+                <div key={index} className="rounded-lg bg-muted p-4">
                   <div className="flex flex-col gap-3">
-                    <p className="text-foreground text-sm leading-relaxed">{instr}</p>
+                    <p className="text-sm leading-relaxed text-foreground">{instr}</p>
                     <div className="flex gap-2">
                       <Button onClick={() => onLoadInstruction(instr)} size="sm" variant="default">
                         Load

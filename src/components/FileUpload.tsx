@@ -129,8 +129,8 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
         >
           {files.length > 0 ? (
             <div className="space-y-3 sm:space-y-4">
-              <CheckCircle className="text-primary mx-auto mb-2 h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
-              <p className="text-foreground text-sm font-medium sm:text-base">
+              <CheckCircle className="mx-auto mb-2 h-8 w-8 text-primary sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
+              <p className="text-sm font-medium text-foreground sm:text-base">
                 {files.length} file{files.length > 1 ? 's' : ''} selected
               </p>
 
@@ -138,7 +138,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
                 {files.map((file, index) => (
                   <div
                     key={index}
-                    className="bg-background flex w-full min-w-0 items-center justify-between rounded-md border p-2"
+                    className="flex w-full min-w-0 items-center justify-between rounded-md border bg-background p-2"
                   >
                     <div className="min-w-0 flex-1 pr-2 text-left">
                       <p
@@ -147,7 +147,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
                       >
                         {file.name}
                       </p>
-                      <p className="text-muted-foreground text-xs">
+                      <p className="text-xs text-muted-foreground">
                         {(file.size / 1024).toFixed(2)} KB
                       </p>
                     </div>
@@ -170,11 +170,11 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
             </div>
           ) : (
             <div className="space-y-2">
-              <Upload className="text-muted-foreground mx-auto mb-2 h-8 w-8 sm:mb-4 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
-              <p className="text-foreground text-sm font-medium sm:text-base lg:text-lg">
+              <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground sm:mb-4 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
+              <p className="text-sm font-medium text-foreground sm:text-base lg:text-lg">
                 Drag & drop your text files here
               </p>
-              <p className="text-muted-foreground text-sm">or</p>
+              <p className="text-sm text-muted-foreground">or</p>
             </div>
           )}
 

@@ -56,7 +56,7 @@ export function GoogleDriveFolderSelector({
   if (!authenticated) {
     return (
       <Card className="p-3 sm:p-4">
-        <div className="text-muted-foreground text-center">
+        <div className="text-center text-muted-foreground">
           <Folder className="mx-auto mb-2 h-6 w-6 opacity-50 sm:h-8 sm:w-8" />
           <p className="text-xs sm:text-sm">Connect to Google Drive to select folders</p>
         </div>
@@ -136,7 +136,7 @@ export function GoogleDriveFolderSelector({
       </div>
 
       {/* Breadcrumb navigation */}
-      <div className="text-muted-foreground flex items-center space-x-1 overflow-x-auto pb-1 text-xs [-ms-overflow-style:none] [scrollbar-width:none] sm:text-sm [&::-webkit-scrollbar]:hidden">
+      <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-xs text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] sm:text-sm [&::-webkit-scrollbar]:hidden">
         <Button
           variant="ghost"
           size="sm"
@@ -147,7 +147,7 @@ export function GoogleDriveFolderSelector({
         </Button>
         {breadcrumb.map((folder, index) => (
           <React.Fragment key={folder.id}>
-            <ChevronRight className="text-muted-foreground/60 h-2.5 w-2.5 shrink-0 sm:h-3 sm:w-3" />
+            <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/60 sm:h-3 sm:w-3" />
             <Button
               variant="ghost"
               size="sm"
@@ -162,7 +162,7 @@ export function GoogleDriveFolderSelector({
 
       {/* Create folder form */}
       {showCreateFolder && (
-        <div className="bg-muted/50 space-y-2 rounded-md p-2 sm:p-3">
+        <div className="space-y-2 rounded-md bg-muted/50 p-2 sm:p-3">
           <Input
             placeholder="Enter folder name"
             value={newFolderName}
@@ -196,11 +196,11 @@ export function GoogleDriveFolderSelector({
 
       {/* Selected folder indicator */}
       {selectedFolder && (
-        <div className="bg-primary/10 border-primary/20 flex flex-col justify-between gap-2 rounded-md border p-2 sm:flex-row sm:items-center sm:gap-0">
+        <div className="flex flex-col justify-between gap-2 rounded-md border border-primary/20 bg-primary/10 p-2 sm:flex-row sm:items-center sm:gap-0">
           <div className="flex min-w-0 flex-1 items-center space-x-2">
-            <Check className="text-primary h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
+            <Check className="h-3 w-3 shrink-0 text-primary sm:h-4 sm:w-4" />
             <span
-              className="text-primary truncate text-xs sm:text-sm"
+              className="truncate text-xs text-primary sm:text-sm"
               title={`Selected: ${selectedFolder.name}`}
             >
               Selected: {selectedFolder.name}
@@ -210,7 +210,7 @@ export function GoogleDriveFolderSelector({
             variant="ghost"
             size="sm"
             onClick={() => handleFolderSelect(null)}
-            className="text-primary hover:text-primary hover:bg-primary/10 shrink-0 self-start text-xs sm:self-auto sm:text-sm"
+            className="shrink-0 self-start text-xs text-primary hover:bg-primary/10 hover:text-primary sm:self-auto sm:text-sm"
           >
             Clear
           </Button>
@@ -225,16 +225,16 @@ export function GoogleDriveFolderSelector({
         {isLoadingFolders ? (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            <span className="text-muted-foreground text-xs sm:text-sm">Loading folders...</span>
+            <span className="text-xs text-muted-foreground sm:text-sm">Loading folders...</span>
           </div>
         ) : folders.length === 0 ? (
-          <div className="text-muted-foreground space-y-2 py-4 text-center sm:space-y-3 sm:py-6">
+          <div className="space-y-2 py-4 text-center text-muted-foreground sm:space-y-3 sm:py-6">
             <Folder className="mx-auto mb-2 h-6 w-6 opacity-50 sm:h-8 sm:w-8" />
             <div className="space-y-1">
-              <p className="text-foreground text-xs font-medium sm:text-sm">
+              <p className="text-xs font-medium text-foreground sm:text-sm">
                 No folders found in Google Drive
               </p>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-xs text-muted-foreground">
                 Create your first folder to get started
               </p>
             </div>
@@ -253,12 +253,12 @@ export function GoogleDriveFolderSelector({
             {folders.map((folder) => (
               <div
                 key={folder.id}
-                className="hover:bg-primary/10 group flex touch-manipulation items-center justify-between rounded-md p-2 transition-colors"
+                className="group flex touch-manipulation items-center justify-between rounded-md p-2 transition-colors hover:bg-primary/10"
               >
                 <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden">
-                  <Folder className="text-primary h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
+                  <Folder className="h-3 w-3 shrink-0 text-primary sm:h-4 sm:w-4" />
                   <span
-                    className="text-foreground max-w-[120px] truncate text-xs sm:max-w-none sm:text-sm"
+                    className="max-w-[120px] truncate text-xs text-foreground sm:max-w-none sm:text-sm"
                     title={folder.name}
                   >
                     {folder.name}
@@ -269,7 +269,7 @@ export function GoogleDriveFolderSelector({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleFolderSelect(folder)}
-                    className="text-primary hover:text-primary hover:bg-primary/10 h-5 px-1 text-xs sm:h-6 sm:px-2"
+                    className="h-5 px-1 text-xs text-primary hover:bg-primary/10 hover:text-primary sm:h-6 sm:px-2"
                   >
                     Select
                   </Button>
@@ -277,7 +277,7 @@ export function GoogleDriveFolderSelector({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleFolderNavigation(folder)}
-                    className="text-primary hover:text-primary hover:bg-primary/10 h-5 px-1 sm:h-6 sm:px-2"
+                    className="h-5 px-1 text-primary hover:bg-primary/10 hover:text-primary sm:h-6 sm:px-2"
                   >
                     <ChevronRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </Button>
@@ -291,7 +291,7 @@ export function GoogleDriveFolderSelector({
                 {isLoadingMoreFolders ? (
                   <>
                     <Loader2 className="mr-2 h-3 w-3 animate-spin sm:h-4 sm:w-4" />
-                    <span className="text-muted-foreground text-xs sm:text-sm">
+                    <span className="text-xs text-muted-foreground sm:text-sm">
                       Loading more folders...
                     </span>
                   </>
@@ -300,7 +300,7 @@ export function GoogleDriveFolderSelector({
                     variant="ghost"
                     size="sm"
                     onClick={loadMoreFolders}
-                    className="text-primary hover:text-primary hover:bg-primary/10 text-xs sm:text-sm"
+                    className="text-xs text-primary hover:bg-primary/10 hover:text-primary sm:text-sm"
                   >
                     <ChevronDown className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
                     Load More Folders

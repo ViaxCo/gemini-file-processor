@@ -44,16 +44,16 @@ function App(): JSX.Element {
   const hasResults = fileResults.length > 0;
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-7xl p-4">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div className="flex-1">
-              <h1 className="text-foreground mb-2 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+              <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
                 Gemini File Processor
               </h1>
-              <p className="text-muted-foreground text-sm leading-relaxed sm:text-base lg:text-lg">
+              <p className="text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
                 Upload up to 10 text files and let Gemini AI process them in parallel with your
                 custom instructions
               </p>
@@ -67,7 +67,7 @@ function App(): JSX.Element {
         {/* Google Drive Integration Section */}
         <Card className="mb-8">
           <CardContent className="p-6">
-            <h2 className="text-foreground mb-4 text-xl font-semibold">Google Drive Integration</h2>
+            <h2 className="mb-4 text-xl font-semibold text-foreground">Google Drive Integration</h2>
             <div className="space-y-4">
               <GoogleDriveAuth onAuthChange={setIsGoogleDriveConnected} />
 

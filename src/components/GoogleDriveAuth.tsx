@@ -53,16 +53,16 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
         <div className="flex min-w-0 flex-1 items-center space-x-2">
           {isAuthenticated ? (
             <>
-              <Cloud className="text-primary h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
-              <span className="text-primary truncate text-xs font-medium sm:text-sm md:text-base">
+              <Cloud className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
+              <span className="truncate text-xs font-medium text-primary sm:text-sm md:text-base">
                 <span className="xs:inline hidden">Connected to Google Drive</span>
                 <span className="xs:hidden">Connected</span>
               </span>
             </>
           ) : (
             <>
-              <CloudOff className="text-muted-foreground h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
-              <span className="text-muted-foreground truncate text-xs font-medium sm:text-sm md:text-base">
+              <CloudOff className="h-4 w-4 shrink-0 text-muted-foreground sm:h-5 sm:w-5" />
+              <span className="truncate text-xs font-medium text-muted-foreground sm:text-sm md:text-base">
                 <span className="xs:inline hidden">Not connected to Google Drive</span>
                 <span className="xs:hidden">Not connected</span>
               </span>
@@ -86,7 +86,7 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
               variant="ghost"
               size="sm"
               onClick={clearError}
-              className="text-destructive hover:text-destructive/80 ml-2"
+              className="ml-2 text-destructive hover:text-destructive/80"
             >
               Dismiss
             </Button>
@@ -104,7 +104,7 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
           <Button
             onClick={handleAuth}
             disabled={isAuthenticating}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {isAuthenticating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Connect to Google Drive
@@ -113,7 +113,7 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
       </div>
 
       {!isAuthenticated && (
-        <div className="text-muted-foreground space-y-1 text-xs">
+        <div className="space-y-1 text-xs text-muted-foreground">
           <p>Connect your Google Drive to:</p>
           <ul className="ml-2 list-inside list-disc space-y-1">
             <li>Select folders for saving processed files</li>

@@ -92,7 +92,7 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
               <div className="h-full space-y-4 p-4">
                 <div className="mb-4 flex items-center space-x-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-muted-foreground text-sm">
+                  <span className="text-sm text-muted-foreground">
                     AI is analyzing your file...
                   </span>
                 </div>
@@ -111,23 +111,23 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
             ) : response ? (
               <div className="max-w-none overflow-hidden text-sm leading-relaxed sm:text-base">
                 {showMarkdown ? (
-                  <div className="text-foreground overflow-wrap-anywhere leading-relaxed break-words">
+                  <div className="overflow-wrap-anywhere leading-relaxed break-words text-foreground">
                     <Streamdown>{response}</Streamdown>
                   </div>
                 ) : (
-                  <pre className="text-foreground overflow-wrap-anywhere max-w-full overflow-x-auto font-sans leading-relaxed break-words whitespace-pre-wrap">
+                  <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans leading-relaxed break-words whitespace-pre-wrap text-foreground">
                     {response}
                   </pre>
                 )}
               </div>
             ) : (
-              <div className="text-muted-foreground flex h-full items-center justify-center">
+              <div className="flex h-full items-center justify-center text-muted-foreground">
                 <div className="px-4 text-center">
                   <MessageCircle
                     className="mx-auto mb-4 h-12 w-12 sm:h-16 sm:w-16"
                     strokeWidth={1}
                   />
-                  <p className="text-foreground text-base font-medium sm:text-lg">
+                  <p className="text-base font-medium text-foreground sm:text-lg">
                     No response yet
                   </p>
                   <p className="text-xs sm:text-sm">

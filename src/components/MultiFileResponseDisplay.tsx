@@ -89,15 +89,15 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
 
   const getStatusIcon = () => {
     if (result.error) {
-      return <AlertCircle className="text-destructive h-4 w-4" />;
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
     }
     if (result.isCompleted) {
-      return <CheckCircle className="text-primary h-4 w-4" />;
+      return <CheckCircle className="h-4 w-4 text-primary" />;
     }
     if (result.isProcessing) {
-      return <Loader2 className="text-primary h-4 w-4 animate-spin" />;
+      return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
     }
-    return <FileText className="text-muted-foreground h-4 w-4" />;
+    return <FileText className="h-4 w-4 text-muted-foreground" />;
   };
 
   const getStatusText = () => {
@@ -149,7 +149,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                         variant="ghost"
                         size="sm"
                         disabled={!result.response || result.isProcessing}
-                        className="hover:bg-muted/50 h-7 w-7 p-0"
+                        className="h-7 w-7 p-0 hover:bg-muted/50"
                       >
                         <Copy className="h-3.5 w-3.5" />
                         <span className="sr-only">{copyFeedback || 'Copy'}</span>
@@ -167,7 +167,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                         variant="ghost"
                         size="sm"
                         disabled={!result.response || result.isProcessing}
-                        className="hover:bg-muted/50 h-7 w-7 p-0"
+                        className="h-7 w-7 p-0 hover:bg-muted/50"
                       >
                         <Download className="h-3.5 w-3.5" />
                         <span className="sr-only">Download</span>
@@ -194,7 +194,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
           onScroll={handleScroll}
         >
           {result.response && (
-            <div className="bg-background mb-4 rounded-md border p-4">
+            <div className="mb-4 rounded-md border bg-background p-4">
               <div className="mb-2 flex items-center justify-between">
                 <div></div>
                 <Toggle
@@ -208,11 +208,11 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {showMarkdown ? (
-                  <div className="text-foreground overflow-wrap-anywhere text-sm leading-relaxed break-words sm:text-base">
+                  <div className="overflow-wrap-anywhere text-sm leading-relaxed break-words text-foreground sm:text-base">
                     <Streamdown>{result.response}</Streamdown>
                   </div>
                 ) : (
-                  <pre className="text-foreground overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap sm:text-base">
+                  <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground sm:text-base">
                     {result.response}
                   </pre>
                 )}
@@ -261,10 +261,10 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
           <CardTitle>AI Responses</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-muted-foreground flex h-48 items-center justify-center sm:h-64 lg:h-96">
+          <div className="flex h-48 items-center justify-center text-muted-foreground sm:h-64 lg:h-96">
             <div className="px-4 text-center">
               <FileText className="mx-auto mb-4 h-12 w-12 sm:h-16 sm:w-16" strokeWidth={1} />
-              <p className="text-foreground text-base font-medium sm:text-lg">
+              <p className="text-base font-medium text-foreground sm:text-lg">
                 No files processed yet
               </p>
               <p className="text-xs sm:text-sm">Upload files and add instructions to get started</p>
@@ -323,7 +323,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
             </div>
             {isAnyProcessing && (
               <div className="space-y-2">
-                <div className="text-muted-foreground flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Progress</span>
                   <span>{Math.round(progressPercentage)}%</span>
                 </div>
@@ -342,10 +342,10 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
           </div>
 
           {fileResults.length === 0 ? (
-            <div className="text-muted-foreground flex h-48 items-center justify-center sm:h-64 lg:h-96">
+            <div className="flex h-48 items-center justify-center text-muted-foreground sm:h-64 lg:h-96">
               <div className="px-4 text-center">
                 <FileText className="mx-auto mb-4 h-12 w-12 sm:h-16 sm:w-16" strokeWidth={1} />
-                <p className="text-foreground text-base font-medium sm:text-lg">
+                <p className="text-base font-medium text-foreground sm:text-lg">
                   No files processed yet
                 </p>
                 <p className="text-xs sm:text-sm">

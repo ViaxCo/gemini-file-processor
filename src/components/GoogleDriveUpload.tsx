@@ -112,7 +112,7 @@ export function GoogleDriveUpload({
   if (!isAuthenticated) {
     return (
       <Card className="p-4">
-        <div className="text-muted-foreground text-center">
+        <div className="text-center text-muted-foreground">
           <Upload className="mx-auto mb-2 h-8 w-8 opacity-50" />
           <p className="text-sm">Connect to Google Drive to upload files</p>
         </div>
@@ -123,7 +123,7 @@ export function GoogleDriveUpload({
   if (fileResults.length === 0) {
     return (
       <Card className="p-4">
-        <div className="text-muted-foreground text-center">
+        <div className="text-center text-muted-foreground">
           <FileText className="mx-auto mb-2 h-8 w-8 opacity-50" />
           <p className="text-sm">Process files to enable Google Drive upload</p>
         </div>
@@ -142,7 +142,7 @@ export function GoogleDriveUpload({
               Object.values(uploadStatuses).some((status) => status === 'uploading') || isProcessing
             }
             size="sm"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground flex min-w-0 items-center justify-center px-2 text-xs sm:px-4 sm:text-sm"
+            className="flex min-w-0 items-center justify-center bg-primary px-2 text-xs text-primary-foreground hover:bg-primary/90 sm:px-4 sm:text-sm"
           >
             {Object.values(uploadStatuses).some((status) => status === 'uploading') && (
               <Loader2 className="mr-1 h-3 w-3 flex-shrink-0 animate-spin sm:h-4 sm:w-4" />
@@ -155,17 +155,17 @@ export function GoogleDriveUpload({
         )}
       </div>
 
-      <div className="bg-primary/10 border-primary/20 rounded-md border p-2">
-        <p className="text-primary text-sm">
+      <div className="rounded-md border border-primary/20 bg-primary/10 p-2">
+        <p className="text-sm text-primary">
           Destination:{' '}
           <span className="font-medium">{selectedFolderName || 'Root (My Drive)'}</span>
         </p>
       </div>
 
       {error && (
-        <div className="bg-destructive/10 border-destructive/20 flex items-start space-x-2 rounded-md border p-3">
-          <AlertCircle className="text-destructive mt-0.5 h-4 w-4 flex-shrink-0" />
-          <p className="text-destructive text-sm">{error}</p>
+        <div className="flex items-start space-x-2 rounded-md border border-destructive/20 bg-destructive/10 p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
+          <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
 
@@ -181,18 +181,18 @@ export function GoogleDriveUpload({
             <div key={result.file.name} className="space-y-3 rounded-md border p-3">
               <div className="flex items-center justify-between">
                 <div className="flex min-w-0 flex-1 items-center space-x-2">
-                  <FileText className="text-primary h-4 w-4 shrink-0" />
+                  <FileText className="h-4 w-4 shrink-0 text-primary" />
                   <span className="truncate text-sm font-medium" title={result.file.name}>
                     {result.file.name}
                   </span>
-                  {isUploaded && <CheckCircle className="text-primary h-4 w-4 shrink-0" />}
+                  {isUploaded && <CheckCircle className="h-4 w-4 shrink-0 text-primary" />}
                 </div>
               </div>
 
               {!isUploaded && (
                 <div className="space-y-2">
                   <div>
-                    <label className="text-muted-foreground mb-1 block text-xs">
+                    <label className="mb-1 block text-xs text-muted-foreground">
                       Document name in Google Drive:
                     </label>
                     <Input
@@ -228,12 +228,12 @@ export function GoogleDriveUpload({
               )}
 
               {isUploaded && uploadedFile && (
-                <div className="bg-primary/10 border-primary/20 rounded-md border p-2">
+                <div className="rounded-md border border-primary/20 bg-primary/10 p-2">
                   <div className="flex min-w-0 items-center justify-between">
                     <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-primary text-sm whitespace-nowrap">Uploaded as:</span>
+                      <span className="text-sm whitespace-nowrap text-primary">Uploaded as:</span>
                       <span
-                        className="text-primary text-sm font-medium break-all"
+                        className="text-sm font-medium break-all text-primary"
                         title={uploadedFile.name}
                       >
                         {uploadedFile.name}
@@ -243,7 +243,7 @@ export function GoogleDriveUpload({
                       variant="ghost"
                       size="sm"
                       onClick={() => window.open(uploadedFile.url, '_blank')}
-                      className="text-primary hover:text-primary hover:bg-primary/10"
+                      className="text-primary hover:bg-primary/10 hover:text-primary"
                     >
                       <ExternalLink className="mr-1 h-3 w-3" />
                       Open
@@ -258,7 +258,7 @@ export function GoogleDriveUpload({
 
       {uploadedFiles.length > 0 && (
         <div className="border-t pt-2">
-          <p className="text-primary text-sm">
+          <p className="text-sm text-primary">
             ✓ {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} uploaded successfully
           </p>
         </div>
