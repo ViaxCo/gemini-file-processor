@@ -17,7 +17,7 @@ export const processFileWithAI = async (
   let receivedChunks = false;
   try {
     const result = streamText({
-      model: google(import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-pro'),
+      model: google(import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash'),
       prompt: prompt,
     });
 

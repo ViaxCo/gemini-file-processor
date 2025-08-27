@@ -41,12 +41,14 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
   const scrollViewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Reset scrolling state when response is cleared or starts fresh
     if (result.response.length === 0) {
       setIsUserScrolling(false);
       setLastResponseLength(0);
       return;
     }
 
+    // Auto-scroll only when response is actively being streamed and user hasn't manually scrolled
     if (
       scrollViewportRef.current &&
       result.response.length > lastResponseLength &&
@@ -61,11 +63,13 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
   const handleScroll = () => {
     if (scrollViewportRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollViewportRef.current;
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px tolerance
 
+      // If user scrolled up from bottom, mark as user scrolling
       if (!isAtBottom) {
         setIsUserScrolling(true);
       } else {
+        // If user scrolled back to bottom, resume auto-scrolling
         setIsUserScrolling(false);
       }
     }
@@ -195,9 +199,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
       </CardHeader>
       <CardContent className="pt-0">
         <div
-          ref={scrollViewportRef}
           className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px]' : 'max-h-0'}`}
-          onScroll={handleScroll}
         >
           {result.response && (
             <div className="mb-4 rounded-md border bg-background p-4">
@@ -212,7 +214,11 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                   {showMarkdown ? 'Raw' : 'Formatted'}
                 </Toggle>
               </div>
-              <div className="max-h-96 overflow-y-auto">
+              <div 
+                ref={scrollViewportRef}
+                onScroll={handleScroll}
+                className="max-h-96 overflow-y-auto"
+              >
                 {showMarkdown ? (
                   <div className="overflow-wrap-anywhere text-sm leading-relaxed break-words text-foreground sm:text-base">
                     <Streamdown>{result.response}</Streamdown>
