@@ -53,6 +53,7 @@ The app processes files in parallel using Promise.all:
 Required environment variables:
 
 - `VITE_GEMINI_API_KEY` - Google Gemini API key for AI processing
+- `VITE_GEMINI_MODEL` - Google Gemini model to use for AI processing (e.g., `gemini-2.5-pro`, `gemini-1.5-flash`). Defaults to `gemini-2.5-pro` if not specified.
 - `VITE_GOOGLE_CLIENT_ID` - Google OAuth client ID for Drive integration
 - `VITE_GOOGLE_API_KEY` - Google API key for Drive API access
 
