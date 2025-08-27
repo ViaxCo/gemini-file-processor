@@ -20,7 +20,8 @@ export function GoogleDriveUpload({
   onUploadComplete,
   isProcessing = false,
 }: GoogleDriveUploadProps): JSX.Element {
-  const { isAuthenticated, uploadToGoogleDocs, uploadStatuses, error } = useGoogleDrive();
+  const { isAuthenticated, uploadToGoogleDocs, uploadStatuses, resetUploadStatuses, error } =
+    useGoogleDrive();
 
   const [fileNames, setFileNames] = useState<Record<string, string>>({});
   const [uploadedFiles, setUploadedFiles] = useState<
@@ -45,8 +46,9 @@ export function GoogleDriveUpload({
   React.useEffect(() => {
     if (isProcessing) {
       setUploadedFiles([]);
+      resetUploadStatuses();
     }
-  }, [isProcessing]);
+  }, [isProcessing, resetUploadStatuses]);
 
   const handleFileNameChange = (originalFileName: string, newName: string) => {
     setFileNames((prev) => ({
@@ -169,7 +171,7 @@ export function GoogleDriveUpload({
         </div>
       )}
 
-      <div className="max-h-[500px] space-y-3 overflow-y-auto lg:max-h-120 lg:overflow-y-auto">
+      <div className="max-h-[500px] space-y-3 overflow-y-auto lg:max-h-140 lg:overflow-y-auto">
         {fileResults.map((result) => {
           const isUploaded = uploadStatuses[result.file.name] === 'completed';
           const isUploadingThisFile = uploadStatuses[result.file.name] === 'uploading';

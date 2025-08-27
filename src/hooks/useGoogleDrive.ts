@@ -34,6 +34,7 @@ export interface UseGoogleDriveReturn {
     folderId?: string,
   ) => Promise<DriveFile>;
   uploadStatuses: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
+  resetUploadStatuses: () => void;
 
   // Error handling
   error: string | null;
@@ -208,6 +209,10 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     [driveService, loadFolders],
   );
 
+  const resetUploadStatuses = useCallback(() => {
+    setUploadStatuses({});
+  }, []);
+
   const uploadToGoogleDocs = useCallback(
     async (
       fileId: string,
@@ -258,6 +263,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     // File operations
     uploadToGoogleDocs,
     uploadStatuses,
+    resetUploadStatuses,
 
     // Error handling
     error,

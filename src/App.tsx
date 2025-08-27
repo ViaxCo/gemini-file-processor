@@ -19,7 +19,6 @@ function App(): JSX.Element {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string>('');
   const { fileResults, isProcessing, processFiles, clearResults } = useAIProcessor();
-  const { uploadStatuses } = useGoogleDrive();
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return;
@@ -85,7 +84,6 @@ function App(): JSX.Element {
                         selectedFolderId={selectedFolderId}
                         selectedFolderName={selectedFolderName}
                         isProcessing={isProcessing}
-                        uploadStatuses={uploadStatuses}
                       />
                     )}
                   </div>
@@ -114,6 +112,7 @@ function App(): JSX.Element {
             <ResponseDisplay
               response={fileResults[0]?.response || ''}
               isProcessing={isProcessing && fileResults.length > 0 && !fileResults[0]?.isCompleted}
+              file={fileResults[0]?.file}
             />
           ) : (
             <MultiFileResponseDisplay fileResults={fileResults} />
