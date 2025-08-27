@@ -1,4 +1,6 @@
-import { Moon, Sun, Monitor } from 'lucide-react';
+import { Monitor, Moon, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useTheme } from '../contexts/theme-context';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -6,8 +8,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { useTheme } from '../contexts/theme-context';
-import { useState, useEffect } from 'react';
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme();
@@ -32,7 +32,7 @@ export function ThemeToggle() {
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={isLargeScreen ? 'end' : 'start'}>
+      <DropdownMenuContent align="end">
         <DropdownMenuItem
           onClick={() => setTheme('light')}
           className={theme === 'light' ? 'bg-accent' : ''}

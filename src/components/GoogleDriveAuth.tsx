@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react';
+import { AlertCircle, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { toast } from 'sonner';
+import { useGoogleDrive } from '../hooks/useGoogleDrive';
+import { Alert, AlertDescription } from './ui/alert';
+import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import { Alert, AlertDescription } from './ui/alert';
-import { useGoogleDrive } from '../hooks/useGoogleDrive';
-import { Cloud, CloudOff, Loader2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
 
 interface GoogleDriveAuthProps {
   onAuthChange?: (isAuthenticated: boolean) => void;
@@ -107,7 +107,10 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {isAuthenticating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Connect to Google Drive
+            <span className="truncate">
+              <span className="hidden sm:inline">Connect to Google Drive</span>
+              <span className="sm:hidden">Connect</span>
+            </span>
           </Button>
         )}
       </div>

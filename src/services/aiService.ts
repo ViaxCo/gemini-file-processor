@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText } from 'ai';
+import { GeminiModel } from '../components/ModelSelector';
 
 const google = createGoogleGenerativeAI({
   apiKey: import.meta.env.VITE_GEMINI_API_KEY as string,
@@ -8,6 +9,7 @@ const google = createGoogleGenerativeAI({
 export const processFileWithAI = async (
   file: File,
   instruction: string,
+  model: GeminiModel,
   onChunk: (chunk: string) => void,
 ): Promise<void> => {
   const fileContent = await file.text();
@@ -17,7 +19,7 @@ export const processFileWithAI = async (
   let receivedChunks = false;
   try {
     const result = streamText({
-      model: google(import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash'),
+      model: google(model),
       prompt: prompt,
     });
 

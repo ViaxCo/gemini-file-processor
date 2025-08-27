@@ -1,28 +1,30 @@
 import { useState } from 'react';
 import { FileUpload } from './components/FileUpload';
-import { InstructionsPanel } from './components/InstructionsPanel';
-import { ResponseDisplay } from './components/ResponseDisplay';
-import { MultiFileResponseDisplay } from './components/MultiFileResponseDisplay';
 import { GoogleDriveAuth } from './components/GoogleDriveAuth';
 import { GoogleDriveFolderSelector } from './components/GoogleDriveFolderSelector';
 import { GoogleDriveUpload } from './components/GoogleDriveUpload';
+import { InstructionsPanel } from './components/InstructionsPanel';
+import { ModelSelector } from './components/ModelSelector';
+import { MultiFileResponseDisplay } from './components/MultiFileResponseDisplay';
+import { ResponseDisplay } from './components/ResponseDisplay';
 import { ThemeToggle } from './components/ThemeToggle';
-import { useAIProcessor } from './hooks/useAIProcessor';
-import { useGoogleDrive } from './hooks/useGoogleDrive';
-import { Toaster } from './components/ui/sonner';
 import { Card, CardContent } from './components/ui/card';
 import { Separator } from './components/ui/separator';
+import { Toaster } from './components/ui/sonner';
+import { useAIProcessor } from './hooks/useAIProcessor';
+import { useModelSelector } from './hooks/useModelSelector';
 
 function App(): JSX.Element {
   const [files, setFiles] = useState<File[]>([]);
   const [isGoogleDriveConnected, setIsGoogleDriveConnected] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string>('');
+  const { selectedModel, setSelectedModel } = useModelSelector();
   const { fileResults, isProcessing, processFiles, clearResults } = useAIProcessor();
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return;
-    await processFiles(files, instruction);
+    await processFiles(files, instruction, selectedModel);
   };
 
   const handleClearAll = (): void => {
@@ -47,7 +49,7 @@ function App(): JSX.Element {
       <div className="container mx-auto max-w-7xl p-4">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-4">
             <div className="flex-1">
               <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
                 Gemini File Processor
@@ -57,8 +59,11 @@ function App(): JSX.Element {
                 custom instructions
               </p>
             </div>
-            <div className="flex-shrink-0 self-start lg:self-auto">
-              <ThemeToggle />
+            <div className="flex items-center gap-3 sm:justify-between">
+              <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
+              <div className="flex justify-end sm:justify-start lg:justify-end">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { processFileWithAI } from '../services/aiService';
+import { GeminiModel } from '../components/ModelSelector';
 
 export interface FileResult {
   file: File;
@@ -13,7 +14,11 @@ export const useAIProcessor = () => {
   const [fileResults, setFileResults] = useState<FileResult[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  const processFiles = async (files: File[], instruction: string): Promise<void> => {
+  const processFiles = async (
+    files: File[],
+    instruction: string,
+    model: GeminiModel,
+  ): Promise<void> => {
     if (!files.length || !instruction.trim()) {
       alert('Please select files and provide instructions');
       return;
@@ -34,7 +39,7 @@ export const useAIProcessor = () => {
     // Process all files in parallel
     const promises = files.map(async (file, index) => {
       try {
-        await processFileWithAI(file, instruction, (chunk: string) => {
+        await processFileWithAI(file, instruction, model, (chunk: string) => {
           setFileResults((prev) =>
             prev.map((result, i) =>
               i === index ? { ...result, response: result.response + chunk } : result,
