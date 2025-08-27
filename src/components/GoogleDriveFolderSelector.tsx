@@ -34,6 +34,7 @@ export function GoogleDriveFolderSelector({
   const [breadcrumb, setBreadcrumb] = useState<Array<{ id: string; name: string }>>([]);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const newFolderInputRef = useRef<HTMLInputElement>(null);
 
   // Use prop if provided, otherwise fall back to hook
   const authenticated = authProp !== undefined ? authProp : isAuthenticated;
@@ -120,6 +121,17 @@ export function GoogleDriveFolderSelector({
     }
   }, [handleScroll]);
 
+  // Focus the new folder input when it's shown
+  useEffect(() => {
+    if (showCreateFolder && newFolderInputRef.current) {
+      // Small delay to ensure the input is rendered
+      const timer = setTimeout(() => {
+        newFolderInputRef.current?.focus();
+      }, 10);
+      return () => clearTimeout(timer);
+    }
+  }, [showCreateFolder]);
+
   return (
     <Card className="max-w-full space-y-2 overflow-hidden p-3 sm:p-4">
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center sm:gap-0">
@@ -164,6 +176,7 @@ export function GoogleDriveFolderSelector({
       {showCreateFolder && (
         <div className="space-y-2 rounded-md bg-muted/50 p-2 sm:p-3">
           <Input
+            ref={newFolderInputRef}
             placeholder="Enter folder name"
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
