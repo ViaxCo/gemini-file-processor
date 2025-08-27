@@ -181,9 +181,15 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
           </div>
 
           <div className="ml-2 flex flex-shrink-0 items-center space-x-1 sm:space-x-2">
-            <div className="flex-shrink-0">
-              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </div>
+            {result.response ? (
+              <div className="flex-shrink-0">
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
       </CardHeader>

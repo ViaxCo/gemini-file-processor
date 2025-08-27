@@ -78,15 +78,15 @@ export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Ele
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>{error}</span>
+        <Alert variant="destructive" className="sm:items-center">
+          <AlertCircle />
+          <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+            <span className="min-w-0 flex-grow">{error}</span>
             <Button
               variant="ghost"
               size="sm"
               onClick={clearError}
-              className="ml-2 text-destructive hover:text-destructive/80"
+              className="flex-shrink-0 text-destructive hover:text-destructive/80"
             >
               Dismiss
             </Button>

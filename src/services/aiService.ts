@@ -14,12 +14,23 @@ export const processFileWithAI = async (
 
   const prompt = `${instruction}\n\nFile content:\n${fileContent}`;
 
-  const result = streamText({
-    model: google('gemini-2.5-flash'),
-    prompt: prompt,
-  });
+  let receivedChunks = false;
+  try {
+    const result = streamText({
+      model: google('gemini-2.5-pro'),
+      prompt: prompt,
+    });
 
-  for await (const chunk of result.textStream) {
-    onChunk(chunk);
+    for await (const chunk of result.textStream) {
+      onChunk(chunk);
+      receivedChunks = true;
+    }
+
+    if (!receivedChunks) {
+      throw new Error('AI processing failed: No content received from AI stream.');
+    }
+  } catch (error) {
+    console.error('Error in AI streaming:', error);
+    throw error; // Re-throw the error to be caught by useAIProcessor
   }
 };

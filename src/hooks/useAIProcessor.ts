@@ -56,7 +56,7 @@ export const useAIProcessor = () => {
               ? {
                   ...result,
                   isProcessing: false,
-                  isCompleted: true,
+                  isCompleted: false,
                   error: error instanceof Error ? error.message : String(error),
                 }
               : result,
