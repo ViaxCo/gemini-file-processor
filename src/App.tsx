@@ -13,6 +13,7 @@ import { Separator } from './components/ui/separator';
 import { Toaster } from './components/ui/sonner';
 import { useAIProcessor } from './hooks/useAIProcessor';
 import { useModelSelector } from './hooks/useModelSelector';
+import { useInstructions } from './hooks/useInstructions';
 
 function App(): JSX.Element {
   const [files, setFiles] = useState<File[]>([]);
@@ -20,10 +21,14 @@ function App(): JSX.Element {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string>('');
   const { selectedModel, setSelectedModel } = useModelSelector();
-  const { fileResults, isProcessing, processFiles, clearResults } = useAIProcessor();
+  const { fileResults, isProcessing, processFiles, retryFile, retryAllFailed, clearResults } =
+    useAIProcessor();
+  const { instruction, markInstructionAsProcessed, getLastProcessedInstruction } =
+    useInstructions();
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return;
+    markInstructionAsProcessed(instruction);
     await processFiles(files, instruction, selectedModel);
   };
 
@@ -120,7 +125,13 @@ function App(): JSX.Element {
               file={fileResults[0]?.file}
             />
           ) : (
-            <MultiFileResponseDisplay fileResults={fileResults} />
+            <MultiFileResponseDisplay
+              fileResults={fileResults}
+              onRetryFile={(index) =>
+                retryFile(index, getLastProcessedInstruction(), selectedModel)
+              }
+              onRetryAllFailed={() => retryAllFailed(getLastProcessedInstruction(), selectedModel)}
+            />
           )}
         </div>
       </div>

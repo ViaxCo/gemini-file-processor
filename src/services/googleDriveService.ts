@@ -417,7 +417,16 @@ export class GoogleDriveService {
         body: multipartRequestBody,
       });
 
-      const response = await request;
+      // Add timeout handling for the upload request
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error('Upload request timed out. Please check your connection and try again.'),
+          );
+        }, 30000); // 30 second timeout
+      });
+
+      const response = await Promise.race([request, timeoutPromise]);
 
       // Get the document info
       const fileResponse = await window.gapi.client.drive.files.get({
@@ -428,7 +437,36 @@ export class GoogleDriveService {
       return fileResponse.result;
     } catch (error) {
       console.error('Error creating Google Doc:', error);
-      throw new Error('Failed to create Google Doc');
+
+      // Handle specific error types
+      if (error?.message?.includes('timed out') || error?.message?.includes('timeout')) {
+        throw new Error('Upload timed out. Please check your internet connection and try again.');
+      }
+
+      if (error?.status === 401 || error?.code === 401) {
+        throw new Error('Authentication expired. Please sign in again.');
+      }
+
+      if (error?.status === 403 || error?.code === 403) {
+        throw new Error('Access denied. Please check your Google Drive permissions.');
+      }
+
+      if (error?.status === 429 || error?.code === 429) {
+        throw new Error('Too many requests. Please wait a moment and try again.');
+      }
+
+      if (error?.status === 507 || error?.code === 507) {
+        throw new Error('Google Drive storage is full. Please free up space and try again.');
+      }
+
+      // Network-related errors
+      if (error?.message?.includes('ERR_NETWORK') || error?.message?.includes('ERR_TIMED_OUT')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      }
+
+      // Generic error with original message if available
+      const errorMessage = error?.message || error?.error || 'Failed to create Google Doc';
+      throw new Error(errorMessage);
     }
   }
 

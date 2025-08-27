@@ -20,8 +20,14 @@ export function GoogleDriveUpload({
   onUploadComplete,
   isProcessing = false,
 }: GoogleDriveUploadProps): JSX.Element {
-  const { isAuthenticated, uploadToGoogleDocs, uploadStatuses, resetUploadStatuses, error } =
-    useGoogleDrive();
+  const {
+    isAuthenticated,
+    uploadToGoogleDocs,
+    uploadStatuses,
+    resetUploadStatuses,
+    clearUploadStatus,
+    error,
+  } = useGoogleDrive();
 
   const [fileNames, setFileNames] = useState<Record<string, string>>({});
   const [uploadedFiles, setUploadedFiles] = useState<
@@ -62,6 +68,9 @@ export function GoogleDriveUpload({
 
     const fileName = fileNames[result.file.name] || result.file.name;
 
+    // Clear any previous error state for this file
+    clearUploadStatus(result.file.name);
+
     try {
       const uploadedFile = await uploadToGoogleDocs(
         result.file.name, // Pass fileId
@@ -80,14 +89,28 @@ export function GoogleDriveUpload({
       onUploadComplete?.([newUploadedFile]);
     } catch (error) {
       console.error('Upload failed:', error);
+      // Error is already handled by the hook
     }
   };
 
   const handleBatchUpload = async () => {
     if (!isAuthenticated || fileResults.length === 0) return;
 
-    try {
-      const uploadPromises = fileResults.map(async (result) => {
+    // Filter out files that don't have responses or are already uploaded
+    const filesWithResponses = fileResults.filter(
+      (result) =>
+        result.response &&
+        result.response.trim() &&
+        result.isCompleted &&
+        !result.error &&
+        uploadStatuses[result.file.name] !== 'completed',
+    );
+
+    if (filesWithResponses.length === 0) return;
+
+    // Use Promise.allSettled instead of Promise.all to handle partial failures
+    const uploadPromises = filesWithResponses.map(async (result) => {
+      try {
         const fileName = fileNames[result.file.name] || result.file.name;
         const uploadedFile = await uploadToGoogleDocs(
           result.file.name, // Pass fileId
@@ -97,17 +120,30 @@ export function GoogleDriveUpload({
         );
 
         return {
-          name: fileName,
-          url: uploadedFile.webViewLink || '#',
-          originalFileName: result.file.name,
+          status: 'fulfilled' as const,
+          value: {
+            name: fileName,
+            url: uploadedFile.webViewLink || '#',
+            originalFileName: result.file.name,
+          },
         };
-      });
+      } catch (error) {
+        console.error(`Upload failed for ${result.file.name}:`, error);
+        return {
+          status: 'rejected' as const,
+          reason: error,
+        };
+      }
+    });
 
-      const results = await Promise.all(uploadPromises);
-      setUploadedFiles((prev) => [...prev, ...results]);
-      onUploadComplete?.(results);
-    } catch (error) {
-      console.error('Batch upload failed:', error);
+    const results = await Promise.allSettled(uploadPromises);
+    const successful = results
+      .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+      .map((result) => result.value.value);
+
+    if (successful.length > 0) {
+      setUploadedFiles((prev) => [...prev, ...successful]);
+      onUploadComplete?.(successful);
     }
   };
 
@@ -137,7 +173,14 @@ export function GoogleDriveUpload({
     <Card className="max-w-full space-y-4 overflow-hidden p-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">Upload to Google Drive</h3>
-        {fileResults.some((result) => uploadStatuses[result.file.name] !== 'completed') && (
+        {fileResults.some(
+          (result) =>
+            result.response &&
+            result.response.trim() &&
+            result.isCompleted &&
+            !result.error &&
+            uploadStatuses[result.file.name] !== 'completed',
+        ) && (
           <Button
             onClick={handleBatchUpload}
             disabled={
@@ -171,10 +214,11 @@ export function GoogleDriveUpload({
         </div>
       )}
 
-      <div className="max-h-[500px] space-y-3 overflow-y-auto lg:max-h-140 lg:overflow-y-auto">
+      <div className="max-h-[500px] space-y-3 overflow-y-auto lg:max-h-137 lg:overflow-y-auto">
         {fileResults.map((result) => {
           const isUploaded = uploadStatuses[result.file.name] === 'completed';
           const isUploadingThisFile = uploadStatuses[result.file.name] === 'uploading';
+          const hasUploadError = uploadStatuses[result.file.name] === 'error';
           const uploadedFile = isUploaded
             ? uploadedFiles.find((f) => f.originalFileName === result.file.name)
             : undefined;
@@ -188,11 +232,18 @@ export function GoogleDriveUpload({
                     {result.file.name}
                   </span>
                   {isUploaded && <CheckCircle className="h-4 w-4 shrink-0 text-primary" />}
+                  {hasUploadError && <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />}
                 </div>
               </div>
 
               {!isUploaded && (
                 <div className="space-y-2">
+                  {hasUploadError && error && (
+                    <div className="flex items-start space-x-2 rounded-md border border-destructive/20 bg-destructive/10 p-2">
+                      <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0 text-destructive" />
+                      <p className="text-xs text-destructive">{error}</p>
+                    </div>
+                  )}
                   <div>
                     <label className="mb-1 block text-xs text-muted-foreground">
                       Document name in Google Drive:
@@ -214,6 +265,7 @@ export function GoogleDriveUpload({
                     }
                     size="sm"
                     className="flex w-full min-w-0 items-center justify-center px-2 text-xs sm:px-4 sm:text-sm"
+                    variant={hasUploadError ? 'default' : 'default'}
                   >
                     {isUploadingThisFile && (
                       <Loader2 className="mr-1 h-3 w-3 flex-shrink-0 animate-spin sm:h-4 sm:w-4" />
@@ -222,8 +274,17 @@ export function GoogleDriveUpload({
                       <Upload className="mr-1 h-3 w-3 flex-shrink-0 sm:h-4 sm:w-4" />
                     )}
                     <span className="truncate">
-                      <span className="hidden sm:inline">Upload to Google Docs</span>
-                      <span className="sm:hidden">Upload</span>
+                      {hasUploadError ? (
+                        <>
+                          <span className="hidden sm:inline">Retry Upload</span>
+                          <span className="sm:hidden">Retry</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="hidden sm:inline">Upload to Google Docs</span>
+                          <span className="sm:hidden">Upload</span>
+                        </>
+                      )}
                     </span>
                   </Button>
                 </div>

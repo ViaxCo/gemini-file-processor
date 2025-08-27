@@ -28,6 +28,7 @@ export const InstructionsPanel = ({
     saveInstruction,
     loadInstruction,
     deleteInstruction,
+    validateInstruction,
     isSaved,
   } = useInstructions();
 
@@ -42,6 +43,18 @@ export const InstructionsPanel = ({
     setInstruction('');
     onClearAll();
   };
+
+  const handleProcess = (): void => {
+    const validation = validateInstruction(instruction);
+    if (validation.isValid) {
+      onProcess(instruction);
+    } else {
+      console.warn('Cannot process:', validation.error);
+    }
+  };
+
+  const validation = validateInstruction(instruction);
+  const isInstructionValid = validation.isValid;
 
   return (
     <>
@@ -81,25 +94,38 @@ export const InstructionsPanel = ({
           </div>
         </CardHeader>
         <CardContent>
-          <Textarea
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                if (canProcess && instruction.trim() && !isProcessing) {
-                  onProcess(instruction);
+          <div className="space-y-2">
+            <Textarea
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  if (canProcess && isInstructionValid && !isProcessing) {
+                    handleProcess();
+                  }
                 }
-              }
-            }}
-            placeholder="Enter your instructions for Gemini AI to process the file content..."
-            className="mb-4 h-24 resize-none text-sm sm:h-32 sm:text-base"
-          />
+              }}
+              placeholder="Enter your instructions for Gemini AI to process the file content..."
+              className={`h-24 resize-none text-sm sm:h-32 sm:text-base ${
+                instruction && !isInstructionValid
+                  ? 'border-destructive focus-visible:ring-destructive'
+                  : ''
+              }`}
+            />
+            {instruction && !isInstructionValid && validation.error && (
+              <p className="text-sm text-destructive">{validation.error}</p>
+            )}
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Press Cmd/Ctrl + Enter to process</span>
+              <span>{instruction.length}/10000</span>
+            </div>
+          </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+          <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
             <Button
-              onClick={() => onProcess(instruction)}
-              disabled={!canProcess || !instruction.trim() || isProcessing}
+              onClick={handleProcess}
+              disabled={!canProcess || !isInstructionValid || isProcessing}
               className="flex-1 text-sm sm:text-base"
               size="default"
             >

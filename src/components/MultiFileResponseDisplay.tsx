@@ -15,6 +15,7 @@ import {
   DownloadCloud,
   FileText,
   Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -24,6 +25,8 @@ import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils';
 
 interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
+  onRetryFile?: (index: number) => void;
+  onRetryAllFailed?: () => void;
 }
 
 interface FileItemProps {
@@ -31,9 +34,10 @@ interface FileItemProps {
   index: number;
   showMarkdown: boolean;
   onToggleMarkdown: (show: boolean) => void;
+  onRetry?: () => void;
 }
 
-const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemProps) => {
+const FileItem = ({ result, index, showMarkdown, onToggleMarkdown, onRetry }: FileItemProps) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [copyFeedback, setCopyFeedback] = useState<string>('');
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
@@ -157,7 +161,28 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
               >
                 {result.file.name}
               </CardTitle>
-              <div className="mt-1 flex items-center gap-2">{getStatusBadge()}</div>
+              <div className="mt-1 flex items-center gap-2">
+                {getStatusBadge()}
+                {result.error && onRetry && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRetry();
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-muted/50"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        <span className="sr-only">Retry</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Retry processing this file</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
               {result.response && (result.isCompleted || result.isProcessing) && (
                 <div className="mt-2 flex items-center gap-1">
                   <Tooltip>
@@ -254,7 +279,11 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
   );
 };
 
-export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDisplayProps) => {
+export const MultiFileResponseDisplay = ({
+  fileResults,
+  onRetryFile,
+  onRetryAllFailed,
+}: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
 
@@ -332,13 +361,13 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
         )}
       </CardHeader>
       <CardContent>
-        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-185 lg:overflow-y-auto">
+        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-195 lg:overflow-y-auto">
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex flex-col justify-between gap-2 text-sm sm:flex-row sm:items-center">
               <span className="text-muted-foreground">
                 Processing Results ({fileResults.length} file{fileResults.length !== 1 ? 's' : ''})
               </span>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {completedCount > 0 && <Badge variant="default">{completedCount} completed</Badge>}
                 {processingCount > 0 && (
                   <Badge variant="secondary">{processingCount} processing</Badge>
@@ -362,9 +391,28 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
             {errorCount > 0 && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {errorCount} file{errorCount > 1 ? 's' : ''} failed to process. Check individual
-                  files for details.
+                <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <span>
+                    {errorCount} file{errorCount > 1 ? 's' : ''} failed to process. Check individual
+                    files for details.
+                  </span>
+                  {onRetryAllFailed && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={onRetryAllFailed}
+                          variant="outline"
+                          size="sm"
+                          className="ml-2 h-7 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+                        >
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                          <span className="hidden sm:inline">Retry All</span>
+                          <span className="sm:hidden">Retry</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Retry all failed files</TooltipContent>
+                    </Tooltip>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
@@ -390,6 +438,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
                 index={index}
                 showMarkdown={showMarkdown}
                 onToggleMarkdown={setShowMarkdown}
+                onRetry={onRetryFile ? () => onRetryFile(index) : undefined}
               />
             ))
           )}

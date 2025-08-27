@@ -81,3 +81,4 @@ See `GOOGLE_DRIVE_SETUP.md` for detailed Google Drive setup instructions.
   - Apply components wherever components are applicable. Use whole blocks where possible (e.g., login page,
     calendar)
   - When implementing: First call the demo tool to see how it is used. Then implement it so that it is implemented correctly
+- Every change you make to the UI in the codebase should be mobile first responsive.
