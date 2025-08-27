@@ -376,6 +376,10 @@ export class GoogleDriveService {
                 text-align: justify;
                 line-height: 1.5;
               }
+              p {
+                margin-top: 12pt;
+                margin-bottom: 12pt;
+              }
             </style>
           </head>
           <body>

@@ -1,19 +1,20 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Toggle } from '@/components/ui/toggle';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Copy, Download, MessageCircle, Loader2 } from 'lucide-react';
+import { Toggle } from '@/components/ui/toggle';
+import { Copy, Download, Loader2, MessageCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Streamdown } from 'streamdown';
 import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils';
-import { toast } from 'sonner';
 
 interface ResponseDisplayProps {
   response: string;
   isProcessing?: boolean;
+  file?: File;
 }
 
-export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisplayProps) => {
+export const ResponseDisplay = ({ response, isProcessing = false, file }: ResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [copyFeedback, setCopyFeedback] = useState<string>('');
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
@@ -62,7 +63,8 @@ export const ResponseDisplay = ({ response, isProcessing = false }: ResponseDisp
   };
 
   const handleDownloadResponse = (): void => {
-    downloadAsMarkdown(response);
+    const fileName = file ? file.name.replace(/\.txt$/, '') : 'response.md';
+    downloadAsMarkdown(response, fileName);
     toast.success('File downloaded successfully');
   };
 

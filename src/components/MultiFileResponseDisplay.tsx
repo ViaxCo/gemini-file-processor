@@ -273,7 +273,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
     if (completedResults.length === 0) return;
 
     completedResults.forEach((result) => {
-      downloadAsMarkdown(result.response, `${result.file.name.replace('.txt', '')}_processed.md`);
+      downloadAsMarkdown(result.response, result.file.name.replace('.txt', ''));
     });
 
     toast.success(
