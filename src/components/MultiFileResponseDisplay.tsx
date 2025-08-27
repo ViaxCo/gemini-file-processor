@@ -1,26 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
-import { Streamdown } from 'streamdown';
-import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils';
-import { FileResult } from '../hooks/useAIProcessor';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Toggle } from '@/components/ui/toggle';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
+  AlertCircle,
+  CheckCircle,
   ChevronDown,
   ChevronUp,
   Copy,
   Download,
+  DownloadCloud,
   FileText,
   Loader2,
-  CheckCircle,
-  AlertCircle,
-  DownloadCloud,
 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { Streamdown } from 'streamdown';
+import { FileResult } from '../hooks/useAIProcessor';
+import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils';
 
 interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
@@ -39,6 +39,23 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
   const [lastResponseLength, setLastResponseLength] = useState<number>(0);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
+
+  const handleExpand = () => {
+    const newExpandedState = !isExpanded;
+    setIsExpanded(newExpandedState);
+
+    // If expanding and there's content, scroll to bottom after the transition
+    if (newExpandedState && result.response && scrollViewportRef.current) {
+      // Reset user scrolling state when opening
+      setIsUserScrolling(false);
+      // Use setTimeout to ensure the expand animation completes first
+      setTimeout(() => {
+        if (scrollViewportRef.current) {
+          scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+        }
+      }, 300); // Match the transition duration
+    }
+  };
 
   useEffect(() => {
     // Reset scrolling state when response is cleared or starts fresh
@@ -129,7 +146,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
       <CardHeader className="pb-2">
         <div
           className="flex min-w-0 cursor-pointer items-center justify-between overflow-hidden"
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={handleExpand}
         >
           <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden sm:space-x-3">
             <div className="flex-shrink-0">{getStatusIcon()}</div>
@@ -214,7 +231,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown }: FileItemPro
                   {showMarkdown ? 'Raw' : 'Formatted'}
                 </Toggle>
               </div>
-              <div 
+              <div
                 ref={scrollViewportRef}
                 onScroll={handleScroll}
                 className="max-h-96 overflow-y-auto"
@@ -315,7 +332,7 @@ export const MultiFileResponseDisplay = ({ fileResults }: MultiFileResponseDispl
         )}
       </CardHeader>
       <CardContent>
-        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-[760px] lg:overflow-y-auto">
+        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-[700px] lg:overflow-y-auto">
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
