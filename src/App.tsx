@@ -14,6 +14,7 @@ import { Toaster } from './components/ui/sonner';
 import { useAIProcessor } from './hooks/useAIProcessor';
 import { useModelSelector } from './hooks/useModelSelector';
 import { useInstructions } from './hooks/useInstructions';
+import { useGoogleDrive } from './hooks/useGoogleDrive';
 
 function App(): JSX.Element {
   const [files, setFiles] = useState<File[]>([]);
@@ -25,6 +26,7 @@ function App(): JSX.Element {
     useAIProcessor();
   const { instruction, markInstructionAsProcessed, getLastProcessedInstruction } =
     useInstructions();
+  const { clearUploadStatus } = useGoogleDrive();
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return;
@@ -44,6 +46,30 @@ function App(): JSX.Element {
   const handleFolderSelect = (folderId: string | null, folderName: string) => {
     setSelectedFolderId(folderId);
     setSelectedFolderName(folderName);
+  };
+
+  const handleRetryFile = async (index: number) => {
+    // Get the file name before retrying to clear its upload status
+    const fileToRetry = fileResults[index];
+    if (fileToRetry) {
+      // Clear the Google Drive upload status for this file
+      clearUploadStatus(fileToRetry.file.name);
+    }
+
+    // Proceed with the retry
+    await retryFile(index, getLastProcessedInstruction(), selectedModel);
+  };
+
+  const handleRetryAllFailed = async () => {
+    // Clear upload status for all failed files before retrying
+    fileResults.forEach((result) => {
+      if (result.error) {
+        clearUploadStatus(result.file.name);
+      }
+    });
+
+    // Proceed with retry all failed
+    await retryAllFailed(getLastProcessedInstruction(), selectedModel);
   };
 
   const canProcess = files.length > 0;
@@ -127,10 +153,8 @@ function App(): JSX.Element {
           ) : (
             <MultiFileResponseDisplay
               fileResults={fileResults}
-              onRetryFile={(index) =>
-                retryFile(index, getLastProcessedInstruction(), selectedModel)
-              }
-              onRetryAllFailed={() => retryAllFailed(getLastProcessedInstruction(), selectedModel)}
+              onRetryFile={handleRetryFile}
+              onRetryAllFailed={handleRetryAllFailed}
             />
           )}
         </div>

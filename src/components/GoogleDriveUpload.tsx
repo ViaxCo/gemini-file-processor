@@ -56,6 +56,17 @@ export function GoogleDriveUpload({
     }
   }, [isProcessing, resetUploadStatuses]);
 
+  // Remove uploaded files from state when their upload status is cleared
+  React.useEffect(() => {
+    setUploadedFiles((prevUploadedFiles) =>
+      prevUploadedFiles.filter(
+        (uploadedFile) =>
+          uploadedFile.originalFileName &&
+          uploadStatuses[uploadedFile.originalFileName] === 'completed',
+      ),
+    );
+  }, [uploadStatuses]);
+
   const handleFileNameChange = (originalFileName: string, newName: string) => {
     setFileNames((prev) => ({
       ...prev,
@@ -220,7 +231,9 @@ export function GoogleDriveUpload({
           const isUploadingThisFile = uploadStatuses[result.file.name] === 'uploading';
           const hasUploadError = uploadStatuses[result.file.name] === 'error';
           const uploadedFile = isUploaded
-            ? uploadedFiles.find((f) => f.originalFileName === result.file.name)
+            ? uploadedFiles.find(
+                (f) => f.originalFileName && f.originalFileName === result.file.name,
+              )
             : undefined;
 
           return (

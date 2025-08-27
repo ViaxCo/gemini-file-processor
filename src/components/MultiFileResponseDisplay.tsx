@@ -161,28 +161,7 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown, onRetry }: Fi
               >
                 {result.file.name}
               </CardTitle>
-              <div className="mt-1 flex items-center gap-2">
-                {getStatusBadge()}
-                {result.error && onRetry && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRetry();
-                        }}
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:bg-muted/50"
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                        <span className="sr-only">Retry</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Retry processing this file</TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
+              <div className="mt-1 flex items-center gap-2">{getStatusBadge()}</div>
               {result.response && (result.isCompleted || result.isProcessing) && (
                 <div className="mt-2 flex items-center gap-1">
                   <Tooltip>
@@ -221,6 +200,25 @@ const FileItem = ({ result, index, showMarkdown, onToggleMarkdown, onRetry }: Fi
                     </TooltipTrigger>
                     <TooltipContent>Download as markdown file</TooltipContent>
                   </Tooltip>
+                  {onRetry && (result.isCompleted || result.error) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRetry();
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 hover:bg-muted/50"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          <span className="sr-only">Retry</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Retry processing this file</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
               )}
             </div>
@@ -361,7 +359,7 @@ export const MultiFileResponseDisplay = ({
         )}
       </CardHeader>
       <CardContent>
-        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-195 lg:overflow-y-auto">
+        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-176 lg:overflow-y-auto">
           <div className="space-y-3">
             <div className="flex flex-col justify-between gap-2 text-sm sm:flex-row sm:items-center">
               <span className="text-muted-foreground">
