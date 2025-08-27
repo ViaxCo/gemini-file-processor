@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run lint` - Lint the codebase with ESLint
 - `npm run preview` - Preview the built application
 - `npm run dev` - Development server (don't run this, user runs it themselves)
+- `npm run prettier` - Format code with Prettier
+- `npm run prettier:check` - Check code formatting with Prettier
 
 ## Architecture
 
@@ -23,6 +25,8 @@ This is a React + TypeScript + Vite application that processes files using Googl
 - **GoogleDriveUpload** - Handles uploading processed files to Google Drive as Google Docs
 - **GoogleDriveAuth** - Manages Google Drive authentication
 - **GoogleDriveFolderSelector** - Allows users to select target folders in Google Drive
+- **ThemeToggle** - Provides dark/light theme switching functionality
+- **InstructionsModal** - Modal for managing instruction presets
 
 ### Data Flow
 
@@ -32,6 +36,8 @@ This is a React + TypeScript + Vite application that processes files using Googl
 4. Results stream back in real-time via the `onChunk` callback pattern
 5. `useGoogleDrive` hook manages Google Drive authentication and upload operations
 6. Processed files can be uploaded to Google Drive as Google Docs with markdown formatting
+7. Theme context provides dark/light mode support across the application
+8. `useInstructions` hook manages instruction presets and storage
 
 ### File Processing System
 
@@ -45,15 +51,17 @@ The app processes files in parallel using Promise.all:
 
 - **UI**: React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui components
 - **Build**: Vite with path aliases (`@/` → `./src/`)
-- **AI**: Google Gemini 2.5 Flash via AI SDK (`@ai-sdk/google`)
-- **Styling**: Tailwind CSS v4 with Radix UI primitives
+- **AI**: Google Gemini AI via AI SDK (`@ai-sdk/google`) - configurable model
+- **Styling**: Tailwind CSS v4 with Radix UI primitives + theme support (dark/light mode)
+- **Notifications**: Sonner for toast notifications
+- **State**: React Context for theme and instructions management
 
 ### Environment
 
 Required environment variables:
 
 - `VITE_GEMINI_API_KEY` - Google Gemini API key for AI processing
-- `VITE_GEMINI_MODEL` - Google Gemini model to use for AI processing (e.g., `gemini-2.5-pro`, `gemini-2.5-flash`). Defaults to `gemini-2.5-pro` if not specified.
+- `VITE_GEMINI_MODEL` - Google Gemini model to use for AI processing (e.g., `gemini-2.5-pro`, `gemini-2.5-flash`). Defaults to `gemini-2.5-flash` if not specified.
 - `VITE_GOOGLE_CLIENT_ID` - Google OAuth client ID for Drive integration
 - `VITE_GOOGLE_API_KEY` - Google API key for Drive API access
 
@@ -68,8 +76,7 @@ See `GOOGLE_DRIVE_SETUP.md` for detailed Google Drive setup instructions.
 - Only commit when explicitly requested
 - Always run `npm run lint`, `npm run prettier`, and then `npm run build` to ensure everything is working and formatted correctly
 - when i say look at the browser, i mean the tab is already loaded with the page. don't navigate there
-- When using shadcn components, use the MCP
-  server.
+- When using shadcn components, use the MCP server.
   - Apply components wherever components are applicable. Use whole blocks where possible (e.g., login page,
     calendar)
   - When implementing: First call the demo tool to see how it is used. Then implement it so that it is implemented correctly
