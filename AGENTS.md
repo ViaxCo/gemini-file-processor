@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` - Development server (don't run this, user runs it themselves)
 - `npm run prettier` - Format code with Prettier and Tailwind CSS plugin
 - `npm run prettier:check` - Check code formatting without making changes
+- `npm run ts-check` - Check TypeScript types
 
 ## Architecture
 
@@ -65,7 +66,7 @@ The application follows a **component-based architecture** with custom hooks for
 
 ### Code Quality & Build Process
 
-- **Pre-deployment checks**: Always run `npm run lint`, `npm run prettier`, and `npm run build` to ensure everything works and is properly formatted
+- **Pre-deployment checks**: Always run `npm run lint`, `npm run prettier`, `npm run ts-check`, and `npm run build` to ensure everything works and is properly formatted
 - **TypeScript**: Strict mode enabled - all type errors must be resolved before building
 - **No testing framework**: Project relies on TypeScript + ESLint for code quality and manual testing
 
@@ -91,3 +92,43 @@ The application follows a **component-based architecture** with custom hooks for
 - **Component Separation**: Keep components focused - file processing, UI display, and Google Drive integration are separate concerns
 - **Error Handling**: Maintain per-file error isolation pattern for batch operations
 - **State Management**: Use React Context only for truly global state (theme, instructions); prefer component state otherwise
+
+## Key Implementation Details
+
+### Performance Optimizations
+
+- **Buffered Updates**: AI streaming responses are buffered to prevent excessive React re-renders (100ms intervals or 500 char buffers)
+- **Idle Work Scheduling**: Non-critical UI updates use `requestIdleCallback` via `scheduleIdleWork` utility
+- **Memory Management**: Response buffers are cleared after each flush to prevent memory leaks
+
+### TypeScript Configuration
+
+- **Project References**: Uses TypeScript project references pattern with separate configs for app (`tsconfig.app.json`) and Node.js (`tsconfig.node.json`)
+- **Strict Mode**: Full TypeScript strict mode enabled with `noUnusedLocals`, `noUnusedParameters`, and `noFallthroughCasesInSwitch`
+- **Path Aliases**: `@/*` maps to `./src/*` for clean imports
+
+### ESLint Configuration
+
+- **Modern Setup**: Uses ESLint 9 with flat config system (`eslint.config.js`)
+- **React Integration**: Includes react-hooks and react-refresh plugins
+- **Custom Rules**: Allows unused variables with uppercase names (constants pattern)
+
+### State Persistence Patterns
+
+- **Instructions Storage**: `useInstructions` hook manages localStorage for custom instructions with validation and limits
+- **Theme Persistence**: Theme context automatically syncs with localStorage and system preferences
+- **Model Selection**: Selected Gemini model persists across sessions via `useModelSelector` hook
+
+### Error Handling Strategy
+
+- **Per-File Isolation**: Individual file processing errors don't affect other files in batch operations
+- **Graceful Degradation**: Google Drive features are optional - app works without API keys
+- **Safe Storage Operations**: All localStorage operations wrapped in try-catch with fallbacks
+
+### File Processing Pipeline
+
+1. **Validation**: File type and size validation before processing
+2. **Parallel Execution**: Up to 10 files processed simultaneously via Promise.all
+3. **Streaming Updates**: Real-time UI updates via callback pattern with buffering
+4. **Completion Tracking**: Individual file completion states for precise UI feedback
+5. **Retry Logic**: Failed files can be retried individually or in batch

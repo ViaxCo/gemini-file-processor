@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm i && tsc -b && vite build",
+    "build": "vite build",
     "lint": "eslint .",
+    "ts-check": "tsc -b",
     "preview": "vite preview",
     "prettier": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "prettier:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\""
