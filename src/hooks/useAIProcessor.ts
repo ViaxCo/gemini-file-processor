@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { processFileWithAI } from '../services/aiService';
 import { GeminiModel } from '../components/ModelSelector';
+import { scheduleIdleWork } from '../utils/performance';
 
 export interface FileResult {
   file: File;
@@ -39,13 +40,39 @@ export const useAIProcessor = () => {
     // Process all files in parallel
     const promises = files.map(async (file, index) => {
       try {
+        // Batch updates using a buffer to reduce frequent state updates
+        let responseBuffer = '';
+        let lastUpdateTime = Date.now();
+
+        const flushBuffer = () => {
+          if (responseBuffer) {
+            const currentBuffer = responseBuffer;
+            responseBuffer = '';
+
+            // Use idle callback for non-critical UI updates to prevent blocking
+            scheduleIdleWork(() => {
+              setFileResults((prev) =>
+                prev.map((result, i) =>
+                  i === index ? { ...result, response: result.response + currentBuffer } : result,
+                ),
+              );
+            });
+          }
+        };
+
         await processFileWithAI(file, instruction, model, (chunk: string) => {
-          setFileResults((prev) =>
-            prev.map((result, i) =>
-              i === index ? { ...result, response: result.response + chunk } : result,
-            ),
-          );
+          responseBuffer += chunk;
+          const now = Date.now();
+
+          // Flush buffer every 100ms or when buffer gets large
+          if (now - lastUpdateTime >= 100 || responseBuffer.length >= 500) {
+            flushBuffer();
+            lastUpdateTime = now;
+          }
         });
+
+        // Flush any remaining buffer
+        flushBuffer();
 
         // Mark as completed
         setFileResults((prev) =>
@@ -100,13 +127,33 @@ export const useAIProcessor = () => {
     );
 
     try {
+      // Batch updates for retry as well
+      let responseBuffer = '';
+      let lastUpdateTime = Date.now();
+
+      const flushBuffer = () => {
+        if (responseBuffer) {
+          const currentBuffer = responseBuffer;
+          responseBuffer = '';
+          setFileResults((prev) =>
+            prev.map((result, i) =>
+              i === fileIndex ? { ...result, response: result.response + currentBuffer } : result,
+            ),
+          );
+        }
+      };
+
       await processFileWithAI(fileToRetry.file, instruction, model, (chunk: string) => {
-        setFileResults((prev) =>
-          prev.map((result, i) =>
-            i === fileIndex ? { ...result, response: result.response + chunk } : result,
-          ),
-        );
+        responseBuffer += chunk;
+        const now = Date.now();
+
+        if (now - lastUpdateTime >= 100 || responseBuffer.length >= 500) {
+          flushBuffer();
+          lastUpdateTime = now;
+        }
       });
+
+      flushBuffer();
 
       // Mark as completed
       setFileResults((prev) =>
@@ -159,13 +206,37 @@ export const useAIProcessor = () => {
       const fileToRetry = fileResults[index];
 
       try {
+        // Batch updates for retry all failed as well
+        let responseBuffer = '';
+        let lastUpdateTime = Date.now();
+
+        const flushBuffer = () => {
+          if (responseBuffer) {
+            const currentBuffer = responseBuffer;
+            responseBuffer = '';
+
+            // Use idle callback for non-critical UI updates to prevent blocking
+            scheduleIdleWork(() => {
+              setFileResults((prev) =>
+                prev.map((result, i) =>
+                  i === index ? { ...result, response: result.response + currentBuffer } : result,
+                ),
+              );
+            });
+          }
+        };
+
         await processFileWithAI(fileToRetry.file, instruction, model, (chunk: string) => {
-          setFileResults((prev) =>
-            prev.map((result, i) =>
-              i === index ? { ...result, response: result.response + chunk } : result,
-            ),
-          );
+          responseBuffer += chunk;
+          const now = Date.now();
+
+          if (now - lastUpdateTime >= 100 || responseBuffer.length >= 500) {
+            flushBuffer();
+            lastUpdateTime = now;
+          }
         });
+
+        flushBuffer();
 
         // Mark as completed
         setFileResults((prev) =>
