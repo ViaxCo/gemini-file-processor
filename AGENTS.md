@@ -4,81 +4,90 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- `npm run build` - Build the application
-- `npm run lint` - Lint the codebase with ESLint
+- `npm run build` - Build for production (includes dependency install and TypeScript compilation)
+- `npm run lint` - Lint the codebase with ESLint 9
 - `npm run preview` - Preview the built application
 - `npm run dev` - Development server (don't run this, user runs it themselves)
-- `npm run prettier` - Format code with Prettier
-- `npm run prettier:check` - Check code formatting with Prettier
+- `npm run prettier` - Format code with Prettier and Tailwind CSS plugin
+- `npm run prettier:check` - Check code formatting without making changes
 
 ## Architecture
 
-This is a React + TypeScript + Vite application that processes files using Google's Gemini AI. The app allows users to upload multiple files, process them in parallel with custom instructions, and optionally upload the results to Google Drive as Google Docs.
+This is a **Gemini File Processor** - a modern React TypeScript application built with Vite that processes multiple text files in parallel using Google's Gemini AI, with integrated Google Drive upload functionality.
 
-### Key Components Architecture
+### Core Architecture Pattern
 
-- **App.tsx** - Main component that conditionally renders single-file vs multi-file layouts
-- **FileUpload** - Handles file selection and validation (up to 10 files, text files only)
-- **InstructionsPanel** - Contains instruction input and process/clear controls
-- **ResponseDisplay** - Shows AI response for single file processing
-- **MultiFileResponseDisplay** - Shows AI responses for multiple files in parallel
-- **GoogleDriveUpload** - Handles uploading processed files to Google Drive as Google Docs
-- **GoogleDriveAuth** - Manages Google Drive authentication
-- **GoogleDriveFolderSelector** - Allows users to select target folders in Google Drive
-- **ThemeToggle** - Provides dark/light theme switching functionality
-- **InstructionsModal** - Modal for managing instruction presets
+The application follows a **component-based architecture** with custom hooks for business logic and React Context for global state management. Key architectural decisions:
 
-### Data Flow
+- **Parallel Processing**: Files are processed concurrently using Promise.all with streaming AI responses
+- **Real-time Updates**: AI responses stream in real-time using async generators and callback patterns
+- **Error Isolation**: Per-file error handling allows partial success across batch operations
+- **Mobile-First Design**: Built with Tailwind CSS v4 for responsive design
 
-1. Files are managed in App.tsx state and passed down to components
-2. `useAIProcessor` hook manages file processing state and coordinates parallel AI calls
-3. `aiService.ts` handles the actual Gemini API integration using AI SDK
-4. Results stream back in real-time via the `onChunk` callback pattern
-5. `useGoogleDrive` hook manages Google Drive authentication and upload operations
-6. Processed files can be uploaded to Google Drive as Google Docs with markdown formatting
-7. Theme context provides dark/light mode support across the application
-8. `useInstructions` hook manages instruction presets and storage
+### Data Flow & State Management
+
+1. **File Management**: App.tsx orchestrates file state and UI layout switching (single vs multi-file)
+2. **AI Processing**: `useAIProcessor` hook coordinates parallel Gemini API calls via `aiService.ts`
+3. **Streaming Responses**: Real-time updates through `onChunk` callback patterns
+4. **Google Drive Integration**: `useGoogleDrive` hook manages OAuth authentication and document uploads
+5. **Theme System**: Context-based dark/light mode with system preference detection
+6. **Instructions Management**: `useInstructions` hook handles preset management and localStorage
 
 ### File Processing System
 
-The app processes files in parallel using Promise.all:
+- **Concurrent Processing**: Up to 10 text files processed simultaneously
+- **Streaming UI**: Each file gets its own FileResult with real-time processing state
+- **Format Support**: .txt, .md, .json, .js, .ts, and other text-based files
+- **Error Resilience**: Individual file failures don't block other files
 
-- Each file gets its own FileResult with processing state
-- Streaming responses update the UI in real-time
-- Error handling is per-file, allowing partial success
+### Tech Stack & Dependencies
 
-### Tech Stack
+- **Core**: React 19 + TypeScript 5.9 + Vite 7.1 (ES modules, path aliases `@/` → `./src/`)
+- **AI Integration**: Google Gemini 2.5 Flash via AI SDK (`@ai-sdk/google`, `ai` for streaming)
+- **UI Framework**: Tailwind CSS v4 + shadcn/ui components + 12+ Radix UI primitives
+- **Build Tools**: ESLint 9 + Prettier (with Tailwind plugin) + TypeScript strict mode
+- **Additional**: Sonner notifications, Lucide React icons, markdown-it processing
 
-- **UI**: React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui components
-- **Build**: Vite with path aliases (`@/` → `./src/`)
-- **AI**: Google Gemini AI via AI SDK (`@ai-sdk/google`) - configurable model
-- **Styling**: Tailwind CSS v4 with Radix UI primitives + theme support (dark/light mode)
-- **Notifications**: Sonner for toast notifications
-- **State**: React Context for theme and instructions management
+### Environment Variables
 
-### Environment
-
-Required environment variables:
+**Required:**
 
 - `VITE_GEMINI_API_KEY` - Google Gemini API key for AI processing
-- `VITE_GOOGLE_CLIENT_ID` - Google OAuth client ID for Drive integration
-- `VITE_GOOGLE_API_KEY` - Google API key for Drive API access
 
-**Note**: AI model selection is now managed through the UI interface and stored in localStorage.
+**Optional (for Google Drive integration):**
 
-See `GOOGLE_DRIVE_SETUP.md` for detailed Google Drive setup instructions.
+- `VITE_GOOGLE_CLIENT_ID` - Google OAuth 2.0 client ID for Drive authentication
+- `VITE_GOOGLE_API_KEY` - Google API key for Drive/Docs API access
+
+**Note**: AI model selection is configurable through the UI (ModelSelector component) and persisted in localStorage. See `GOOGLE_DRIVE_SETUP.md` for detailed Google Drive API setup instructions.
 
 ## Development Notes
 
-- Use context7 to look up documentation for all packages
-- Don't run the dev server or preview (user runs it themselves)
-- Use browser MCP for debugging browser issues
-- Only stage changes when explicitly requested
-- Only commit when explicitly requested
-- Always run `npm run lint`, `npm run prettier`, and then `npm run build` to ensure everything is working and formatted correctly
-- when i say look at the browser, i mean the tab is already loaded with the page. don't navigate there
-- When using shadcn components, use the MCP server.
-  - Apply components wherever components are applicable. Use whole blocks where possible (e.g., login page,
-    calendar)
-  - When implementing: First call the demo tool to see how it is used. Then implement it so that it is implemented correctly
-- Every change you make to the UI in the codebase should be mobile first responsive.
+### Code Quality & Build Process
+
+- **Pre-deployment checks**: Always run `npm run lint`, `npm run prettier`, and `npm run build` to ensure everything works and is properly formatted
+- **TypeScript**: Strict mode enabled - all type errors must be resolved before building
+- **No testing framework**: Project relies on TypeScript + ESLint for code quality and manual testing
+
+### Component Development
+
+- **shadcn/ui Integration**: Use the MCP server for shadcn components
+  - First call the demo tool to understand correct usage patterns
+  - Apply components wherever applicable; prefer whole blocks (e.g., login pages, calendars)
+  - All UI components are in `src/components/ui/` with 12+ Radix primitives already integrated
+- **Mobile-First**: Every UI change must be mobile-first responsive using Tailwind CSS v4
+- **Theme Support**: All new components must support the existing dark/light theme system
+
+### Development Workflow
+
+- **Server Management**: Don't run dev server or preview (user manages this)
+- **Browser Debugging**: Use browser mcp for this. When referenced, browser tab is already loaded - don't navigate
+- **Git Operations**: Only stage/commit changes when explicitly requested
+- **Documentation**: Use context7 MCP server for package documentation lookup
+
+### Architecture Guidelines
+
+- **Custom Hooks Pattern**: Business logic belongs in custom hooks (`useAIProcessor`, `useGoogleDrive`, etc.)
+- **Component Separation**: Keep components focused - file processing, UI display, and Google Drive integration are separate concerns
+- **Error Handling**: Maintain per-file error isolation pattern for batch operations
+- **State Management**: Use React Context only for truly global state (theme, instructions); prefer component state otherwise
