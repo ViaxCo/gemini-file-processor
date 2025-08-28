@@ -77,7 +77,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       if (!driveService) {
         return;
       }
-      
+
       if (!driveService.isAuthenticated()) {
         // This check is important for manual calls
         return;
@@ -121,7 +121,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setError('Google Drive service not available');
       return;
     }
-    
+
     setIsAuthenticating(true);
     setError(null);
     try {
@@ -143,7 +143,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setError('Google Drive service not available');
       return;
     }
-    
+
     try {
       await driveService.signOut();
       setIsAuthenticated(false);
@@ -184,7 +184,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       if (!driveService) {
         throw new Error('Google Drive service not available');
       }
-      
+
       setError(null);
       try {
         const newFolder = await driveService.createFolder(name, parentId);
@@ -221,7 +221,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       if (!driveService) {
         throw new Error('Google Drive service not available');
       }
-      
+
       setUploadStatuses((prev) => ({ ...prev, [fileId]: 'uploading' }));
       setError(null);
       try {

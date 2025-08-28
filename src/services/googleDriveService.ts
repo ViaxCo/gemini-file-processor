@@ -48,7 +48,7 @@ export class GoogleDriveService {
     if (typeof window === 'undefined') {
       return;
     }
-    
+
     if (this.initializationPromise) {
       return;
     }
