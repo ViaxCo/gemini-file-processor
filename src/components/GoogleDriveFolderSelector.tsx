@@ -1,60 +1,48 @@
 import { Check, ChevronDown, ChevronRight, Folder, FolderPlus, Home, Loader2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useGoogleDrive } from '../hooks/useGoogleDrive';
+import { DriveFolder, useGoogleDrive } from '../hooks/useGoogleDrive';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 
 interface GoogleDriveFolderSelectorProps {
+  // From useGoogleDrive hook
+  folders: DriveFolder[];
+  selectedFolder: DriveFolder | null;
+  isLoadingFolders: boolean;
+  isLoadingMoreFolders: boolean;
+  hasMoreFolders: boolean;
+  loadFolders: (parentId?: string) => Promise<void>;
+  loadMoreFolders: () => Promise<void>;
+  selectFolder: (folder: DriveFolder | null) => void;
+  createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
+  isAuthenticated: boolean;
+
+  // Own props
   onFolderSelect?: (folderId: string | null, folderName: string) => void;
-  isAuthenticated?: boolean;
 }
 
 export function GoogleDriveFolderSelector({
+  folders,
+  selectedFolder,
+  isLoadingFolders,
+  isLoadingMoreFolders,
+  hasMoreFolders,
+  loadFolders,
+  loadMoreFolders,
+  selectFolder,
+  createFolder,
+  isAuthenticated,
   onFolderSelect,
-  isAuthenticated: authProp,
 }: GoogleDriveFolderSelectorProps): JSX.Element {
-  const {
-    isAuthenticated,
-    folders,
-    selectedFolder,
-    isLoadingFolders,
-    isLoadingMoreFolders,
-    hasMoreFolders,
-    loadFolders,
-    loadMoreFolders,
-    selectFolder,
-    createFolder,
-  } = useGoogleDrive();
-
-  // State variables must be declared before being used in useEffect
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [breadcrumb, setBreadcrumb] = useState<Array<{ id: string; name: string }>>([]);
-  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
 
-  // Use prop if provided, otherwise fall back to hook
-  const authenticated = authProp !== undefined ? authProp : isAuthenticated;
-
-  // Reset attempt flag when authentication changes
-  useEffect(() => {
-    if (!authenticated) {
-      setHasAttemptedLoad(false);
-    }
-  }, [authenticated]);
-
-  // Load folders when authentication changes
-  useEffect(() => {
-    if (authenticated && !hasAttemptedLoad && !isLoadingFolders) {
-      setHasAttemptedLoad(true);
-      loadFolders();
-    }
-  }, [authenticated, hasAttemptedLoad, isLoadingFolders]); // Only load once per authentication session
-
-  if (!authenticated) {
+  if (!isAuthenticated) {
     return (
       <Card className="p-3 sm:p-4">
         <div className="text-center text-muted-foreground">
@@ -65,24 +53,20 @@ export function GoogleDriveFolderSelector({
     );
   }
 
-  const handleFolderSelect = (folder: any) => {
+  const handleFolderSelect = (folder: DriveFolder | null) => {
     selectFolder(folder);
     onFolderSelect?.(folder?.id || null, folder?.name || 'Root');
   };
 
   const handleBreadcrumbNavigation = async (targetIndex: number) => {
-    const targetFolder = targetIndex === -1 ? null : breadcrumb[targetIndex];
-    setHasAttemptedLoad(false); // Reset flag for new folder
-    await loadFolders(targetFolder?.id);
+    const targetFolderId = targetIndex === -1 ? undefined : breadcrumb[targetIndex].id;
+    await loadFolders(targetFolderId);
     setBreadcrumb(breadcrumb.slice(0, targetIndex + 1));
-    setHasAttemptedLoad(true); // Set flag after loading
   };
 
-  const handleFolderNavigation = async (folder: any) => {
-    setHasAttemptedLoad(false); // Reset flag for new folder
+  const handleFolderNavigation = async (folder: DriveFolder) => {
     await loadFolders(folder.id);
     setBreadcrumb([...breadcrumb, { id: folder.id, name: folder.name }]);
-    setHasAttemptedLoad(true); // Set flag after loading
   };
 
   const handleCreateFolder = async () => {
@@ -101,18 +85,15 @@ export function GoogleDriveFolderSelector({
     }
   };
 
-  // Infinite scroll handler
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current || !hasMoreFolders || isLoadingMoreFolders) return;
 
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    // Load more when user scrolls to within 100px of bottom
     if (scrollTop + clientHeight >= scrollHeight - 100) {
       loadMoreFolders();
     }
   }, [hasMoreFolders, isLoadingMoreFolders, loadMoreFolders]);
 
-  // Attach scroll listener
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (container) {
@@ -121,10 +102,8 @@ export function GoogleDriveFolderSelector({
     }
   }, [handleScroll]);
 
-  // Focus the new folder input when it's shown
   useEffect(() => {
     if (showCreateFolder && newFolderInputRef.current) {
-      // Small delay to ensure the input is rendered
       const timer = setTimeout(() => {
         newFolderInputRef.current?.focus();
       }, 10);
@@ -147,7 +126,6 @@ export function GoogleDriveFolderSelector({
         </Button>
       </div>
 
-      {/* Breadcrumb navigation */}
       <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-xs text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] sm:text-sm [&::-webkit-scrollbar]:hidden">
         <Button
           variant="ghost"
@@ -172,7 +150,6 @@ export function GoogleDriveFolderSelector({
         ))}
       </div>
 
-      {/* Create folder form */}
       {showCreateFolder && (
         <div className="space-y-2 rounded-md bg-muted/50 p-2 sm:p-3">
           <Input
@@ -207,7 +184,6 @@ export function GoogleDriveFolderSelector({
         </div>
       )}
 
-      {/* Selected folder indicator */}
       {selectedFolder && (
         <div className="flex flex-col justify-between gap-2 rounded-md border border-primary/20 bg-primary/10 p-2 sm:flex-row sm:items-center sm:gap-0">
           <div className="flex min-w-0 flex-1 items-center space-x-2">
@@ -230,7 +206,6 @@ export function GoogleDriveFolderSelector({
         </div>
       )}
 
-      {/* Folders list */}
       <div
         ref={scrollContainerRef}
         className="max-h-40 space-y-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:max-h-128 [&::-webkit-scrollbar]:hidden"
@@ -298,7 +273,6 @@ export function GoogleDriveFolderSelector({
               </div>
             ))}
 
-            {/* Load more indicator */}
             {hasMoreFolders && (
               <div className="flex items-center justify-center py-2 sm:py-3">
                 {isLoadingMoreFolders ? (

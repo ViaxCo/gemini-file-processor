@@ -10,9 +10,7 @@ export interface UseGoogleDriveReturn {
   // Authentication
   isAuthenticated: boolean;
   isAuthenticating: boolean;
-  authUrl: string | null;
   authenticate: () => void;
-  handleAuthCallback: (code: string) => Promise<void>;
   logout: () => Promise<void>;
 
   // Folders
@@ -35,7 +33,6 @@ export interface UseGoogleDriveReturn {
   ) => Promise<DriveFile>;
   uploadStatuses: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
   resetUploadStatuses: () => void;
-  clearUploadStatus: (fileId: string) => void;
 
   // Error handling
   error: string | null;
@@ -49,9 +46,8 @@ const GOOGLE_DRIVE_CONFIG: GoogleDriveConfig = {
 
 export function useGoogleDrive(): UseGoogleDriveReturn {
   const [driveService] = useState(() => new GoogleDriveService(GOOGLE_DRIVE_CONFIG));
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => driveService.isAuthenticated());
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [folders, setFolders] = useState<DriveFolder[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
@@ -63,89 +59,11 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     Record<string, 'idle' | 'uploading' | 'completed' | 'error'>
   >({});
   const [error, setError] = useState<string | null>(null);
-  const [hasInitialLoad, setHasInitialLoad] = useState(false);
-
-  // Check authentication status on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      // Check if we already have a stored token
-      const hasStoredToken = localStorage.getItem('google_drive_token') !== null;
-
-      if (hasStoredToken) {
-        setIsAuthenticated(true);
-        // Wait a bit longer for GAPI to initialize and restore token
-        setTimeout(() => {
-          const authenticated = driveService.isAuthenticated();
-          setIsAuthenticated(authenticated);
-          if (authenticated && !hasInitialLoad) {
-            setHasInitialLoad(true);
-            loadFolders();
-          }
-        }, 1500); // Increased timeout for token restoration
-      } else {
-        // No stored token, wait for service to initialize
-        setTimeout(() => {
-          const authenticated = driveService.isAuthenticated();
-          setIsAuthenticated(authenticated);
-          if (authenticated && !hasInitialLoad) {
-            setHasInitialLoad(true);
-            loadFolders();
-          }
-        }, 1000);
-      }
-    };
-    checkAuth();
-  }, []); // Remove driveService dependency to prevent re-runs
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  const authenticate = useCallback(async () => {
-    setIsAuthenticating(true);
-    setError(null);
-    try {
-      const success = await driveService.signIn();
-      if (success) {
-        setIsAuthenticated(true);
-        setHasInitialLoad(true);
-        await loadFolders();
-      } else {
-        setError('Authentication failed');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
-    } finally {
-      setIsAuthenticating(false);
-    }
-  }, [driveService]);
-
-  const handleAuthCallback = useCallback(
-    async (code: string) => {
-      // This is now handled by the signIn method directly
-      console.log('Auth callback handled automatically by gapi');
-    },
-    [driveService],
-  );
-
-  const logout = useCallback(async () => {
-    try {
-      await driveService.signOut();
-      setIsAuthenticated(false);
-      setFolders([]);
-      setSelectedFolder(null);
-      setAuthUrl(null);
-      setError(null);
-      setHasInitialLoad(false); // Reset initial load flag
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to logout');
-    }
-  }, [driveService]);
 
   const loadFolders = useCallback(
     async (parentId?: string) => {
-      // Check authentication at call time, not in dependencies
       if (!driveService.isAuthenticated()) {
+        // This check is important for manual calls
         return;
       }
 
@@ -157,12 +75,13 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
         setFolders(result.folders);
         setNextPageToken(result.nextPageToken);
         setHasMoreFolders(!!result.nextPageToken);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error loading folders:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load folders');
-        setFolders([]); // Clear folders on error
-        setHasMoreFolders(false);
-        setNextPageToken(undefined);
+        setError(err.message || 'Failed to load folders');
+        // If auth fails, update state
+        if (err.message.includes('Authentication')) {
+          setIsAuthenticated(false);
+        }
       } finally {
         setIsLoadingFolders(false);
       }
@@ -170,12 +89,52 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     [driveService],
   );
 
+  // Automatically load folders when authentication state changes to true
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFolders();
+    }
+  }, [isAuthenticated, loadFolders]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const authenticate = useCallback(async () => {
+    setIsAuthenticating(true);
+    setError(null);
+    try {
+      const success = await driveService.signIn();
+      setIsAuthenticated(success);
+      if (!success) {
+        setError('Authentication failed. Please try again.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed');
+      setIsAuthenticated(false);
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [driveService]);
+
+  const logout = useCallback(async () => {
+    try {
+      await driveService.signOut();
+      setIsAuthenticated(false);
+      setFolders([]);
+      setSelectedFolder(null);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to logout');
+    }
+  }, [driveService]);
+
   const selectFolder = useCallback((folder: DriveFolder | null) => {
     setSelectedFolder(folder);
   }, []);
 
   const loadMoreFolders = useCallback(async () => {
-    if (!driveService.isAuthenticated() || !nextPageToken || isLoadingMoreFolders) {
+    if (!nextPageToken || isLoadingMoreFolders) {
       return;
     }
 
@@ -186,9 +145,9 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setFolders((prevFolders) => [...prevFolders, ...result.folders]);
       setNextPageToken(result.nextPageToken);
       setHasMoreFolders(!!result.nextPageToken);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading more folders:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load more folders');
+      setError(err.message || 'Failed to load more folders');
     } finally {
       setIsLoadingMoreFolders(false);
     }
@@ -199,12 +158,12 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setError(null);
       try {
         const newFolder = await driveService.createFolder(name, parentId);
-        await loadFolders(parentId); // Refresh the folder list
+        // Refresh the current folder list
+        await loadFolders(parentId);
         return newFolder;
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to create folder';
-        setError(errorMessage);
-        throw new Error(errorMessage);
+      } catch (err: any) {
+        setError(err.message || 'Failed to create folder');
+        throw err;
       }
     },
     [driveService, loadFolders],
@@ -212,15 +171,6 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
 
   const resetUploadStatuses = useCallback(() => {
     setUploadStatuses({});
-  }, []);
-
-  const clearUploadStatus = useCallback((fileId: string) => {
-    setUploadStatuses((prev) => {
-      const newStatuses = { ...prev };
-      delete newStatuses[fileId];
-      return newStatuses;
-    });
-    setError(null);
   }, []);
 
   const uploadToGoogleDocs = useCallback(
@@ -240,26 +190,20 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
         );
         setUploadStatuses((prev) => ({ ...prev, [fileId]: 'completed' }));
         return file;
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to upload to Google Docs';
-        setError(errorMessage);
+      } catch (err: any) {
+        setError(err.message || 'Failed to upload to Google Docs');
         setUploadStatuses((prev) => ({ ...prev, [fileId]: 'error' }));
-        throw new Error(errorMessage);
+        throw err;
       }
     },
     [driveService, selectedFolder],
   );
 
   return {
-    // Authentication
     isAuthenticated,
     isAuthenticating,
-    authUrl,
     authenticate,
-    handleAuthCallback,
     logout,
-
-    // Folders
     folders,
     selectedFolder,
     isLoadingFolders,
@@ -269,14 +213,9 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     loadMoreFolders,
     selectFolder,
     createFolder,
-
-    // File operations
     uploadToGoogleDocs,
     uploadStatuses,
     resetUploadStatuses,
-    clearUploadStatus,
-
-    // Error handling
     error,
     clearError,
   };

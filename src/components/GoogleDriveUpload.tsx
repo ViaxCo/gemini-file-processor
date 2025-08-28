@@ -1,12 +1,25 @@
 import { AlertCircle, CheckCircle, ExternalLink, FileText, Loader2, Upload } from 'lucide-react';
 import React, { useState } from 'react';
-import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 
 interface GoogleDriveUploadProps {
-  fileResults: Array<{ file: File; response: string; isProcessing: boolean; isCompleted: boolean }>;
+  // From useGoogleDrive hook
+  isAuthenticated: boolean;
+  uploadToGoogleDocs: (
+    fileId: string,
+    title: string,
+    content: string,
+    folderId?: string | null,
+  ) => Promise<any>;
+  uploadStatuses: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
+  resetUploadStatuses: () => void;
+  clearUploadStatus: (fileId: string) => void;
+  error: string | null;
+
+  // Own props
+  fileResults: Array<{ file: File; response: string; isProcessing: boolean; isCompleted: boolean; error?: any }>;
   selectedFolderId?: string | null;
   selectedFolderName?: string;
   onUploadComplete?: (uploadedFiles: Array<{ name: string; url: string }>) => void;
@@ -14,33 +27,28 @@ interface GoogleDriveUploadProps {
 }
 
 export function GoogleDriveUpload({
+  isAuthenticated,
+  uploadToGoogleDocs,
+  uploadStatuses,
+  resetUploadStatuses,
+  clearUploadStatus,
+  error,
   fileResults,
   selectedFolderId,
   selectedFolderName,
   onUploadComplete,
   isProcessing = false,
 }: GoogleDriveUploadProps): JSX.Element {
-  const {
-    isAuthenticated,
-    uploadToGoogleDocs,
-    uploadStatuses,
-    resetUploadStatuses,
-    clearUploadStatus,
-    error,
-  } = useGoogleDrive();
-
   const [fileNames, setFileNames] = useState<Record<string, string>>({});
   const [uploadedFiles, setUploadedFiles] = useState<
     Array<{ name: string; url: string; originalFileName: string }>
   >([]);
 
-  // Initialize file names with default values
   React.useEffect(() => {
     const defaultNames: Record<string, string> = {};
     fileResults.forEach((result) => {
       if (!fileNames[result.file.name]) {
-        // Generate default name from original filename
-        const baseName = result.file.name?.replace(/\.[^/.]+$/, ''); // Remove extension
+        const baseName = result.file.name?.replace(/\.[^/.]+$/, '');
         defaultNames[result.file.name] = baseName;
       }
     });
@@ -56,7 +64,6 @@ export function GoogleDriveUpload({
     }
   }, [isProcessing, resetUploadStatuses]);
 
-  // Remove uploaded files from state when their upload status is cleared
   React.useEffect(() => {
     setUploadedFiles((prevUploadedFiles) =>
       prevUploadedFiles.filter(
@@ -68,46 +75,34 @@ export function GoogleDriveUpload({
   }, [uploadStatuses]);
 
   const handleFileNameChange = (originalFileName: string, newName: string) => {
-    setFileNames((prev) => ({
-      ...prev,
-      [originalFileName]: newName,
-    }));
+    setFileNames((prev) => ({ ...prev, [originalFileName]: newName }));
   };
 
   const handleSingleUpload = async (result: { file: File; response: string }) => {
     if (!isAuthenticated) return;
-
     const fileName = fileNames[result.file.name] || result.file.name;
-
-    // Clear any previous error state for this file
     clearUploadStatus(result.file.name);
-
     try {
       const uploadedFile = await uploadToGoogleDocs(
-        result.file.name, // Pass fileId
+        result.file.name,
         fileName,
         result.response,
         selectedFolderId,
       );
-
       const newUploadedFile = {
         name: fileName,
         url: uploadedFile.webViewLink || '#',
         originalFileName: result.file.name,
       };
-
       setUploadedFiles((prev) => [...prev, newUploadedFile]);
       onUploadComplete?.([newUploadedFile]);
     } catch (error) {
       console.error('Upload failed:', error);
-      // Error is already handled by the hook
     }
   };
 
   const handleBatchUpload = async () => {
     if (!isAuthenticated || fileResults.length === 0) return;
-
-    // Filter out files that don't have responses or are already uploaded
     const filesWithResponses = fileResults.filter(
       (result) =>
         result.response &&
@@ -116,20 +111,17 @@ export function GoogleDriveUpload({
         !result.error &&
         uploadStatuses[result.file.name] !== 'completed',
     );
-
     if (filesWithResponses.length === 0) return;
 
-    // Use Promise.allSettled instead of Promise.all to handle partial failures
     const uploadPromises = filesWithResponses.map(async (result) => {
       try {
         const fileName = fileNames[result.file.name] || result.file.name;
         const uploadedFile = await uploadToGoogleDocs(
-          result.file.name, // Pass fileId
+          result.file.name,
           fileName,
           result.response,
           selectedFolderId,
         );
-
         return {
           status: 'fulfilled' as const,
           value: {

@@ -1,41 +1,39 @@
 import { AlertCircle, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { Alert, AlertDescription } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 
 interface GoogleDriveAuthProps {
+  // From useGoogleDrive hook
+  isAuthenticated: boolean;
+  isAuthenticating: boolean;
+  authenticate: () => void;
+  logout: () => Promise<void>;
+  error: string | null;
+  clearError: () => void;
+
+  // Own props
   onAuthChange?: (isAuthenticated: boolean) => void;
 }
 
-export function GoogleDriveAuth({ onAuthChange }: GoogleDriveAuthProps): JSX.Element {
-  const { isAuthenticated, isAuthenticating, authenticate, logout, error, clearError } =
-    useGoogleDrive();
-
+export function GoogleDriveAuth({
+  isAuthenticated,
+  isAuthenticating,
+  authenticate,
+  logout,
+  error,
+  clearError,
+  onAuthChange,
+}: GoogleDriveAuthProps): JSX.Element {
   useEffect(() => {
     onAuthChange?.(isAuthenticated);
     if (isAuthenticated) {
       toast.success('Successfully connected to Google Drive!');
     }
   }, [isAuthenticated, onAuthChange]);
-
-  // Handle auth callback from popup
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-
-      if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-        // Handle successful authentication
-        console.log('Google auth successful');
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
 
   const handleAuth = () => {
     clearError();
