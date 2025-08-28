@@ -1,10 +1,4 @@
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { streamText } from 'ai';
 import { GeminiModel } from '../components/ModelSelector';
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY as string,
-});
 
 export const processFileWithAI = async (
   file: File,
@@ -14,18 +8,48 @@ export const processFileWithAI = async (
 ): Promise<void> => {
   const fileContent = await file.text();
 
-  const prompt = `${instruction}\n\nFile content:\n${fileContent}`;
-
   let receivedChunks = false;
   try {
-    const result = streamText({
-      model: google(model),
-      prompt: prompt,
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fileContent,
+        instruction,
+        model,
+      }),
     });
 
-    for await (const chunk of result.textStream) {
-      onChunk(chunk);
-      receivedChunks = true;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error('No response body received');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        if (chunk) {
+          onChunk(chunk);
+          receivedChunks = true;
+        }
+      }
+    } finally {
+      reader.releaseLock();
     }
 
     if (!receivedChunks) {

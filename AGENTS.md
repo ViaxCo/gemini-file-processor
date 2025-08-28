@@ -28,8 +28,8 @@ The application follows a **component-based architecture** with custom hooks for
 ### Data Flow & State Management
 
 1. **File Management**: App orchestrates file state and UI layout switching (single vs multi-file)
-2. **AI Processing**: `useAIProcessor` hook coordinates parallel Gemini API calls via `aiService.ts`
-3. **Streaming Responses**: Real-time updates through `onChunk` callback patterns
+2. **AI Processing**: `useAIProcessor` hook coordinates parallel AI calls via Next.js API routes (`/api/gemini`)
+3. **Streaming Responses**: Server-to-client streaming via ReadableStream API with real-time updates
 4. **Google Drive Integration**: `useGoogleDrive` hook manages OAuth authentication and document uploads
 5. **Theme System**: Context-based dark/light mode with system preference detection
 6. **Instructions Management**: `useInstructions` hook handles preset management and localStorage
@@ -53,7 +53,7 @@ The application follows a **component-based architecture** with custom hooks for
 
 **Required:**
 
-- `NEXT_PUBLIC_GEMINI_API_KEY` - Google Gemini API key for AI processing
+- `GEMINI_API_KEY` - Google Gemini API key for AI processing (server-only, no NEXT_PUBLIC prefix)
 
 **Optional (for Google Drive integration):**
 
