@@ -9,10 +9,7 @@ const google = createGoogleGenerativeAI({
 export async function POST(request: NextRequest) {
   try {
     if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: 'Gemini API key not configured' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
     }
 
     const { fileContent, instruction, model } = await request.json();
@@ -20,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (!fileContent || !instruction || !model) {
       return NextResponse.json(
         { error: 'Missing required fields: fileContent, instruction, model' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -40,9 +37,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in Gemini API route:', error);
-    return NextResponse.json(
-      { error: 'Failed to process request' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
   }
 }

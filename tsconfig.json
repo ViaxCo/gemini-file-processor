@@ -14,21 +14,21 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "noUncheckedIndexedAccess": true,
-    
+
     /* Next.js specific */
     "plugins": [
       {
         "name": "next"
       }
     ],
-    
+
     /* Path aliases */
     "baseUrl": ".",
     "paths": {
