@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -29,15 +31,24 @@ export function ThemeProvider({
   defaultTheme = 'system',
   storageKey = 'theme',
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage?.getItem(storageKey) as Theme) || defaultTheme,
-  );
-
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const [mounted, setMounted] = useState(false);
 
+  // Initialize theme after mount to avoid SSR issues
   useEffect(() => {
-    const root = window.document.documentElement;
+    const storedTheme = localStorage?.getItem(storageKey) as Theme;
+    if (storedTheme) {
+      setTheme(storedTheme);
+    }
+    setMounted(true);
+  }, [defaultTheme, storageKey]);
 
+  // Update resolved theme when theme changes
+  useEffect(() => {
+    if (!mounted) return;
+
+    const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
 
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -48,14 +59,14 @@ export function ThemeProvider({
 
     setResolvedTheme(effectiveTheme);
     root.classList.add(effectiveTheme);
-  }, [theme]);
+
+    // Save to localStorage
+    localStorage?.setItem(storageKey, theme);
+  }, [theme, mounted, storageKey]);
 
   const value = {
     theme,
-    setTheme: (theme: Theme) => {
-      localStorage?.setItem(storageKey, theme);
-      setTheme(theme);
-    },
+    setTheme,
     resolvedTheme,
   };
 

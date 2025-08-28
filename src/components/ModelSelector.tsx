@@ -32,7 +32,9 @@ export const ModelSelector = ({ selectedModel, onModelChange }: ModelSelectorPro
       </div>
       <Select value={selectedModel} onValueChange={onModelChange}>
         <SelectTrigger className="max-w-fit min-w-[120px]" size="sm">
-          <SelectValue placeholder="Select model" />
+          <SelectValue placeholder="Select model">
+            {GEMINI_MODELS.find((model) => model.value === selectedModel)?.label}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {GEMINI_MODELS.map((model) => (

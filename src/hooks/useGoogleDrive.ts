@@ -43,13 +43,13 @@ export interface UseGoogleDriveReturn {
 }
 
 const GOOGLE_DRIVE_CONFIG: GoogleDriveConfig = {
-  clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-  apiKey: import.meta.env.VITE_GOOGLE_API_KEY || '',
+  clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+  apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '',
 };
 
 export function useGoogleDrive(): UseGoogleDriveReturn {
-  const [driveService] = useState(() => new GoogleDriveService(GOOGLE_DRIVE_CONFIG));
-  const [isAuthenticated, setIsAuthenticated] = useState(() => driveService.isAuthenticated());
+  const [driveService, setDriveService] = useState<GoogleDriveService | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [folders, setFolders] = useState<DriveFolder[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null);
@@ -63,8 +63,21 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   >({});
   const [error, setError] = useState<string | null>(null);
 
+  // Initialize drive service only in browser
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const service = new GoogleDriveService(GOOGLE_DRIVE_CONFIG);
+      setDriveService(service);
+      setIsAuthenticated(service.isAuthenticated());
+    }
+  }, []);
+
   const loadFolders = useCallback(
     async (parentId?: string) => {
+      if (!driveService) {
+        return;
+      }
+      
       if (!driveService.isAuthenticated()) {
         // This check is important for manual calls
         return;
@@ -104,6 +117,11 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   }, []);
 
   const authenticate = useCallback(async () => {
+    if (!driveService) {
+      setError('Google Drive service not available');
+      return;
+    }
+    
     setIsAuthenticating(true);
     setError(null);
     try {
@@ -121,6 +139,11 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   }, [driveService]);
 
   const logout = useCallback(async () => {
+    if (!driveService) {
+      setError('Google Drive service not available');
+      return;
+    }
+    
     try {
       await driveService.signOut();
       setIsAuthenticated(false);
@@ -137,7 +160,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   }, []);
 
   const loadMoreFolders = useCallback(async () => {
-    if (!nextPageToken || isLoadingMoreFolders) {
+    if (!driveService || !nextPageToken || isLoadingMoreFolders) {
       return;
     }
 
@@ -145,7 +168,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     setError(null);
     try {
       const result = await driveService.listFolders(currentParentId, nextPageToken);
-      setFolders((prevFolders) => [...prevFolders, ...result.folders]);
+      setFolders((prev) => [...prev, ...result.folders]);
       setNextPageToken(result.nextPageToken);
       setHasMoreFolders(!!result.nextPageToken);
     } catch (err: any) {
@@ -158,6 +181,10 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
 
   const createFolder = useCallback(
     async (name: string, parentId?: string): Promise<DriveFolder> => {
+      if (!driveService) {
+        throw new Error('Google Drive service not available');
+      }
+      
       setError(null);
       try {
         const newFolder = await driveService.createFolder(name, parentId);
@@ -191,6 +218,10 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       content: string,
       folderId?: string | null,
     ): Promise<DriveFile> => {
+      if (!driveService) {
+        throw new Error('Google Drive service not available');
+      }
+      
       setUploadStatuses((prev) => ({ ...prev, [fileId]: 'uploading' }));
       setError(null);
       try {

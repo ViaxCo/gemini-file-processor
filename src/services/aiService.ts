@@ -3,7 +3,7 @@ import { streamText } from 'ai';
 import { GeminiModel } from '../components/ModelSelector';
 
 const google = createGoogleGenerativeAI({
-  apiKey: import.meta.env.VITE_GEMINI_API_KEY as string,
+  apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY as string,
 });
 
 export const processFileWithAI = async (

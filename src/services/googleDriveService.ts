@@ -37,10 +37,18 @@ export class GoogleDriveService {
 
   constructor(config: GoogleDriveConfig) {
     this.config = config;
-    this.initialize();
+    // Only auto-initialize in browser environment
+    if (typeof window !== 'undefined') {
+      this.initialize();
+    }
   }
 
   private initialize(): void {
+    // Only initialize in browser environment
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     if (this.initializationPromise) {
       return;
     }
@@ -91,6 +99,11 @@ export class GoogleDriveService {
   }
 
   private loadScript(src: string, isLoadedCheck: () => boolean): Promise<void> {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return Promise.reject(new Error('Cannot load scripts during server-side rendering'));
+    }
+
     return new Promise((resolve, reject) => {
       const existingScript = document.querySelector(`script[src="${src}"]`);
       if (existingScript) {
@@ -122,6 +135,11 @@ export class GoogleDriveService {
   }
 
   private storeToken(tokenResponse: any): void {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
     try {
       const tokenData = {
         access_token: tokenResponse.access_token,
@@ -135,6 +153,11 @@ export class GoogleDriveService {
   }
 
   private restoreStoredToken(): void {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
     try {
       const storedToken = localStorage.getItem('google_drive_token');
       if (!storedToken) return;
@@ -195,13 +218,21 @@ export class GoogleDriveService {
         window.gapi.client.setToken(null);
       }
       this.isSignedIn = false;
-      localStorage.removeItem('google_drive_token');
+      // Check if we're in a browser environment before accessing localStorage
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.removeItem('google_drive_token');
+      }
     } catch (error) {
       console.error('Sign out failed:', error);
     }
   }
 
   isAuthenticated(): boolean {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return false;
+    }
+
     const storedToken = localStorage.getItem('google_drive_token');
     if (!storedToken) {
       this.isSignedIn = false;

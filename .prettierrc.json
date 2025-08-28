@@ -5,5 +5,5 @@
   "trailingComma": "all",
   "plugins": ["prettier-plugin-tailwindcss"],
   "tailwindFunctions": ["clsx"],
-  "tailwindStylesheet": "./src/index.css"
+  "tailwindStylesheet": "./src/app/globals.css"
 }

@@ -1,22 +1,24 @@
-import { useState } from 'react';
-import { FileUpload } from './components/FileUpload';
-import { GoogleDriveAuth } from './components/GoogleDriveAuth';
-import { GoogleDriveFolderSelector } from './components/GoogleDriveFolderSelector';
-import { GoogleDriveUpload } from './components/GoogleDriveUpload';
-import { InstructionsPanel } from './components/InstructionsPanel';
-import { ModelSelector } from './components/ModelSelector';
-import { MultiFileResponseDisplay } from './components/MultiFileResponseDisplay';
-import { ResponseDisplay } from './components/ResponseDisplay';
-import { ThemeToggle } from './components/ThemeToggle';
-import { Card, CardContent } from './components/ui/card';
-import { Separator } from './components/ui/separator';
-import { Toaster } from './components/ui/sonner';
-import { useAIProcessor } from './hooks/useAIProcessor';
-import { useGoogleDrive } from './hooks/useGoogleDrive';
-import { useInstructions } from './hooks/useInstructions';
-import { useModelSelector } from './hooks/useModelSelector';
+'use client';
 
-function App(): React.ReactElement {
+import { useState } from 'react';
+import { FileUpload } from '@/components/FileUpload';
+import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
+import { GoogleDriveFolderSelector } from '@/components/GoogleDriveFolderSelector';
+import { GoogleDriveUpload } from '@/components/GoogleDriveUpload';
+import { InstructionsPanel } from '@/components/InstructionsPanel';
+import { ModelSelector } from '@/components/ModelSelector';
+import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay';
+import { ResponseDisplay } from '@/components/ResponseDisplay';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Toaster } from '@/components/ui/sonner';
+import { useAIProcessor } from '@/hooks/useAIProcessor';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useInstructions } from '@/hooks/useInstructions';
+import { useModelSelector } from '@/hooks/useModelSelector';
+
+export function GeminiFileProcessor() {
   const [files, setFiles] = useState<File[]>([]);
   const { selectedModel, setSelectedModel } = useModelSelector();
   const { fileResults, isProcessing, processFiles, retryFile, retryAllFailed, clearResults } =
@@ -171,5 +173,3 @@ function App(): React.ReactElement {
     </div>
   );
 }
-
-export default App;

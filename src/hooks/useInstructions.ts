@@ -10,6 +10,11 @@ const MAX_INSTRUCTION_LENGTH = 10000;
 const MAX_SAVED_INSTRUCTIONS = 50;
 
 const safeLocalStorageOperation = <T>(operation: () => T, fallback: T, errorMessage: string): T => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    return fallback;
+  }
+
   try {
     return operation();
   } catch (error) {
@@ -23,9 +28,13 @@ export const useInstructions = () => {
   const [savedInstructions, setSavedInstructions] = useState<string[]>([]);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [lastProcessedInstruction, setLastProcessedInstruction] = useState<string>('');
+  const [isClient, setIsClient] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
+    // Mark that we're in the client environment
+    setIsClient(true);
+
     const loadStoredData = () => {
       const saved = safeLocalStorageOperation(
         () => {
@@ -64,16 +73,22 @@ export const useInstructions = () => {
     loadStoredData();
   }, []);
 
-  const saveToLocalStorage = useCallback((key: string, value: string | string[]) => {
-    safeLocalStorageOperation(
-      () => {
-        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-        return true;
-      },
-      false,
-      `Error saving to localStorage (${key}):`,
-    );
-  }, []);
+  const saveToLocalStorage = useCallback(
+    (key: string, value: string | string[]) => {
+      // Don't save if we're not in the client environment
+      if (!isClient) return;
+
+      safeLocalStorageOperation(
+        () => {
+          localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+          return true;
+        },
+        false,
+        `Error saving to localStorage (${key}):`,
+      );
+    },
+    [isClient],
+  );
 
   const validateInstruction = useCallback((text: string): { isValid: boolean; error?: string } => {
     if (!text.trim()) {
@@ -93,9 +108,11 @@ export const useInstructions = () => {
   const setInstructionWithPersistence = useCallback(
     (value: string) => {
       setInstruction(value);
-      saveToLocalStorage(STORAGE_KEYS.LAST_INSTRUCTION, value);
+      if (isClient) {
+        saveToLocalStorage(STORAGE_KEYS.LAST_INSTRUCTION, value);
+      }
     },
-    [saveToLocalStorage],
+    [saveToLocalStorage, isClient],
   );
 
   const saveInstruction = useCallback((): boolean => {
@@ -116,7 +133,9 @@ export const useInstructions = () => {
       }
 
       setSavedInstructions(updated);
-      saveToLocalStorage(STORAGE_KEYS.CUSTOM_INSTRUCTIONS, updated);
+      if (isClient) {
+        saveToLocalStorage(STORAGE_KEYS.CUSTOM_INSTRUCTIONS, updated);
+      }
     }
 
     setIsSaved(true);
@@ -128,7 +147,7 @@ export const useInstructions = () => {
     }, 2000);
 
     return true;
-  }, [instruction, savedInstructions, validateInstruction, saveToLocalStorage]);
+  }, [instruction, savedInstructions, validateInstruction, saveToLocalStorage, isClient]);
 
   const loadInstruction = useCallback(
     (instructionText: string): void => {
@@ -152,9 +171,11 @@ export const useInstructions = () => {
 
       const updated = savedInstructions.filter((_, i) => i !== index);
       setSavedInstructions(updated);
-      saveToLocalStorage(STORAGE_KEYS.CUSTOM_INSTRUCTIONS, updated);
+      if (isClient) {
+        saveToLocalStorage(STORAGE_KEYS.CUSTOM_INSTRUCTIONS, updated);
+      }
     },
-    [savedInstructions, saveToLocalStorage],
+    [savedInstructions, saveToLocalStorage, isClient],
   );
 
   const clearInstruction = useCallback((): void => {
@@ -164,9 +185,11 @@ export const useInstructions = () => {
   const markInstructionAsProcessed = useCallback(
     (processedInstruction: string): void => {
       setLastProcessedInstruction(processedInstruction);
-      saveToLocalStorage(STORAGE_KEYS.LAST_PROCESSED_INSTRUCTION, processedInstruction);
+      if (isClient) {
+        saveToLocalStorage(STORAGE_KEYS.LAST_PROCESSED_INSTRUCTION, processedInstruction);
+      }
     },
-    [saveToLocalStorage],
+    [saveToLocalStorage, isClient],
   );
 
   const getLastProcessedInstruction = useCallback((): string => {

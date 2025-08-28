@@ -46,7 +46,7 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
    - Add your email to test users if in development
 4. Choose "Web application" as the application type
 5. Add authorized JavaScript origins:
-   - For development: `http://localhost:5173`
+   - For development: `http://localhost:3000`
    - For production: Your domain (e.g., `https://yourdomain.com`)
 6. **Important**: No need to add redirect URIs as the new Google Identity Services handles authentication differently
 7. Copy the Client ID
@@ -63,12 +63,12 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 
    ```env
    # Google Drive API Configuration
-   VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
-   VITE_GOOGLE_API_KEY=your_google_api_key_here
-   # Note: VITE_GOOGLE_REDIRECT_URI is no longer needed with Google Identity Services
+   NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
+   NEXT_PUBLIC_GOOGLE_API_KEY=your_google_api_key_here
+   # Note: NEXT_PUBLIC_GOOGLE_REDIRECT_URI is no longer needed with Google Identity Services
 
    # Gemini API Key (existing)
-   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+   NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
    Replace:
@@ -88,7 +88,7 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
    npm run dev
    ```
 
-2. Open your browser and navigate to `http://localhost:5173`
+2. Open your browser and navigate to `http://localhost:3000`
 
 3. You should see a "Connect to Google Drive" section
 

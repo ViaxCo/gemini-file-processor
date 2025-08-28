@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-This is a **Gemini File Processor** - a modern React TypeScript application built with Vite that processes multiple text files in parallel using Google's Gemini AI, with integrated Google Drive upload functionality.
+This is a **Gemini File Processor** - a modern React TypeScript application built with Next.js that processes multiple text files in parallel using Google's Gemini AI, with integrated Google Drive upload functionality.
 
 ### Core Architecture Pattern
 
@@ -27,7 +27,7 @@ The application follows a **component-based architecture** with custom hooks for
 
 ### Data Flow & State Management
 
-1. **File Management**: App.tsx orchestrates file state and UI layout switching (single vs multi-file)
+1. **File Management**: App orchestrates file state and UI layout switching (single vs multi-file)
 2. **AI Processing**: `useAIProcessor` hook coordinates parallel Gemini API calls via `aiService.ts`
 3. **Streaming Responses**: Real-time updates through `onChunk` callback patterns
 4. **Google Drive Integration**: `useGoogleDrive` hook manages OAuth authentication and document uploads
@@ -43,7 +43,7 @@ The application follows a **component-based architecture** with custom hooks for
 
 ### Tech Stack & Dependencies
 
-- **Core**: React 19 + TypeScript 5.9 + Vite 7.1 (ES modules, path aliases `@/` → `./src/`)
+- **Core**: React 19 + TypeScript 5.9 + Next.js 15 (ES modules, path aliases `@/` → `./src/`)
 - **AI Integration**: Google Gemini 2.5 Flash via AI SDK (`@ai-sdk/google`, `ai` for streaming)
 - **UI Framework**: Tailwind CSS v4 + shadcn/ui components + 12+ Radix UI primitives
 - **Build Tools**: ESLint 9 + Prettier (with Tailwind plugin) + TypeScript strict mode
@@ -53,12 +53,12 @@ The application follows a **component-based architecture** with custom hooks for
 
 **Required:**
 
-- `VITE_GEMINI_API_KEY` - Google Gemini API key for AI processing
+- `NEXT_PUBLIC_GEMINI_API_KEY` - Google Gemini API key for AI processing
 
 **Optional (for Google Drive integration):**
 
-- `VITE_GOOGLE_CLIENT_ID` - Google OAuth 2.0 client ID for Drive authentication
-- `VITE_GOOGLE_API_KEY` - Google API key for Drive/Docs API access
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` - Google OAuth 2.0 client ID for Drive authentication
+- `NEXT_PUBLIC_GOOGLE_API_KEY` - Google API key for Drive/Docs API access
 
 **Note**: AI model selection is configurable through the UI (ModelSelector component) and persisted in localStorage. See `GOOGLE_DRIVE_SETUP.md` for detailed Google Drive API setup instructions.
 

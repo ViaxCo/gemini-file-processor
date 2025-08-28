@@ -12,11 +12,11 @@ A modern React application that processes multiple files in parallel using Googl
 
 ## Tech Stack
 
-- **Frontend**: React 19 + TypeScript + Vite
+- **Frontend**: React 19 + TypeScript + Next.js
 - **AI**: Google Gemini 2.5 Flash via AI SDK (`@ai-sdk/google`)
 - **UI**: Tailwind CSS v4 + shadcn/ui components + Radix UI primitives
 - **Styling**: Modern CSS with Tailwind CSS v4
-- **Build**: Vite with path aliases and fast development
+- **Build**: Next.js with path aliases and optimized builds
 
 ## Quick Start
 
@@ -50,10 +50,10 @@ A modern React application that processes multiple files in parallel using Googl
    Edit `.env` and add your API keys:
 
    ```env
-   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+   NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
    # Optional: For Google Drive integration
-   VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
-   VITE_GOOGLE_API_KEY=your_google_api_key_here
+   NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
+   NEXT_PUBLIC_GOOGLE_API_KEY=your_google_api_key_here
    ```
 
 4. Start the development server:
@@ -62,7 +62,7 @@ A modern React application that processes multiple files in parallel using Googl
    npm run dev
    ```
 
-5. Open your browser and navigate to `http://localhost:5173`
+5. Open your browser and navigate to `http://localhost:3000`
 
 ## Usage
 
@@ -92,7 +92,7 @@ For detailed setup instructions, see [GOOGLE_DRIVE_SETUP.md](./GOOGLE_DRIVE_SETU
 
 The application follows a component-based architecture with:
 
-- **App.tsx**: Main component managing file state and UI layout
+- **src/app/[[...slug]]/page.tsx**: Main component managing file state and UI layout
 - **FileUpload**: Handles file selection and validation
 - **InstructionsPanel**: Input for processing instructions and controls
 - **ResponseDisplay**: Single file response viewer
@@ -110,12 +110,12 @@ The application follows a component-based architecture with:
 
 Required:
 
-- `VITE_GEMINI_API_KEY` - Your Google Gemini API key
+- `NEXT_PUBLIC_GEMINI_API_KEY` - Your Google Gemini API key
 
 Optional (for Google Drive integration):
 
-- `VITE_GOOGLE_CLIENT_ID` - OAuth 2.0 Client ID
-- `VITE_GOOGLE_API_KEY` - Google API key with Drive/Docs access
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` - OAuth 2.0 Client ID
+- `NEXT_PUBLIC_GOOGLE_API_KEY` - Google API key with Drive/Docs access
 
 ## Contributing
 
