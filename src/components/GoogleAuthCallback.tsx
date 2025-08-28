@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
 export function GoogleAuthCallback(): React.ReactElement {
-
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');

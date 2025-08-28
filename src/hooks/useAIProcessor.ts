@@ -144,7 +144,7 @@ export const useAIProcessor = () => {
       };
 
       if (!fileToRetry) return;
-      
+
       await processFileWithAI(fileToRetry.file, instruction, model, (chunk: string) => {
         responseBuffer += chunk;
         const now = Date.now();
