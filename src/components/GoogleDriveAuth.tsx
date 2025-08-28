@@ -14,6 +14,7 @@ interface GoogleDriveAuthProps {
   logout: () => Promise<void>;
   error: string | null;
   clearError: () => void;
+  tokenExpiryInfo: { isNearExpiry: boolean; expiresAt?: number; minutesUntilExpiry?: number };
 
   // Own props
   onAuthChange?: (isAuthenticated: boolean) => void;
@@ -26,6 +27,7 @@ export function GoogleDriveAuth({
   logout,
   error,
   clearError,
+  tokenExpiryInfo,
   onAuthChange,
 }: GoogleDriveAuthProps): React.ReactElement {
   useEffect(() => {
@@ -74,6 +76,31 @@ export function GoogleDriveAuth({
           {isAuthenticated ? 'Connected' : 'Disconnected'}
         </Badge>
       </div>
+
+      {isAuthenticated && tokenExpiryInfo.isNearExpiry && (
+        <Alert
+          variant="default"
+          className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20"
+        >
+          <AlertCircle className="text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+            <span className="min-w-0 flex-grow text-amber-800 dark:text-amber-200">
+              {tokenExpiryInfo.minutesUntilExpiry !== undefined &&
+              tokenExpiryInfo.minutesUntilExpiry > 0
+                ? `Session expires in ${tokenExpiryInfo.minutesUntilExpiry} minutes`
+                : 'Session will expire soon'}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAuth}
+              className="flex-shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
+            >
+              Refresh
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {error && (
         <Alert variant="destructive" className="sm:items-center">

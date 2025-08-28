@@ -145,6 +145,8 @@ export class GoogleDriveService {
         access_token: tokenResponse.access_token,
         expires_at: Date.now() + tokenResponse.expires_in * 1000,
         scope: tokenResponse.scope,
+        // Add a 5-minute buffer before actual expiration for proactive refresh
+        refresh_warning_at: Date.now() + (tokenResponse.expires_in - 300) * 1000,
       };
       localStorage.setItem('google_drive_token', JSON.stringify(tokenData));
     } catch (error) {
@@ -177,6 +179,50 @@ export class GoogleDriveService {
     } catch (error) {
       console.error('Failed to restore stored token:', error);
       localStorage.removeItem('google_drive_token');
+    }
+  }
+
+  private isTokenNearExpiry(): boolean {
+    try {
+      const storedToken = localStorage.getItem('google_drive_token');
+      if (!storedToken) return false;
+
+      const tokenData = JSON.parse(storedToken);
+      return Date.now() >= (tokenData.refresh_warning_at || tokenData.expires_at);
+    } catch {
+      return false;
+    }
+  }
+
+  getTokenExpiryInfo(): { isNearExpiry: boolean; expiresAt?: number; minutesUntilExpiry?: number } {
+    try {
+      const storedToken = localStorage.getItem('google_drive_token');
+      if (!storedToken) return { isNearExpiry: false };
+
+      const tokenData = JSON.parse(storedToken);
+      const expiresAt = tokenData.expires_at;
+      const now = Date.now();
+      const minutesUntilExpiry = Math.max(0, Math.floor((expiresAt - now) / 60000));
+
+      return {
+        isNearExpiry: now >= (tokenData.refresh_warning_at || expiresAt),
+        expiresAt,
+        minutesUntilExpiry,
+      };
+    } catch {
+      return { isNearExpiry: false };
+    }
+  }
+
+  private async checkAndRefreshToken(): Promise<void> {
+    if (this.isTokenNearExpiry()) {
+      console.log('Token is near expiry, proactively refreshing...');
+      try {
+        await this.signIn();
+      } catch (error) {
+        console.error('Failed to refresh token:', error);
+        throw new Error('Authentication expired. Please sign in again.');
+      }
     }
   }
 
@@ -269,6 +315,9 @@ export class GoogleDriveService {
       throw new Error('User not authenticated');
     }
 
+    // Check if token is near expiry and refresh proactively
+    await this.checkAndRefreshToken();
+
     try {
       const folderQuery = parentId
         ? `mimeType='application/vnd.google-apps.folder' and trashed=false and '${parentId}' in parents`
@@ -335,6 +384,9 @@ export class GoogleDriveService {
     if (!this.isAuthenticated()) {
       throw new Error('User not authenticated');
     }
+
+    // Check if token is near expiry and refresh proactively
+    await this.checkAndRefreshToken();
 
     try {
       const markdownHtml = this.md.render(content);

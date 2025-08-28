@@ -14,6 +14,7 @@ export interface UseGoogleDriveReturn {
   isAuthenticating: boolean;
   authenticate: () => void;
   logout: () => Promise<void>;
+  tokenExpiryInfo: { isNearExpiry: boolean; expiresAt?: number; minutesUntilExpiry?: number };
 
   // Folders
   folders: DriveFolder[];
@@ -62,6 +63,11 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     Record<string, 'idle' | 'uploading' | 'completed' | 'error'>
   >({});
   const [error, setError] = useState<string | null>(null);
+  const [tokenExpiryInfo, setTokenExpiryInfo] = useState<{
+    isNearExpiry: boolean;
+    expiresAt?: number;
+    minutesUntilExpiry?: number;
+  }>({ isNearExpiry: false });
 
   // Initialize drive service only in browser
   useEffect(() => {
@@ -71,6 +77,24 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setIsAuthenticated(service.isAuthenticated());
     }
   }, []);
+
+  // Periodically check token expiration
+  useEffect(() => {
+    if (!driveService) return;
+
+    const checkTokenExpiry = () => {
+      const info = driveService.getTokenExpiryInfo();
+      setTokenExpiryInfo(info);
+    };
+
+    // Check immediately
+    checkTokenExpiry();
+
+    // Check every minute
+    const interval = setInterval(checkTokenExpiry, 60000);
+
+    return () => clearInterval(interval);
+  }, [driveService, isAuthenticated]);
 
   const loadFolders = useCallback(
     async (parentId?: string) => {
@@ -246,6 +270,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     isAuthenticating,
     authenticate,
     logout,
+    tokenExpiryInfo,
     folders,
     selectedFolder,
     isLoadingFolders,
