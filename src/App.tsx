@@ -53,7 +53,16 @@ function App(): JSX.Element {
     if (fileToRetry) {
       googleDrive.clearUploadStatus(fileToRetry.file.name);
     }
-    await retryFile(index, getLastProcessedInstruction(), selectedModel);
+
+    // Use the last processed instruction, or fall back to current instruction
+    const instructionToUse = getLastProcessedInstruction() || instruction.trim();
+
+    if (!instructionToUse) {
+      alert('Please provide instructions before retrying');
+      return;
+    }
+
+    await retryFile(index, instructionToUse, selectedModel);
   };
 
   const handleRetryAllFailed = async () => {
@@ -62,7 +71,16 @@ function App(): JSX.Element {
         googleDrive.clearUploadStatus(result.file.name);
       }
     });
-    await retryAllFailed(getLastProcessedInstruction(), selectedModel);
+
+    // Use the last processed instruction, or fall back to current instruction
+    const instructionToUse = getLastProcessedInstruction() || instruction.trim();
+
+    if (!instructionToUse) {
+      alert('Please provide instructions before retrying');
+      return;
+    }
+
+    await retryAllFailed(instructionToUse, selectedModel);
   };
 
   const canProcess = files.length > 0;

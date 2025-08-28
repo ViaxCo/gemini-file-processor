@@ -19,7 +19,13 @@ interface GoogleDriveUploadProps {
   error: string | null;
 
   // Own props
-  fileResults: Array<{ file: File; response: string; isProcessing: boolean; isCompleted: boolean; error?: any }>;
+  fileResults: Array<{
+    file: File;
+    response: string;
+    isProcessing: boolean;
+    isCompleted: boolean;
+    error?: any;
+  }>;
   selectedFolderId?: string | null;
   selectedFolderName?: string;
   onUploadComplete?: (uploadedFiles: Array<{ name: string; url: string }>) => void;

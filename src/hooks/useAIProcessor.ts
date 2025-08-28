@@ -179,16 +179,25 @@ export const useAIProcessor = () => {
   };
 
   const retryAllFailed = async (instruction: string, model: GeminiModel): Promise<void> => {
-    const failedIndices = fileResults
-      .map((result, index) => ({ result, index }))
-      .filter(({ result }) => result.error)
-      .map(({ index }) => index);
+    let failedFilesToRetry: { file: File; index: number }[] = [];
 
-    if (failedIndices.length === 0) return;
+    // Get failed files and their indices from current state
+    setFileResults((prev) => {
+      const failedIndices = prev
+        .map((result, index) => ({ result, index }))
+        .filter(({ result }) => result.error)
+        .map(({ index }) => index);
 
-    // Reset all failed files' states
-    setFileResults((prev) =>
-      prev.map((result, i) =>
+      if (failedIndices.length === 0) return prev;
+
+      // Store the files we need to retry
+      failedFilesToRetry = failedIndices.map((index) => ({
+        file: prev[index].file,
+        index,
+      }));
+
+      // Reset all failed files' states
+      return prev.map((result, i) =>
         failedIndices.includes(i)
           ? {
               ...result,
@@ -198,13 +207,13 @@ export const useAIProcessor = () => {
               error: undefined,
             }
           : result,
-      ),
-    );
+      );
+    });
+
+    if (failedFilesToRetry.length === 0) return;
 
     // Process all failed files in parallel
-    const promises = failedIndices.map(async (index) => {
-      const fileToRetry = fileResults[index];
-
+    const promises = failedFilesToRetry.map(async ({ file, index }) => {
       try {
         // Batch updates for retry all failed as well
         let responseBuffer = '';
@@ -226,7 +235,7 @@ export const useAIProcessor = () => {
           }
         };
 
-        await processFileWithAI(fileToRetry.file, instruction, model, (chunk: string) => {
+        await processFileWithAI(file, instruction, model, (chunk: string) => {
           responseBuffer += chunk;
           const now = Date.now();
 
@@ -245,7 +254,7 @@ export const useAIProcessor = () => {
           ),
         );
       } catch (error) {
-        console.error(`Error retrying file ${fileToRetry.file.name}:`, error);
+        console.error(`Error retrying file ${file.name}:`, error);
         setFileResults((prev) =>
           prev.map((result, i) =>
             i === index

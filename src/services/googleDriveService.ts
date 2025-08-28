@@ -50,7 +50,10 @@ export class GoogleDriveService {
   private async _initializeGapi(): Promise<void> {
     try {
       await this.loadScript('https://apis.google.com/js/api.js', () => !!window.gapi);
-      await this.loadScript('https://accounts.google.com/gsi/client', () => !!window.google?.accounts);
+      await this.loadScript(
+        'https://accounts.google.com/gsi/client',
+        () => !!window.google?.accounts,
+      );
 
       await new Promise<void>((resolve, reject) => {
         window.gapi.load('client', async () => {
@@ -203,20 +206,20 @@ export class GoogleDriveService {
     if (!storedToken) return false;
 
     try {
-        const tokenData = JSON.parse(storedToken);
-        if (Date.now() >= tokenData.expires_at) {
-            localStorage.removeItem('google_drive_token');
-            return false;
-        }
-        // If gapi is loaded, also update its internal state
-        if (window.gapi?.client) {
-            window.gapi.client.setToken({ access_token: tokenData.access_token });
-            this.isSignedIn = true;
-        }
-        return true;
-    } catch {
+      const tokenData = JSON.parse(storedToken);
+      if (Date.now() >= tokenData.expires_at) {
         localStorage.removeItem('google_drive_token');
         return false;
+      }
+      // If gapi is loaded, also update its internal state
+      if (window.gapi?.client) {
+        window.gapi.client.setToken({ access_token: tokenData.access_token });
+        this.isSignedIn = true;
+      }
+      return true;
+    } catch {
+      localStorage.removeItem('google_drive_token');
+      return false;
     }
   }
 
@@ -258,7 +261,9 @@ export class GoogleDriveService {
         this.signOut(); // Force sign out on auth error
         throw new Error('Authentication expired. Please sign in again.');
       }
-      throw new Error(`Failed to list folders: ${error?.result?.error?.message || 'Unknown error'}`);
+      throw new Error(
+        `Failed to list folders: ${error?.result?.error?.message || 'Unknown error'}`,
+      );
     }
   }
 

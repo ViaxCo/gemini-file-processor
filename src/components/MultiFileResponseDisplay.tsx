@@ -180,46 +180,50 @@ const FileItem = memo(
                   {result.file.name}
                 </CardTitle>
                 <div className="mt-1 flex items-center gap-2">{getStatusBadge()}</div>
-                {result.response && (result.isCompleted || result.isProcessing) && (
+                {(result.response || result.error || result.isCompleted) && (
                   <div className="mt-2 flex items-center gap-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopy();
-                          }}
-                          variant="ghost"
-                          size="sm"
-                          disabled={!result.response || result.isProcessing}
-                          className="h-7 w-7 p-0 hover:bg-muted/50"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                          <span className="sr-only">{copyFeedback || 'Copy'}</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {copyFeedback || 'Copy response to clipboard'}
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownload();
-                          }}
-                          variant="ghost"
-                          size="sm"
-                          disabled={!result.response || result.isProcessing}
-                          className="h-7 w-7 p-0 hover:bg-muted/50"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          <span className="sr-only">Download</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Download as markdown file</TooltipContent>
-                    </Tooltip>
+                    {result.response && (result.isCompleted || result.isProcessing) && (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopy();
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              disabled={!result.response || result.isProcessing}
+                              className="h-7 w-7 p-0 hover:bg-muted/50"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                              <span className="sr-only">{copyFeedback || 'Copy'}</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {copyFeedback || 'Copy response to clipboard'}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload();
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              disabled={!result.response || result.isProcessing}
+                              className="h-7 w-7 p-0 hover:bg-muted/50"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              <span className="sr-only">Download</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Download as markdown file</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
                     {onRetry && (result.isCompleted || result.error) && (
                       <Tooltip>
                         <TooltipTrigger asChild>

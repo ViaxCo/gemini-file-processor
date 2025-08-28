@@ -1,6 +1,6 @@
 import { Check, ChevronDown, ChevronRight, Folder, FolderPlus, Home, Loader2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DriveFolder, useGoogleDrive } from '../hooks/useGoogleDrive';
+import { DriveFolder } from '../hooks/useGoogleDrive';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
@@ -208,7 +208,7 @@ export function GoogleDriveFolderSelector({
 
       <div
         ref={scrollContainerRef}
-        className="max-h-40 space-y-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:max-h-128 [&::-webkit-scrollbar]:hidden"
+        className="max-h-40 space-y-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:max-h-142 [&::-webkit-scrollbar]:hidden"
       >
         {isLoadingFolders ? (
           <div className="flex items-center justify-center py-4">
