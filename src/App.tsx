@@ -162,6 +162,7 @@ function App(): React.ReactElement {
               fileResults={fileResults}
               onRetryFile={handleRetryFile}
               onRetryAllFailed={handleRetryAllFailed}
+              uploadStatuses={googleDrive.uploadStatuses}
             />
           )}
         </div>

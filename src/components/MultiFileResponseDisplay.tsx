@@ -17,7 +17,7 @@ import {
   Loader2,
   RotateCcw,
 } from 'lucide-react';
-import { useEffect, useRef, useState, memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Streamdown } from 'streamdown';
 import { FileResult } from '../hooks/useAIProcessor';
@@ -27,6 +27,7 @@ interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
   onRetryFile?: (index: number) => void;
   onRetryAllFailed?: () => void;
+  uploadStatuses?: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
 }
 
 interface FileItemProps {
@@ -37,279 +38,309 @@ interface FileItemProps {
   onRetry?: () => void;
 }
 
-const FileItem = memo(({ result, showMarkdown, onToggleMarkdown, onRetry }: FileItemProps) => {
-  const [isExpanded, setIsExpanded] = useState<boolean>(false);
-  const [copyFeedback, setCopyFeedback] = useState<string>('');
-  const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
-  const [lastResponseLength, setLastResponseLength] = useState<number>(0);
-  const scrollViewportRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+const FileItem = memo(
+  ({
+    result,
+    showMarkdown,
+    onToggleMarkdown,
+    onRetry,
+    uploadStatuses,
+  }: FileItemProps & {
+    uploadStatuses?: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
+  }) => {
+    const [isExpanded, setIsExpanded] = useState<boolean>(false);
+    const [copyFeedback, setCopyFeedback] = useState<string>('');
+    const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
+    const [lastResponseLength, setLastResponseLength] = useState<number>(0);
+    const scrollViewportRef = useRef<HTMLDivElement>(null);
+    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleExpand = () => {
-    const newExpandedState = !isExpanded;
-    setIsExpanded(newExpandedState);
+    const handleExpand = () => {
+      const newExpandedState = !isExpanded;
+      setIsExpanded(newExpandedState);
 
-    // If expanding and there's content, scroll to bottom after the transition
-    if (newExpandedState && result.response && scrollViewportRef.current) {
-      // Reset user scrolling state when opening
-      setIsUserScrolling(false);
-      // Use setTimeout to ensure the expand animation completes first
-      setTimeout(() => {
-        if (scrollViewportRef.current) {
-          scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+      // If expanding and there's content, scroll to bottom after the transition
+      if (newExpandedState && result.response && scrollViewportRef.current) {
+        // Reset user scrolling state when opening
+        setIsUserScrolling(false);
+        // Use setTimeout to ensure the expand animation completes first
+        setTimeout(() => {
+          if (scrollViewportRef.current) {
+            scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+          }
+        }, 300); // Match the transition duration
+      }
+    };
+
+    useEffect(() => {
+      // Reset scrolling state when response is cleared or starts fresh
+      if (result.response.length === 0) {
+        setIsUserScrolling(false);
+        setLastResponseLength(0);
+        return;
+      }
+
+      // Auto-scroll only when response is actively being streamed and user hasn't manually scrolled
+      if (
+        scrollViewportRef.current &&
+        result.response.length > lastResponseLength &&
+        !isUserScrolling &&
+        isExpanded
+      ) {
+        scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+      }
+      setLastResponseLength(result.response.length);
+    }, [result.response, lastResponseLength, isUserScrolling, isExpanded]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+      return () => {
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
         }
-      }, 300); // Match the transition duration
-    }
-  };
+      };
+    }, []);
 
-  useEffect(() => {
-    // Reset scrolling state when response is cleared or starts fresh
-    if (result.response.length === 0) {
-      setIsUserScrolling(false);
-      setLastResponseLength(0);
-      return;
-    }
-
-    // Auto-scroll only when response is actively being streamed and user hasn't manually scrolled
-    if (
-      scrollViewportRef.current &&
-      result.response.length > lastResponseLength &&
-      !isUserScrolling &&
-      isExpanded
-    ) {
-      scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
-    }
-    setLastResponseLength(result.response.length);
-  }, [result.response, lastResponseLength, isUserScrolling, isExpanded]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
+    const handleScroll = () => {
+      // Throttle scroll events to improve performance
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
-    };
-  }, []);
 
-  const handleScroll = () => {
-    // Throttle scroll events to improve performance
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
+      scrollTimeoutRef.current = setTimeout(() => {
+        if (scrollViewportRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = scrollViewportRef.current;
+          const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px tolerance
 
-    scrollTimeoutRef.current = setTimeout(() => {
-      if (scrollViewportRef.current) {
-        const { scrollTop, scrollHeight, clientHeight } = scrollViewportRef.current;
-        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px tolerance
-
-        // If user scrolled up from bottom, mark as user scrolling
-        if (!isAtBottom) {
-          setIsUserScrolling(true);
-        } else {
-          // If user scrolled back to bottom, resume auto-scrolling
-          setIsUserScrolling(false);
+          // If user scrolled up from bottom, mark as user scrolling
+          if (!isAtBottom) {
+            setIsUserScrolling(true);
+          } else {
+            // If user scrolled back to bottom, resume auto-scrolling
+            setIsUserScrolling(false);
+          }
         }
+      }, 50); // Throttle to 20fps
+    };
+
+    const handleCopy = async (): Promise<void> => {
+      const success = await copyToClipboard(result.response);
+      if (success) {
+        toast.success('Response copied to clipboard');
+      } else {
+        toast.error('Failed to copy response');
       }
-    }, 50); // Throttle to 20fps
-  };
+      setCopyFeedback(success ? 'Copied!' : 'Failed to copy');
+      setTimeout(() => setCopyFeedback(''), 2000);
+    };
 
-  const handleCopy = async (): Promise<void> => {
-    const success = await copyToClipboard(result.response);
-    if (success) {
-      toast.success('Response copied to clipboard');
-    } else {
-      toast.error('Failed to copy response');
-    }
-    setCopyFeedback(success ? 'Copied!' : 'Failed to copy');
-    setTimeout(() => setCopyFeedback(''), 2000);
-  };
+    const handleDownload = (): void => {
+      downloadAsMarkdown(result.response, `${result.file.name.replace('.txt', '')}_processed.md`);
+      toast.success('File downloaded successfully');
+    };
 
-  const handleDownload = (): void => {
-    downloadAsMarkdown(result.response, `${result.file.name.replace('.txt', '')}_processed.md`);
-    toast.success('File downloaded successfully');
-  };
+    const getStatusIcon = () => {
+      if (result.error) {
+        return <AlertCircle className="h-4 w-4 text-destructive" />;
+      }
+      if (result.isCompleted) {
+        return <CheckCircle className="h-4 w-4 text-primary" />;
+      }
+      if (result.isProcessing) {
+        return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+      }
+      return <FileText className="h-4 w-4 text-muted-foreground" />;
+    };
 
-  const getStatusIcon = () => {
-    if (result.error) {
-      return <AlertCircle className="h-4 w-4 text-destructive" />;
-    }
-    if (result.isCompleted) {
-      return <CheckCircle className="h-4 w-4 text-primary" />;
-    }
-    if (result.isProcessing) {
-      return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
-    }
-    return <FileText className="h-4 w-4 text-muted-foreground" />;
-  };
+    const getStatusBadge = () => {
+      if (result.error) {
+        return <Badge variant="destructive">Error</Badge>;
+      }
+      if (result.isCompleted) {
+        return <Badge variant="default">Completed</Badge>;
+      }
+      if (result.isProcessing) {
+        return <Badge variant="secondary">Processing...</Badge>;
+      }
+      return <Badge variant="outline">Waiting</Badge>;
+    };
 
-  const getStatusBadge = () => {
-    if (result.error) {
-      return <Badge variant="destructive">Error</Badge>;
-    }
-    if (result.isCompleted) {
-      return <Badge variant="default">Completed</Badge>;
-    }
-    if (result.isProcessing) {
-      return <Badge variant="secondary">Processing...</Badge>;
-    }
-    return <Badge variant="outline">Waiting</Badge>;
-  };
+    const getUploadBadge = () => {
+      if (!uploadStatuses) return null;
+      const uploadStatus = uploadStatuses[result.file.name];
+      if (uploadStatus === 'completed') {
+        return (
+          <Badge variant="secondary" className="ml-1">
+            Uploaded
+          </Badge>
+        );
+      }
+      return null;
+    };
 
-  return (
-    <Card className="w-full gap-0">
-      <CardHeader className="pb-2">
-        <div
-          className="flex min-w-0 cursor-pointer items-center justify-between overflow-hidden"
-          onClick={handleExpand}
-        >
-          <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden sm:space-x-3">
-            <div className="flex-shrink-0">{getStatusIcon()}</div>
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <CardTitle
-                className="truncate overflow-hidden text-sm whitespace-nowrap sm:text-base lg:text-lg"
-                title={result.file.name}
-              >
-                {result.file.name}
-              </CardTitle>
-              <div className="mt-1 flex items-center gap-2">{getStatusBadge()}</div>
-              {(result.response || result.error || result.isCompleted) && (
-                <div className="mt-2 flex items-center gap-1">
-                  {result.response && (result.isCompleted || result.isProcessing) && (
-                    <>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopy();
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            disabled={!result.response || result.isProcessing}
-                            className="h-7 w-7 p-0 hover:bg-muted/50"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                            <span className="sr-only">{copyFeedback || 'Copy'}</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {copyFeedback || 'Copy response to clipboard'}
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownload();
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            disabled={!result.response || result.isProcessing}
-                            className="h-7 w-7 p-0 hover:bg-muted/50"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            <span className="sr-only">Download</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Download as markdown file</TooltipContent>
-                      </Tooltip>
-                    </>
-                  )}
-                  {onRetry && (result.isCompleted || result.error) && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRetry();
-                          }}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 hover:bg-muted/50"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          <span className="sr-only">Retry</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Retry processing this file</TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="ml-2 flex flex-shrink-0 items-center space-x-1 sm:space-x-2">
-            {result.response ? (
-              <div className="flex-shrink-0">
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px]' : 'max-h-0'}`}
-        >
-          {result.response && (
-            <div className="mb-4 rounded-md border bg-background p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <div></div>
-                <Toggle
-                  pressed={showMarkdown}
-                  onPressedChange={onToggleMarkdown}
-                  variant="outline"
-                  size="sm"
+    return (
+      <Card className="w-full gap-0">
+        <CardHeader className="pb-2">
+          <div
+            className="flex min-w-0 cursor-pointer items-center justify-between overflow-hidden"
+            onClick={handleExpand}
+          >
+            <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden sm:space-x-3">
+              <div className="flex-shrink-0">{getStatusIcon()}</div>
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <CardTitle
+                  className="truncate overflow-hidden text-sm whitespace-nowrap sm:text-base lg:text-lg"
+                  title={result.file.name}
                 >
-                  {showMarkdown ? 'Raw' : 'Formatted'}
-                </Toggle>
-              </div>
-              <div
-                ref={scrollViewportRef}
-                onScroll={handleScroll}
-                className="max-h-96 overflow-y-auto"
-              >
-                {showMarkdown ? (
-                  <div className="overflow-wrap-anywhere text-sm leading-relaxed break-words text-foreground sm:text-base">
-                    {result.isProcessing ? (
-                      <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground sm:text-base">
-                        {result.response}
-                      </pre>
-                    ) : (
-                      <Streamdown>{result.response}</Streamdown>
+                  {result.file.name}
+                </CardTitle>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {getStatusBadge()}
+                  {getUploadBadge()}
+                </div>
+                {(result.response || result.error || result.isCompleted) && (
+                  <div className="mt-2 flex items-center gap-1">
+                    {result.response && (result.isCompleted || result.isProcessing) && (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopy();
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              disabled={!result.response || result.isProcessing}
+                              className="h-7 w-7 p-0 hover:bg-muted/50"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                              <span className="sr-only">{copyFeedback || 'Copy'}</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {copyFeedback || 'Copy response to clipboard'}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload();
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              disabled={!result.response || result.isProcessing}
+                              className="h-7 w-7 p-0 hover:bg-muted/50"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              <span className="sr-only">Download</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Download as markdown file</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                    {onRetry && (result.isCompleted || result.error) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRetry();
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 hover:bg-muted/50"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            <span className="sr-only">Retry</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Retry processing this file</TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
-                ) : (
-                  <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground sm:text-base">
-                    {result.response}
-                  </pre>
                 )}
               </div>
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-});
+
+            <div className="ml-2 flex flex-shrink-0 items-center space-x-1 sm:space-x-2">
+              {result.response ? (
+                <div className="flex-shrink-0">
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px]' : 'max-h-0'}`}
+          >
+            {result.response && (
+              <div className="mb-4 rounded-md border bg-background p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <div></div>
+                  <Toggle
+                    pressed={showMarkdown}
+                    onPressedChange={onToggleMarkdown}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {showMarkdown ? 'Raw' : 'Formatted'}
+                  </Toggle>
+                </div>
+                <div
+                  ref={scrollViewportRef}
+                  onScroll={handleScroll}
+                  className="max-h-96 overflow-y-auto"
+                >
+                  {showMarkdown ? (
+                    <div className="overflow-wrap-anywhere text-sm leading-relaxed break-words text-foreground">
+                      {result.isProcessing ? (
+                        <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground">
+                          {result.response}
+                        </pre>
+                      ) : (
+                        <Streamdown>{result.response}</Streamdown>
+                      )}
+                    </div>
+                  ) : (
+                    <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground">
+                      {result.response}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  },
+);
 
 FileItem.displayName = 'FileItem';
 
 // Memoization comparison function to prevent unnecessary re-renders
 const FileItemMemo = memo(FileItem, (prevProps, nextProps) => {
+  const prevUploadStatus = prevProps.uploadStatuses?.[prevProps.result.file.name];
+  const nextUploadStatus = nextProps.uploadStatuses?.[nextProps.result.file.name];
+
   return (
     prevProps.result.response === nextProps.result.response &&
     prevProps.result.isProcessing === nextProps.result.isProcessing &&
     prevProps.result.isCompleted === nextProps.result.isCompleted &&
     prevProps.result.error === nextProps.result.error &&
     prevProps.showMarkdown === nextProps.showMarkdown &&
-    prevProps.result.file.name === nextProps.result.file.name
+    prevProps.result.file.name === nextProps.result.file.name &&
+    prevUploadStatus === nextUploadStatus
   );
 });
 
@@ -317,6 +348,7 @@ export const MultiFileResponseDisplay = ({
   fileResults,
   onRetryFile,
   onRetryAllFailed,
+  uploadStatuses,
 }: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
@@ -473,6 +505,7 @@ export const MultiFileResponseDisplay = ({
                 showMarkdown={showMarkdown}
                 onToggleMarkdown={setShowMarkdown}
                 onRetry={onRetryFile ? () => onRetryFile(index) : undefined}
+                uploadStatuses={uploadStatuses}
               />
             ))
           )}
