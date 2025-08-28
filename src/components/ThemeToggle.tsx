@@ -1,5 +1,4 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useTheme } from '../contexts/theme-context';
 import { Button } from './ui/button';
 import {
@@ -11,17 +10,6 @@ import {
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme();
-  const [isLargeScreen, setIsLargeScreen] = useState(false);
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsLargeScreen(window.innerWidth >= 1024); // lg breakpoint
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
 
   return (
     <DropdownMenu>

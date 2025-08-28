@@ -16,7 +16,7 @@ import { useGoogleDrive } from './hooks/useGoogleDrive';
 import { useInstructions } from './hooks/useInstructions';
 import { useModelSelector } from './hooks/useModelSelector';
 
-function App(): JSX.Element {
+function App(): React.ReactElement {
   const [files, setFiles] = useState<File[]>([]);
   const { selectedModel, setSelectedModel } = useModelSelector();
   const { fileResults, isProcessing, processFiles, retryFile, retryAllFailed, clearResults } =

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { processFileWithAI } from '../services/aiService';
 import { GeminiModel } from '../components/ModelSelector';
 import { scheduleIdleWork } from '../utils/performance';
@@ -143,6 +143,8 @@ export const useAIProcessor = () => {
         }
       };
 
+      if (!fileToRetry) return;
+      
       await processFileWithAI(fileToRetry.file, instruction, model, (chunk: string) => {
         responseBuffer += chunk;
         const now = Date.now();
@@ -162,7 +164,7 @@ export const useAIProcessor = () => {
         ),
       );
     } catch (error) {
-      console.error(`Error retrying file ${fileToRetry.file.name}:`, error);
+      console.error(`Error retrying file ${fileToRetry?.file.name}:`, error);
       setFileResults((prev) =>
         prev.map((result, i) =>
           i === fileIndex
@@ -192,7 +194,7 @@ export const useAIProcessor = () => {
 
       // Store the files we need to retry
       failedFilesToRetry = failedIndices.map((index) => ({
-        file: prev[index].file,
+        file: prev[index]!.file,
         index,
       }));
 

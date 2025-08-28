@@ -6,6 +6,8 @@ import {
   GoogleDriveService,
 } from '../services/googleDriveService';
 
+export type { DriveFile, DriveFolder };
+
 export interface UseGoogleDriveReturn {
   // Authentication
   isAuthenticated: boolean;
@@ -29,7 +31,7 @@ export interface UseGoogleDriveReturn {
     fileId: string,
     title: string,
     content: string,
-    folderId?: string,
+    folderId?: string | null,
   ) => Promise<DriveFile>;
   uploadStatuses: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
   resetUploadStatuses: () => void;
@@ -187,7 +189,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       fileId: string,
       title: string,
       content: string,
-      folderId?: string,
+      folderId?: string | null,
     ): Promise<DriveFile> => {
       setUploadStatuses((prev) => ({ ...prev, [fileId]: 'uploading' }));
       setError(null);

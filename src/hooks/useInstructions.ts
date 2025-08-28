@@ -23,7 +23,7 @@ export const useInstructions = () => {
   const [savedInstructions, setSavedInstructions] = useState<string[]>([]);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [lastProcessedInstruction, setLastProcessedInstruction] = useState<string>('');
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     const loadStoredData = () => {

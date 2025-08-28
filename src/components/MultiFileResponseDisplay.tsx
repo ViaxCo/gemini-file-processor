@@ -38,7 +38,7 @@ interface FileItemProps {
 }
 
 const FileItem = memo(
-  ({ result, index, showMarkdown, onToggleMarkdown, onRetry }: FileItemProps) => {
+  ({ result, showMarkdown, onToggleMarkdown, onRetry }: FileItemProps) => {
     const [isExpanded, setIsExpanded] = useState<boolean>(false);
     const [copyFeedback, setCopyFeedback] = useState<string>('');
     const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
@@ -143,12 +143,6 @@ const FileItem = memo(
       return <FileText className="h-4 w-4 text-muted-foreground" />;
     };
 
-    const getStatusText = () => {
-      if (result.error) return 'Error';
-      if (result.isCompleted) return 'Completed';
-      if (result.isProcessing) return 'Processing...';
-      return 'Waiting';
-    };
 
     const getStatusBadge = () => {
       if (result.error) {

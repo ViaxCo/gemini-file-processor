@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
-import { useGoogleDrive } from '../hooks/useGoogleDrive';
 
-export function GoogleAuthCallback(): JSX.Element {
-  const { handleAuthCallback } = useGoogleDrive();
+export function GoogleAuthCallback(): React.ReactElement {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -18,25 +16,11 @@ export function GoogleAuthCallback(): JSX.Element {
     }
 
     if (code) {
-      handleAuthCallback(code)
-        .then(() => {
-          // Success - notify parent window and close
-          window.opener?.postMessage({ type: 'GOOGLE_AUTH_SUCCESS' }, window.location.origin);
-          window.close();
-        })
-        .catch((err) => {
-          console.error('Auth callback failed:', err);
-          window.opener?.postMessage(
-            {
-              type: 'GOOGLE_AUTH_ERROR',
-              error: err.message,
-            },
-            window.location.origin,
-          );
-          window.close();
-        });
+      // Success - notify parent window and close
+      window.opener?.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', code }, window.location.origin);
+      window.close();
     }
-  }, [handleAuthCallback]);
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">

@@ -203,22 +203,27 @@ export class GoogleDriveService {
 
   isAuthenticated(): boolean {
     const storedToken = localStorage.getItem('google_drive_token');
-    if (!storedToken) return false;
+    if (!storedToken) {
+      this.isSignedIn = false;
+      return false;
+    }
 
     try {
       const tokenData = JSON.parse(storedToken);
       if (Date.now() >= tokenData.expires_at) {
         localStorage.removeItem('google_drive_token');
+        this.isSignedIn = false;
         return false;
       }
       // If gapi is loaded, also update its internal state
       if (window.gapi?.client) {
         window.gapi.client.setToken({ access_token: tokenData.access_token });
-        this.isSignedIn = true;
       }
-      return true;
+      this.isSignedIn = true;
+      return this.isSignedIn;
     } catch {
       localStorage.removeItem('google_drive_token');
+      this.isSignedIn = false;
       return false;
     }
   }

@@ -34,7 +34,7 @@ export function GoogleDriveFolderSelector({
   createFolder,
   isAuthenticated,
   onFolderSelect,
-}: GoogleDriveFolderSelectorProps): JSX.Element {
+}: GoogleDriveFolderSelectorProps): React.ReactElement {
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
@@ -59,7 +59,7 @@ export function GoogleDriveFolderSelector({
   };
 
   const handleBreadcrumbNavigation = async (targetIndex: number) => {
-    const targetFolderId = targetIndex === -1 ? undefined : breadcrumb[targetIndex].id;
+    const targetFolderId = targetIndex === -1 ? undefined : breadcrumb[targetIndex]?.id;
     await loadFolders(targetFolderId);
     setBreadcrumb(breadcrumb.slice(0, targetIndex + 1));
   };
@@ -74,7 +74,7 @@ export function GoogleDriveFolderSelector({
 
     setIsCreatingFolder(true);
     try {
-      const parentId = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1].id : undefined;
+      const parentId = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1]?.id : undefined;
       await createFolder(newFolderName.trim(), parentId);
       setNewFolderName('');
       setShowCreateFolder(false);

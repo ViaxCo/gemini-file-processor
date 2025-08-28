@@ -27,7 +27,7 @@ export function GoogleDriveAuth({
   error,
   clearError,
   onAuthChange,
-}: GoogleDriveAuthProps): JSX.Element {
+}: GoogleDriveAuthProps): React.ReactElement {
   useEffect(() => {
     onAuthChange?.(isAuthenticated);
     if (isAuthenticated) {

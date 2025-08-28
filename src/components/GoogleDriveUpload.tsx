@@ -44,7 +44,7 @@ export function GoogleDriveUpload({
   selectedFolderName,
   onUploadComplete,
   isProcessing = false,
-}: GoogleDriveUploadProps): JSX.Element {
+}: GoogleDriveUploadProps): React.ReactElement {
   const [fileNames, setFileNames] = useState<Record<string, string>>({});
   const [uploadedFiles, setUploadedFiles] = useState<
     Array<{ name: string; url: string; originalFileName: string }>
