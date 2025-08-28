@@ -181,25 +181,23 @@ export const useAIProcessor = () => {
   };
 
   const retryAllFailed = async (instruction: string, model: GeminiModel): Promise<void> => {
-    let failedFilesToRetry: { file: File; index: number }[] = [];
+    // First, identify failed files from current state
+    const failedIndices = fileResults
+      .map((result, index) => ({ result, index }))
+      .filter(({ result }) => result.error)
+      .map(({ index }) => index);
 
-    // Get failed files and their indices from current state
-    setFileResults((prev) => {
-      const failedIndices = prev
-        .map((result, index) => ({ result, index }))
-        .filter(({ result }) => result.error)
-        .map(({ index }) => index);
+    if (failedIndices.length === 0) return;
 
-      if (failedIndices.length === 0) return prev;
+    // Store the files we need to retry
+    const failedFilesToRetry = failedIndices.map((index) => ({
+      file: fileResults[index]!.file,
+      index,
+    }));
 
-      // Store the files we need to retry
-      failedFilesToRetry = failedIndices.map((index) => ({
-        file: prev[index]!.file,
-        index,
-      }));
-
-      // Reset all failed files' states
-      return prev.map((result, i) =>
+    // Reset all failed files' states
+    setFileResults((prev) =>
+      prev.map((result, i) =>
         failedIndices.includes(i)
           ? {
               ...result,
@@ -209,10 +207,8 @@ export const useAIProcessor = () => {
               error: undefined,
             }
           : result,
-      );
-    });
-
-    if (failedFilesToRetry.length === 0) return;
+      ),
+    );
 
     // Process all failed files in parallel
     const promises = failedFilesToRetry.map(async ({ file, index }) => {
