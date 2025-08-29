@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
 import { GoogleDriveFolderSelector } from '@/components/GoogleDriveFolderSelector';
@@ -8,6 +7,7 @@ import { GoogleDriveUpload } from '@/components/GoogleDriveUpload';
 import { InstructionsPanel } from '@/components/InstructionsPanel';
 import { ModelSelector } from '@/components/ModelSelector';
 import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay';
+import { QuotaMonitor } from '@/components/QuotaMonitor';
 import { ResponseDisplay } from '@/components/ResponseDisplay';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,10 +17,11 @@ import { useAIProcessor } from '@/hooks/useAIProcessor';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useModelSelector } from '@/hooks/useModelSelector';
+import { useState } from 'react';
 
 export function GeminiFileProcessor() {
   const [files, setFiles] = useState<File[]>([]);
-  const { selectedModel, setSelectedModel } = useModelSelector();
+  const { selectedModel, setSelectedModel, isModelLoaded } = useModelSelector();
   const { fileResults, isProcessing, processFiles, retryFile, retryAllFailed, clearResults } =
     useAIProcessor();
   const { instruction, markInstructionAsProcessed, getLastProcessedInstruction } =
@@ -44,10 +45,9 @@ export function GeminiFileProcessor() {
     setFiles([]);
   };
 
-  const handleFolderSelect = (folderId: string | null, folderName: string) => {
+  const handleFolderSelect = (_folderId: string | null, _folderName: string) => {
     // This logic might need to be adjusted if folder selection is managed within the hook
     // For now, we assume the hook's selectFolder is the source of truth
-    console.log('Folder selected:', { folderId, folderName });
   };
 
   const handleRetryFile = async (index: number) => {
@@ -108,6 +108,15 @@ export function GeminiFileProcessor() {
                 <ThemeToggle />
               </div>
             </div>
+
+            <QuotaMonitor
+              projectNumber={process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER}
+              model={selectedModel}
+              isModelLoaded={isModelLoaded}
+              className="max-w-sm"
+              showRefreshButton={true}
+              autoRefresh={true}
+            />
           </div>
         </div>
 

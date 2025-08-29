@@ -6,28 +6,25 @@ const DEFAULT_MODEL: GeminiModel = 'gemini-2.5-flash';
 
 export const useModelSelector = () => {
   const [selectedModel, setSelectedModel] = useState<GeminiModel>(DEFAULT_MODEL);
-  const [isClient, setIsClient] = useState(false);
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
 
   useEffect(() => {
-    // Mark that we're in the client environment
-    setIsClient(true);
-
-    // Load the stored model
     const stored = localStorage.getItem(MODEL_STORAGE_KEY);
     if (stored) {
       setSelectedModel(stored as GeminiModel);
     }
+    setIsModelLoaded(true);
   }, []);
 
   useEffect(() => {
-    // Only save to localStorage if we're in the client environment
-    if (isClient) {
+    if (isModelLoaded) {
       localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
     }
-  }, [selectedModel, isClient]);
+  }, [selectedModel, isModelLoaded]);
 
   return {
     selectedModel,
     setSelectedModel,
+    isModelLoaded,
   };
 };

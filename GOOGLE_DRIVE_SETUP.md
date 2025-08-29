@@ -1,11 +1,12 @@
 # Google Drive Integration Setup Guide
 
-This guide will help you set up Google Drive integration for your Gemini File Processor app, allowing you to:
+This guide will help you set up Google Drive integration and API quota monitoring for your Gemini File Processor app, allowing you to:
 
 - Connect to your Google Drive account
 - Select specific folders for saving processed files
 - Upload files as Google Docs with custom names
 - Convert markdown content to Google Docs format
+- Monitor real-time API quota usage with visual indicators
 
 ## Prerequisites
 
@@ -24,8 +25,11 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 
 1. In the Google Cloud Console, navigate to "APIs & Services" > "Library"
 2. Search for and enable the following APIs:
-   - **Google Drive API**
-   - **Google Docs API**
+   - **Google Drive API** (for file uploads)
+   - **Google Docs API** (for document creation)
+   - **Service Usage API** (for quota monitoring)
+   - **Cloud Monitoring API** (for usage tracking)
+   - **Generative Language API** (for Gemini AI access)
 
 ### 3. Create Credentials
 
@@ -51,6 +55,21 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 6. **Important**: No need to add redirect URIs as the new Google Identity Services handles authentication differently
 7. Copy the Client ID
 
+#### Create Service Account (Optional - for Quota Monitoring)
+
+1. Go to "APIs & Services" > "Credentials"
+2. Click "Create Credentials" > "Service account"
+3. Fill in service account name and description
+4. Grant the following roles:
+   - **Service Usage Consumer**
+   - **Monitoring Viewer** 
+   - **Service Management Service Agent**
+5. Click "Done"
+6. Click on the created service account
+7. Go to "Keys" tab > "Add Key" > "Create new key"
+8. Choose "JSON" format and download the key file
+9. Note your **Project Number** from the project settings (different from Project ID)
+
 ### 4. Configure Environment Variables
 
 1. Copy `.env.example` to `.env`:
@@ -68,13 +87,22 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
    # Note: NEXT_PUBLIC_GOOGLE_REDIRECT_URI is no longer needed with Google Identity Services
 
    # Gemini API Key (existing)
-   NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
+   MY_GEMINI_API_KEY=your_gemini_api_key_here
+
+   # API Quota Monitoring (Optional)
+   NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER=your_project_number_here
+   GOOGLE_SERVICE_ACCOUNT_KEY='{"type":"service_account",...}'
+   # OR alternatively:
+   # GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+
    ```
 
    Replace:
    - `your_google_client_id_here` with your OAuth 2.0 Client ID
    - `your_google_api_key_here` with your API key
    - `your_gemini_api_key_here` with your existing Gemini API key
+   - `your_project_number_here` with your Google Cloud project number (for quota monitoring)
+   - The `GOOGLE_SERVICE_ACCOUNT_KEY` with the entire JSON content of your service account key file
 
    **Note**: The redirect URI is no longer needed as Google Identity Services handles authentication popups automatically.
 
@@ -125,6 +153,9 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 - **Folder Organization**: Save files to specific folders or create new ones
 - **Batch Upload**: Upload multiple files at once
 - **Direct Links**: Get direct links to view uploaded documents
+- **Real-time Quota Monitoring**: Visual progress bars showing current API usage vs daily limits
+- **Model-specific Tracking**: Separate quota tracking for each Gemini model (2.5 Flash, 2.0 Flash, etc.)
+- **Usage Warnings**: Automatic alerts at 80% and 95% quota usage
 
 ## Troubleshooting
 
@@ -147,6 +178,13 @@ This guide will help you set up Google Drive integration for your Gemini File Pr
 - Verify the Google Docs API is enabled
 - Check that your API key includes access to the Docs API
 - Ensure the user has write permissions to the selected folder
+
+**"Failed to fetch quota information" error:**
+
+- Ensure Service Usage API and Cloud Monitoring API are enabled
+- Verify your service account has the correct IAM roles
+- Check that `GOOGLE_PROJECT_NUMBER` matches your actual project number (not project ID)
+- Confirm the service account key JSON is properly formatted in the environment variable
 
 ### Development vs Production
 
@@ -177,6 +215,15 @@ If you encounter issues:
 The Google Drive integration enhances your file processing workflow by automatically saving processed content to your preferred Google Drive location in a properly formatted Google Docs format.
 
 ## Recent Updates
+
+### Version 3.0 Features
+
+- **Real-time Quota Monitoring**: Live API usage tracking with Google Cloud integration
+- **Model-specific Limits**: Dynamic quota limits for each Gemini model
+- **Visual Usage Indicators**: Progress bars with color-coded warning states
+- **SSR-safe Hydration**: Prevents duplicate API requests on page reload
+- **Usage Time Windows**: Accurate daily usage calculation (West African Time zone)
+- **Quota Caching**: Server-side caching to minimize Google Cloud API calls
 
 ### Version 2.0 Features
 
