@@ -153,6 +153,10 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setIsAuthenticated(success);
       if (!success) {
         setError('Authentication failed. Please try again.');
+      } else {
+        // Immediately update token expiry info after successful authentication
+        const info = driveService.getTokenExpiryInfo();
+        setTokenExpiryInfo(info);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
