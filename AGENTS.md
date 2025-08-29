@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
 
 - `npm run build` - Build for production (includes dependency install and TypeScript compilation)
@@ -24,6 +20,7 @@ The application follows a **component-based architecture** with custom hooks for
 - **Real-time Updates**: AI responses stream in real-time using async generators and callback patterns
 - **Error Isolation**: Per-file error handling allows partial success across batch operations
 - **Mobile-First Design**: Built with Tailwind CSS v4 for responsive design
+- **Quota Monitoring**: Real-time API quota usage monitoring with Google Cloud integration
 
 ### Data Flow & State Management
 
@@ -33,6 +30,7 @@ The application follows a **component-based architecture** with custom hooks for
 4. **Google Drive Integration**: `useGoogleDrive` hook manages OAuth authentication and document uploads
 5. **Theme System**: Context-based dark/light mode with system preference detection
 6. **Instructions Management**: `useInstructions` hook handles preset management and localStorage
+7. **Quota Monitoring**: `useQuotaMonitoring` hook tracks real-time API usage via Google Cloud APIs
 
 ### File Processing System
 
@@ -53,12 +51,20 @@ The application follows a **component-based architecture** with custom hooks for
 
 **Required:**
 
-- `GEMINI_API_KEY` - Google Gemini API key for AI processing (server-only, no NEXT_PUBLIC prefix)
+- `MY_GEMINI_API_KEY` - Google Gemini API key for AI processing (server-only, no NEXT_PUBLIC prefix)
 
 **Optional (for Google Drive integration):**
 
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` - Google OAuth 2.0 client ID for Drive authentication
 - `NEXT_PUBLIC_GOOGLE_API_KEY` - Google API key for Drive/Docs API access
+
+**Optional (for real-time API quota monitoring):**
+
+- `NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER` - Google Cloud project number for quota monitoring (find in Google Cloud Console project settings)
+- `GOOGLE_APPLICATION_CREDENTIALS` - Path to Google Cloud service account JSON key file (server-only)
+- `GOOGLE_SERVICE_ACCOUNT_KEY` - Google Cloud service account JSON key as string (server-only, alternative to file path)
+
+**Note**: Quota monitoring provides real-time API usage tracking with visual progress indicators. Requires Google Cloud Service Usage API and Cloud Monitoring API to be enabled. Service account needs `Service Usage Consumer`, `Monitoring Viewer`, and `Service Management Service Agent` roles.
 
 **Note**: AI model selection is configurable through the UI (ModelSelector component) and persisted in localStorage. See `GOOGLE_DRIVE_SETUP.md` for detailed Google Drive API setup instructions.
 
@@ -78,6 +84,7 @@ The application follows a **component-based architecture** with custom hooks for
   - All UI components are in `src/components/ui/` with 12+ Radix primitives already integrated
 - **Mobile-First**: Every UI change must be mobile-first responsive using Tailwind CSS v4
 - **Theme Support**: All new components must support the existing dark/light theme system
+- **Quota Integration**: QuotaMonitor component automatically tracks selected model usage with SSR-safe hydration
 
 ### Development Workflow
 
@@ -117,7 +124,8 @@ The application follows a **component-based architecture** with custom hooks for
 
 - **Instructions Storage**: `useInstructions` hook manages localStorage for custom instructions with validation and limits
 - **Theme Persistence**: Theme context automatically syncs with localStorage and system preferences
-- **Model Selection**: Selected Gemini model persists across sessions via `useModelSelector` hook
+- **Model Selection**: Selected Gemini model persists across sessions via `useModelSelector` hook with SSR-safe hydration
+- **Quota Caching**: API quota limits cached server-side (1 hour TTL) to minimize Google Cloud API calls
 
 ### Error Handling Strategy
 
@@ -132,6 +140,16 @@ The application follows a **component-based architecture** with custom hooks for
 3. **Streaming Updates**: Real-time UI updates via callback pattern with buffering
 4. **Completion Tracking**: Individual file completion states for precise UI feedback
 5. **Retry Logic**: Failed files can be retried individually or in batch
+
+### Quota Monitoring System
+
+- **Real-time Tracking**: Live API usage data from Google Cloud Monitoring API
+- **Model-specific Limits**: Dynamic quota limits fetched per selected Gemini model
+- **Visual Indicators**: Progress bars with warning states (80% near limit, 95% at limit)
+- **SSR-safe Hydration**: Prevents duplicate API requests on page reload using `isModelLoaded` state
+- **Auto-refresh**: 5-minute intervals with manual refresh capability
+- **Usage Calculation**: West African Time (UTC+1) daily usage window from 7am UTC
+- **Error Resilience**: Graceful degradation when quota APIs are unavailable
 
 # important-instruction-reminders
 

@@ -80,7 +80,7 @@ export function GoogleDriveAuth({
       {isAuthenticated && tokenExpiryInfo.isNearExpiry && (
         <Alert
           variant="default"
-          className="items-center border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20"
+          className="border-amber-200 bg-amber-50 sm:items-center dark:border-amber-800 dark:bg-amber-950/20"
         >
           <AlertCircle className="text-amber-600 dark:text-amber-400" />
           <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">

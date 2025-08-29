@@ -3,12 +3,12 @@ import { streamText } from 'ai';
 import { NextRequest, NextResponse } from 'next/server';
 
 const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY as string,
+  apiKey: process.env.MY_GEMINI_API_KEY as string,
 });
 
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.MY_GEMINI_API_KEY) {
       return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
     }
 
