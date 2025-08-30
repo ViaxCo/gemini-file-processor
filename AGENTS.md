@@ -70,10 +70,10 @@ The application follows a **component-based architecture** with custom hooks for
 
 ## Development Notes
 
-### Code Quality & Build Process
+### Code Quality
 
-- **Pre-deployment checks**: Always run `npm run lint`, `npm run prettier`, and `npm run ts-check` to ensure everything works and is properly formatted
-- **TypeScript**: Strict mode enabled - all type errors must be resolved before building
+- **Checks**: Always run `npm run lint`, `npm run prettier`, and `npm run ts-check` to ensure everything works and is properly formatted
+- **TypeScript**: Strict mode enabled - all type errors must be resolved
 - **No testing framework**: Project relies on TypeScript + ESLint for code quality and manual testing
 
 ### Component Development
