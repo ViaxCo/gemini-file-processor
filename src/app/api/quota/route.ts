@@ -115,21 +115,31 @@ export async function GET(request: NextRequest) {
       const todayMidnightUTC = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
       );
-      const sevenAmUTC = new Date(todayMidnightUTC.getTime() + 7 * 60 * 60 * 1000);
+      let sevenAmUTC = new Date(todayMidnightUTC.getTime() + 7 * 60 * 60 * 1000);
+
+      // If the current time is before 7 AM UTC, the quota period started on the previous day.
+      if (now.getTime() < sevenAmUTC.getTime()) {
+        sevenAmUTC.setTime(sevenAmUTC.getTime() - 24 * 60 * 60 * 1000);
+      }
+
+      const startTimeSeconds = Math.floor(sevenAmUTC.getTime() / 1000);
+      const endTimeSeconds = Math.floor(now.getTime() / 1000);
+
+      const alignmentPeriodSeconds = Math.max(60, endTimeSeconds - startTimeSeconds);
 
       const monitoringRequest = {
         name: `projects/${projectId}`,
         filter: `metric.type = "${usageMetric}" AND metric.label.model = "${model}"`,
         interval: {
           startTime: {
-            seconds: Math.floor(sevenAmUTC.getTime() / 1000),
+            seconds: startTimeSeconds,
           },
           endTime: {
-            seconds: Math.floor(now.getTime() / 1000),
+            seconds: endTimeSeconds,
           },
         },
         aggregation: {
-          alignmentPeriod: { seconds: 86400 },
+          alignmentPeriod: { seconds: alignmentPeriodSeconds },
           perSeriesAligner: protos.google.monitoring.v3.Aggregation.Aligner.ALIGN_SUM,
           crossSeriesReducer: protos.google.monitoring.v3.Aggregation.Reducer.REDUCE_SUM,
         },
