@@ -50,7 +50,7 @@ This guide will help you set up Google Drive integration and API quota monitorin
    - Add your email to test users if in development
 4. Choose "Web application" as the application type
 5. Add authorized JavaScript origins:
-   - For development: `http://localhost:3000`
+   - For development: `http://localhost:5173`
    - For production: Your domain (e.g., `https://yourdomain.com`)
 6. **Important**: No need to add redirect URIs as the new Google Identity Services handles authentication differently
 7. Copy the Client ID
@@ -62,7 +62,7 @@ This guide will help you set up Google Drive integration and API quota monitorin
 3. Fill in service account name and description
 4. Grant the following roles:
    - **Service Usage Consumer**
-   - **Monitoring Viewer** 
+   - **Monitoring Viewer**
    - **Service Management Service Agent**
 5. Click "Done"
 6. Click on the created service account
@@ -116,7 +116,7 @@ This guide will help you set up Google Drive integration and API quota monitorin
    npm run dev
    ```
 
-2. Open your browser and navigate to `http://localhost:3000`
+2. Open your browser and navigate to `http://localhost:5173`
 
 3. You should see a "Connect to Google Drive" section
 

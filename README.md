@@ -66,7 +66,7 @@ A modern React application that processes multiple files in parallel using Googl
    npm run dev
    ```
 
-5. Open your browser and navigate to `http://localhost:3000`
+5. Open your browser and navigate to `http://localhost:5173`
 
 ## Usage
 
