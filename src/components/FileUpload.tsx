@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CheckCircle, Upload, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -66,14 +67,6 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       return;
     }
 
-    const totalFiles = files.length + uniqueFiles.length;
-    if (totalFiles > 10) {
-      toast.error('File limit exceeded', {
-        description: 'Maximum of 10 files allowed',
-      });
-      return;
-    }
-
     onFilesChange([...files, ...uniqueFiles]);
     toast.success(
       `${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`,
@@ -97,21 +90,15 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Upload Text Files</CardTitle>
-          <Badge
-            variant={
-              files.length >= 10 ? 'destructive' : files.length > 7 ? 'outline' : 'secondary'
-            }
-          >
-            {files.length}/10 files
+          <Badge variant={files.length > 0 ? 'secondary' : 'outline'}>
+            {files.length} file{files.length === 1 ? '' : 's'} selected
           </Badge>
         </div>
-        {files.length >= 9 && (
-          <Alert variant={files.length >= 10 ? 'destructive' : 'default'} className="mt-2">
+        {files.length > 10 && (
+          <Alert variant="default" className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              {files.length >= 10
-                ? 'Maximum file limit reached. Remove files to add more.'
-                : "You're approaching the file limit (10 files max)."}
+              Large batch detected. Files are processed in batches of 10 every 90 seconds.
             </AlertDescription>
           </Alert>
         )}
@@ -133,6 +120,15 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
               <p className="text-sm font-medium text-foreground sm:text-base">
                 {files.length} file{files.length > 1 ? 's' : ''} selected
               </p>
+
+              {/* Batch upload progress (first batch up to 10 files) */}
+              <div className="mx-auto max-w-md space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Next batch</span>
+                  <span>{Math.min(files.length, 10)}/10</span>
+                </div>
+                <Progress value={(Math.min(files.length, 10) / 10) * 100} className="h-2" />
+              </div>
 
               <div className="max-h-24 w-full max-w-full space-y-2 overflow-y-auto sm:max-h-32">
                 {files.map((file, index) => (
@@ -193,7 +189,6 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
               className="text-sm sm:text-base"
               variant="default"
               size="sm"
-              disabled={files.length >= 10}
             >
               {files.length > 0 ? 'Add More Files' : 'Browse Files'}
             </Button>

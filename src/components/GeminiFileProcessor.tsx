@@ -22,8 +22,16 @@ import { useState } from 'react';
 export function GeminiFileProcessor() {
   const [files, setFiles] = useState<File[]>([]);
   const { selectedModel, setSelectedModel, isModelLoaded } = useModelSelector();
-  const { fileResults, isProcessing, processFiles, retryFile, retryAllFailed, clearResults } =
-    useAIProcessor();
+  const {
+    fileResults,
+    isProcessing,
+    processFiles,
+    retryFile,
+    retryAllFailed,
+    clearResults,
+    isWaitingForNextBatch,
+    throttleSecondsRemaining,
+  } = useAIProcessor();
   const { instruction, markInstructionAsProcessed, getLastProcessedInstruction } =
     useInstructions();
 
@@ -174,6 +182,8 @@ export function GeminiFileProcessor() {
               onRetryFile={handleRetryFile}
               onRetryAllFailed={handleRetryAllFailed}
               uploadStatuses={googleDrive.uploadStatuses}
+              isWaitingForNextBatch={isWaitingForNextBatch}
+              throttleSecondsRemaining={throttleSecondsRemaining}
             />
           )}
         </div>

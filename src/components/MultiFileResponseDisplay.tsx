@@ -28,6 +28,8 @@ interface MultiFileResponseDisplayProps {
   onRetryFile?: (index: number) => void;
   onRetryAllFailed?: () => void;
   uploadStatuses?: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
+  isWaitingForNextBatch?: boolean;
+  throttleSecondsRemaining?: number;
 }
 
 interface FileItemProps {
@@ -349,6 +351,8 @@ export const MultiFileResponseDisplay = ({
   onRetryFile,
   onRetryAllFailed,
   uploadStatuses,
+  isWaitingForNextBatch = false,
+  throttleSecondsRemaining = 0,
 }: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
@@ -358,6 +362,10 @@ export const MultiFileResponseDisplay = ({
   );
   const allCompleted = fileResults.length > 0 && fileResults.every((result) => result.isCompleted);
   const isAnyProcessing = fileResults.some((result) => result.isProcessing);
+  const pendingCount = fileResults.filter(
+    (result) => !result.isCompleted && !result.isProcessing && !result.error,
+  ).length;
+  const hasPending = pendingCount > 0;
   const completedCount = fileResults.filter((result) => result.isCompleted).length;
   const errorCount = fileResults.filter((result) => result.error).length;
   const processingCount = fileResults.filter((result) => result.isProcessing).length;
@@ -445,13 +453,21 @@ export const MultiFileResponseDisplay = ({
                 )}
               </div>
             </div>
-            {isAnyProcessing && (
+            {(isAnyProcessing || hasPending || isWaitingForNextBatch) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Progress</span>
                   <span>{Math.round(progressPercentage)}%</span>
                 </div>
                 <Progress value={progressPercentage} className="h-2" />
+                {(hasPending || isWaitingForNextBatch) && (
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Pending files: {pendingCount}</span>
+                    {isWaitingForNextBatch && (
+                      <span>Next batch in {throttleSecondsRemaining}s</span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {errorCount > 0 && (
