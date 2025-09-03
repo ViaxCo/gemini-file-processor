@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { UnifiedFileCard } from '@/components/UnifiedFileCard';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ViewResponseModal } from '@/components/ViewResponseModal';
 import { toast } from 'sonner';
 import { FileResult } from '../hooks/useAIProcessor';
 import { downloadAsMarkdown } from '../utils/fileUtils';
@@ -50,6 +51,8 @@ export const MultiFileResponseDisplay = ({
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
   const [isUploadingAll, setIsUploadingAll] = useState<boolean>(false);
   const [isUploadingSelected, setIsUploadingSelected] = useState<boolean>(false);
+  const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
+  const [viewIndex, setViewIndex] = useState<number | null>(null);
 
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
@@ -379,33 +382,53 @@ export const MultiFileResponseDisplay = ({
               </div>
             </div>
           ) : (
-            fileResults.map((result, index) => (
-              <UnifiedFileCard
-                key={`${result.file.name}-${index}`}
-                result={result}
-                index={index}
-                selected={selected.has(index)}
-                onSelectChange={(checked) => {
-                  setSelected((prev) => {
-                    const next = new Set(prev);
-                    if (checked) next.add(index);
-                    else next.delete(index);
-                    return next;
-                  });
+            <>
+              {fileResults.map((result, index) => (
+                <UnifiedFileCard
+                  key={`${result.file.name}-${index}`}
+                  result={result}
+                  index={index}
+                  selected={selected.has(index)}
+                  onSelectChange={(checked) => {
+                    setSelected((prev) => {
+                      const next = new Set(prev);
+                      if (checked) next.add(index);
+                      else next.delete(index);
+                      return next;
+                    });
+                  }}
+                  displayName={displayNames[index] || result.file.name}
+                  onNameChange={(newName) =>
+                    setDisplayNames((prev) => ({ ...prev, [index]: newName }))
+                  }
+                  showMarkdown={showMarkdown}
+                  onToggleMarkdown={setShowMarkdown}
+                  onRetry={onRetryFile ? () => onRetryFile(index) : undefined}
+                  uploadStatus={uploadStatuses?.[result.file.name]}
+                  destinationFolderName={selectedFolderName || undefined}
+                  onUpload={uploadToGoogleDocs ? () => handleUploadSingle(index) : undefined}
+                  canUpload={isDriveAuthenticated}
+                  onViewResponse={() => {
+                    setViewIndex(index);
+                    setIsViewOpen(true);
+                  }}
+                />
+              ))}
+
+              <ViewResponseModal
+                open={isViewOpen}
+                onOpenChange={(open) => {
+                  setIsViewOpen(open);
+                  if (!open) setViewIndex(null);
                 }}
-                displayName={displayNames[index] || result.file.name}
-                onNameChange={(newName) =>
-                  setDisplayNames((prev) => ({ ...prev, [index]: newName }))
+                result={viewIndex != null ? (fileResults[viewIndex] ?? null) : null}
+                displayName={
+                  viewIndex != null
+                    ? displayNames[viewIndex] || fileResults[viewIndex]?.file.name
+                    : undefined
                 }
-                showMarkdown={showMarkdown}
-                onToggleMarkdown={setShowMarkdown}
-                onRetry={onRetryFile ? () => onRetryFile(index) : undefined}
-                uploadStatus={uploadStatuses?.[result.file.name]}
-                destinationFolderName={selectedFolderName || undefined}
-                onUpload={uploadToGoogleDocs ? () => handleUploadSingle(index) : undefined}
-                canUpload={isDriveAuthenticated}
               />
-            ))
+            </>
           )}
           {selectedCount > 0 && (
             <div className="sticky bottom-0 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-card/60">

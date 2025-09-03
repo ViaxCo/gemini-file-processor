@@ -9,8 +9,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import {
   AlertCircle,
   CheckCircle,
-  ChevronDown,
-  ChevronUp,
   Copy,
   Download,
   Eye,
@@ -122,7 +120,11 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   };
 
   const handleToggleExpand = () => {
-    if (onViewResponse) onViewResponse();
+    // If a modal view handler is provided, prefer opening the modal and skip inline expansion
+    if (onViewResponse) {
+      onViewResponse();
+      return;
+    }
     setIsExpanded((v) => !v);
     if (!isExpanded && result.response && scrollViewportRef.current) {
       setTimeout(() => {
@@ -333,17 +335,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
             </div>
           </div>
 
-          <div className="ml-2 flex flex-shrink-0 items-center space-x-1 sm:space-x-2">
-            {result.response ? (
-              <div className="flex-shrink-0">
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </div>
-            ) : null}
-          </div>
+          {/* Removed accordion arrow since responses are viewed in a modal */}
         </div>
       </CardHeader>
       <CardContent className="pt-0">
