@@ -38,7 +38,7 @@ export function QuotaMonitor({
     if (variant === 'toolbar') {
       return (
         <div className={className}>
-          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Info size={14} />
             <span>Quota: add project number</span>
           </div>
@@ -65,7 +65,13 @@ export function QuotaMonitor({
             <AlertTriangle size={14} />
             <span>Error loading quota</span>
             {showRefreshButton && (
-              <Button variant="ghost" size="sm" onClick={refresh} disabled={loading} className="h-6 px-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refresh}
+                disabled={loading}
+                className="h-6 px-1"
+              >
                 <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
               </Button>
             )}
@@ -117,8 +123,13 @@ export function QuotaMonitor({
           <Zap size={14} />
           {data ? (
             <>
-              <span>{data.currentUsage}/{data.dailyLimit}</span>
-              <Badge variant={isAtLimit ? 'destructive' : isNearLimit ? 'outline' : 'secondary'} className="text-[10px] px-1">
+              <span>
+                {data.currentUsage}/{data.dailyLimit}
+              </span>
+              <Badge
+                variant={isAtLimit ? 'destructive' : isNearLimit ? 'outline' : 'secondary'}
+                className="px-1 text-[10px]"
+              >
                 {data.usagePercentage}%
               </Badge>
             </>

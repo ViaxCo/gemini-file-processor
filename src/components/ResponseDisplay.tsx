@@ -2,7 +2,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toggle } from '@/components/ui/toggle';
-import { Copy, Download, Loader2, MessageCircle, Upload, FolderOpen, RotateCcw } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  Loader2,
+  MessageCircle,
+  Upload,
+  FolderOpen,
+  RotateCcw,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Streamdown } from 'streamdown';
@@ -302,7 +310,7 @@ export const ResponseDisplay = ({
                 onClick={onRetry}
                 variant="outline"
                 size="sm"
-                className="text-xs sm:text-sm border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+                className="border-destructive text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground sm:text-sm dark:hover:bg-destructive"
                 disabled={isProcessing}
               >
                 <RotateCcw className="h-4 w-4" />

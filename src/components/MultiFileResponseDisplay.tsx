@@ -163,9 +163,7 @@ export const MultiFileResponseDisplay = ({
     const baseName = (displayNames[index] || r.file.name).replace(/\.[^.]+$/, '');
     try {
       const folderIdForItem =
-        assignedFolders[index]?.id !== undefined
-          ? assignedFolders[index]?.id
-          : selectedFolderId;
+        assignedFolders[index]?.id !== undefined ? assignedFolders[index]?.id : selectedFolderId;
       await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
       toast.success('Uploaded to Google Docs');
     } catch (e) {
@@ -223,9 +221,7 @@ export const MultiFileResponseDisplay = ({
           const idx = fileResults.indexOf(r);
           const baseName = (displayNames[idx] || r.file.name).replace(/\.[^.]+$/, '');
           const folderIdForItem =
-            assignedFolders[idx]?.id !== undefined
-              ? assignedFolders[idx]?.id
-              : selectedFolderId;
+            assignedFolders[idx]?.id !== undefined ? assignedFolders[idx]?.id : selectedFolderId;
           await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
         }),
       );
@@ -472,7 +468,9 @@ export const MultiFileResponseDisplay = ({
             <ContextualActionBar
               selectedCount={selectedCount}
               onAssignFolder={() => setIsAssignOpen(true)}
-              onUploadSelected={uploadToGoogleDocs && isDriveAuthenticated ? handleUploadSelected : undefined}
+              onUploadSelected={
+                uploadToGoogleDocs && isDriveAuthenticated ? handleUploadSelected : undefined
+              }
               onRetrySelected={onRetryFile ? handleRetrySelected : undefined}
               onDownloadSelected={handleDownloadSelected}
               isDriveAuthenticated={isDriveAuthenticated}
