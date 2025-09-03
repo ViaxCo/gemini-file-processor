@@ -1,14 +1,15 @@
 'use client';
 
+import { GoogleDriveFolderSelector } from '@/components/GoogleDriveFolderSelector';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { GoogleDriveFolderSelector } from '@/components/GoogleDriveFolderSelector';
 import { DriveFolder } from '@/hooks/useGoogleDrive';
 import { useMemo } from 'react';
 
@@ -64,11 +65,34 @@ export function AssignFolderModal(props: AssignFolderModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 sm:p-0">
-        <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4">
-          <DialogTitle className="text-base sm:text-lg">Assign Destination Folder</DialogTitle>
+      <DialogContent showCloseButton={false} className="max-w-2xl p-0 sm:p-0">
+        <DialogHeader className="sticky top-0 z-10 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 sm:py-4">
+          <div className="relative">
+            <DialogTitle className="pr-10 text-base sm:text-lg">
+              Assign Destination Folder
+            </DialogTitle>
+            <DialogClose asChild>
+              <button
+                aria-label="Close"
+                className="absolute top-0 right-0 rounded-xs p-1 text-muted-foreground transition-colors hover:text-foreground focus:ring-2 focus:ring-ring focus:outline-hidden"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </DialogClose>
+          </div>
         </DialogHeader>
-        <div className="px-4 pb-4 sm:px-6">
+        <div className="overflow-hidden px-4 pb-4 sm:px-6">
           <p className="mb-3 text-xs text-muted-foreground sm:text-sm">
             Choose a Google Drive folder to assign to the selected file
             {selectedCount > 1 ? 's' : ''}. You can navigate into folders or create a new one.

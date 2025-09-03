@@ -18,6 +18,7 @@ interface GoogleDriveAuthProps {
 
   // Own props
   onAuthChange?: (isAuthenticated: boolean) => void;
+  variant?: 'card' | 'toolbar';
 }
 
 export function GoogleDriveAuth({
@@ -29,6 +30,7 @@ export function GoogleDriveAuth({
   clearError,
   tokenExpiryInfo,
   onAuthChange,
+  variant = 'card',
 }: GoogleDriveAuthProps): React.ReactElement {
   useEffect(() => {
     onAuthChange?.(isAuthenticated);
@@ -46,6 +48,35 @@ export function GoogleDriveAuth({
     clearError();
     await logout();
   };
+
+  if (variant === 'toolbar') {
+    return (
+      <div className="flex items-center gap-2">
+        {isAuthenticated ? (
+          <span className="inline-flex items-center gap-1 text-xs text-primary">
+            <Cloud className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Connected</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <CloudOff className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Disconnected</span>
+          </span>
+        )}
+        {isAuthenticated ? (
+          <Button variant="outline" size="sm" onClick={handleLogout} disabled={isAuthenticating}>
+            {isAuthenticating && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+            Disconnect
+          </Button>
+        ) : (
+          <Button size="sm" onClick={handleAuth} disabled={isAuthenticating}>
+            {isAuthenticating && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+            Connect
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <Card className="space-y-4 p-4">

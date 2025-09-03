@@ -185,8 +185,8 @@ export function GoogleDriveFolderSelector({
       )}
 
       {selectedFolder && (
-        <div className="flex flex-col justify-between gap-2 rounded-md border border-primary/20 bg-primary/10 p-2 sm:flex-row sm:items-center sm:gap-0">
-          <div className="flex min-w-0 flex-1 items-center space-x-2">
+        <div className="flex w-full flex-col justify-between gap-2 rounded-md border border-primary/20 bg-primary/10 p-2 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden">
             <Check className="h-3 w-3 shrink-0 text-primary sm:h-4 sm:w-4" />
             <span
               className="truncate text-xs text-primary sm:text-sm"
@@ -208,7 +208,7 @@ export function GoogleDriveFolderSelector({
 
       <div
         ref={scrollContainerRef}
-        className="max-h-40 space-y-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:max-h-142 [&::-webkit-scrollbar]:hidden"
+        className="max-h-40 space-y-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:max-h-140 [&::-webkit-scrollbar]:hidden"
       >
         {isLoadingFolders ? (
           <div className="flex items-center justify-center py-4">
@@ -241,14 +241,11 @@ export function GoogleDriveFolderSelector({
             {folders.map((folder) => (
               <div
                 key={folder.id}
-                className="group flex touch-manipulation items-center justify-between rounded-md p-2 transition-colors hover:bg-primary/10"
+                className="group flex touch-manipulation items-center justify-between gap-2 rounded-md p-2 transition-colors hover:bg-primary/10"
               >
                 <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden">
                   <Folder className="h-3 w-3 shrink-0 text-primary sm:h-4 sm:w-4" />
-                  <span
-                    className="max-w-[120px] truncate text-xs text-foreground sm:max-w-none sm:text-sm"
-                    title={folder.name}
-                  >
+                  <span className="truncate text-xs text-foreground sm:text-sm" title={folder.name}>
                     {folder.name}
                   </span>
                 </div>

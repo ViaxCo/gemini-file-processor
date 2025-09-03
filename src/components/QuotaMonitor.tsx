@@ -13,6 +13,7 @@ interface QuotaMonitorProps {
   className?: string;
   showRefreshButton?: boolean;
   autoRefresh?: boolean;
+  variant?: 'card' | 'toolbar';
 }
 
 export function QuotaMonitor({
@@ -22,6 +23,7 @@ export function QuotaMonitor({
   className,
   showRefreshButton = true,
   autoRefresh = true,
+  variant = 'card',
 }: QuotaMonitorProps) {
   const { data, loading, error, lastUpdated, refresh, isNearLimit, isAtLimit, remainingRequests } =
     useQuotaMonitoring({
@@ -33,6 +35,16 @@ export function QuotaMonitor({
     });
 
   if (!projectNumber) {
+    if (variant === 'toolbar') {
+      return (
+        <div className={className}>
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <Info size={14} />
+            <span>Quota: add project number</span>
+          </div>
+        </div>
+      );
+    }
     return (
       <Card className={className}>
         <CardContent className="p-4">
@@ -46,6 +58,21 @@ export function QuotaMonitor({
   }
 
   if (error) {
+    if (variant === 'toolbar') {
+      return (
+        <div className={className}>
+          <div className="flex items-center gap-2 text-xs text-destructive">
+            <AlertTriangle size={14} />
+            <span>Error loading quota</span>
+            {showRefreshButton && (
+              <Button variant="ghost" size="sm" onClick={refresh} disabled={loading} className="h-6 px-1">
+                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              </Button>
+            )}
+          </div>
+        </div>
+      );
+    }
     return (
       <Card className={className}>
         <CardHeader className="pb-2">
@@ -70,6 +97,47 @@ export function QuotaMonitor({
           )}
         </CardContent>
       </Card>
+    );
+  }
+
+  if (variant === 'toolbar') {
+    if (loading && !data) {
+      return (
+        <div className={className}>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Zap size={14} />
+            <span>Loading quota…</span>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className={`flex items-center gap-2 ${className || ''}`}>
+        <span className="inline-flex items-center gap-1 text-xs">
+          <Zap size={14} />
+          {data ? (
+            <>
+              <span>{data.currentUsage}/{data.dailyLimit}</span>
+              <Badge variant={isAtLimit ? 'destructive' : isNearLimit ? 'outline' : 'secondary'} className="text-[10px] px-1">
+                {data.usagePercentage}%
+              </Badge>
+            </>
+          ) : (
+            <span className="text-muted-foreground">No data</span>
+          )}
+        </span>
+        {showRefreshButton && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={refresh}
+            disabled={loading}
+            className="h-6 w-6 p-0"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          </Button>
+        )}
+      </div>
     );
   }
 

@@ -2,16 +2,12 @@
 
 import { FileUpload } from '@/components/FileUpload';
 import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
-import { GoogleDriveFolderSelector } from '@/components/GoogleDriveFolderSelector';
-import { GoogleDriveUpload } from '@/components/GoogleDriveUpload';
 import { InstructionsPanel } from '@/components/InstructionsPanel';
 import { ModelSelector } from '@/components/ModelSelector';
 import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay';
 import { QuotaMonitor } from '@/components/QuotaMonitor';
 import { ResponseDisplay } from '@/components/ResponseDisplay';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Toaster } from '@/components/ui/sonner';
 import { useAIProcessor } from '@/hooks/useAIProcessor';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -53,11 +49,6 @@ export function GeminiFileProcessor() {
     setFiles([]);
   };
 
-  const handleFolderSelect = (_folderId: string | null, _folderName: string) => {
-    // This logic might need to be adjusted if folder selection is managed within the hook
-    // For now, we assume the hook's selectFolder is the source of truth
-  };
-
   const handleRetryFile = async (index: number) => {
     const fileToRetry = fileResults[index];
     if (fileToRetry) {
@@ -94,12 +85,11 @@ export function GeminiFileProcessor() {
   };
 
   const canProcess = files.length > 0;
-  const hasResults = fileResults.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-7xl p-4">
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex flex-col gap-4">
             <div className="flex-1">
               <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
@@ -110,56 +100,31 @@ export function GeminiFileProcessor() {
                 seconds with real-time updates.
               </p>
             </div>
-            <div className="flex items-center gap-3 sm:justify-between">
-              <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
-              <div className="flex justify-end sm:justify-start lg:justify-end">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
+                <div className="w-full sm:w-auto">
+                  <GoogleDriveAuth {...googleDrive} variant="toolbar" />
+                </div>
+              </div>
+              <div className="flex flex-row flex-wrap items-center gap-3">
+                <QuotaMonitor
+                  projectNumber={process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER}
+                  model={selectedModel}
+                  isModelLoaded={isModelLoaded}
+                  variant="toolbar"
+                  className=""
+                  showRefreshButton={true}
+                  autoRefresh={true}
+                />
                 <ThemeToggle />
               </div>
             </div>
-
-            <QuotaMonitor
-              projectNumber={process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER}
-              model={selectedModel}
-              isModelLoaded={isModelLoaded}
-              className="max-w-sm"
-              showRefreshButton={true}
-              autoRefresh={true}
-            />
           </div>
         </div>
 
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <h2 className="mb-4 text-xl font-semibold text-foreground">Google Drive Integration</h2>
-            <div className="space-y-4">
-              <GoogleDriveAuth {...googleDrive} />
-
-              {googleDrive.isAuthenticated && (
-                <>
-                  <Separator />
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <GoogleDriveFolderSelector
-                      {...googleDrive}
-                      onFolderSelect={handleFolderSelect}
-                    />
-                    {hasResults && (
-                      <GoogleDriveUpload
-                        {...googleDrive}
-                        fileResults={fileResults}
-                        selectedFolderId={googleDrive.selectedFolder?.id}
-                        selectedFolderName={googleDrive.selectedFolder?.name}
-                        isProcessing={isProcessing}
-                      />
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-5">
+          <div className="space-y-6 lg:col-span-2">
             <FileUpload files={files} onFilesChange={setFiles} onClearFiles={handleClearFiles} />
             <InstructionsPanel
               onProcess={handleProcess}
@@ -171,24 +136,37 @@ export function GeminiFileProcessor() {
           </div>
 
           {files.length <= 1 && fileResults.length <= 1 ? (
-            <ResponseDisplay
-              response={fileResults[0]?.response || ''}
-              isProcessing={isProcessing && fileResults.length > 0 && !fileResults[0]?.isCompleted}
-              file={fileResults[0]?.file}
-            />
+            <div className="lg:col-span-3">
+              <ResponseDisplay
+                response={fileResults[0]?.response || ''}
+                isProcessing={isProcessing && fileResults.length > 0 && !fileResults[0]?.isCompleted}
+                file={fileResults[0]?.file}
+              />
+            </div>
           ) : (
-            <MultiFileResponseDisplay
-              fileResults={fileResults}
-              onRetryFile={handleRetryFile}
-              onRetryAllFailed={handleRetryAllFailed}
-              uploadStatuses={googleDrive.uploadStatuses}
-              isWaitingForNextBatch={isWaitingForNextBatch}
-              throttleSecondsRemaining={throttleSecondsRemaining}
-              selectedFolderName={googleDrive.selectedFolder?.name || null}
-              uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
-              selectedFolderId={googleDrive.selectedFolder?.id || null}
-              isDriveAuthenticated={googleDrive.isAuthenticated}
-            />
+            <div className="lg:col-span-3">
+              <MultiFileResponseDisplay
+                fileResults={fileResults}
+                onRetryFile={handleRetryFile}
+                onRetryAllFailed={handleRetryAllFailed}
+                uploadStatuses={googleDrive.uploadStatuses}
+                isWaitingForNextBatch={isWaitingForNextBatch}
+                throttleSecondsRemaining={throttleSecondsRemaining}
+                selectedFolderName={googleDrive.selectedFolder?.name || null}
+                uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
+                selectedFolderId={googleDrive.selectedFolder?.id || null}
+                isDriveAuthenticated={googleDrive.isAuthenticated}
+                driveFolders={googleDrive.folders}
+                driveSelectedFolder={googleDrive.selectedFolder}
+                driveIsLoadingFolders={googleDrive.isLoadingFolders}
+                driveIsLoadingMoreFolders={googleDrive.isLoadingMoreFolders}
+                driveHasMoreFolders={googleDrive.hasMoreFolders}
+                driveLoadFolders={googleDrive.loadFolders}
+                driveLoadMoreFolders={googleDrive.loadMoreFolders}
+                driveSelectFolder={googleDrive.selectFolder}
+                driveCreateFolder={googleDrive.createFolder}
+              />
+            </div>
           )}
         </div>
       </div>

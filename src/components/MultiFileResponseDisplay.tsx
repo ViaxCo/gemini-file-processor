@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UnifiedFileCard } from '@/components/UnifiedFileCard';
+import { AssignFolderModal } from '@/components/AssignFolderModal';
+import { ContextualActionBar } from '@/components/ContextualActionBar';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ViewResponseModal } from '@/components/ViewResponseModal';
@@ -29,6 +31,17 @@ interface MultiFileResponseDisplayProps {
   ) => Promise<any>;
   selectedFolderId?: string | null;
   isDriveAuthenticated?: boolean;
+
+  // Google Drive folder selection (for Assign Folder modal)
+  driveFolders?: any[];
+  driveSelectedFolder?: any | null;
+  driveIsLoadingFolders?: boolean;
+  driveIsLoadingMoreFolders?: boolean;
+  driveHasMoreFolders?: boolean;
+  driveLoadFolders?: (parentId?: string) => Promise<void>;
+  driveLoadMoreFolders?: () => Promise<void>;
+  driveSelectFolder?: (folder: any | null) => void;
+  driveCreateFolder?: (name: string, parentId?: string) => Promise<any>;
 }
 
 // Replaced FileItem with UnifiedFileCard per Phase 2
@@ -44,6 +57,15 @@ export const MultiFileResponseDisplay = ({
   uploadToGoogleDocs,
   selectedFolderId = null,
   isDriveAuthenticated = false,
+  driveFolders = [],
+  driveSelectedFolder = null,
+  driveIsLoadingFolders = false,
+  driveIsLoadingMoreFolders = false,
+  driveHasMoreFolders = false,
+  driveLoadFolders,
+  driveLoadMoreFolders,
+  driveSelectFolder,
+  driveCreateFolder,
 }: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -53,6 +75,10 @@ export const MultiFileResponseDisplay = ({
   const [isUploadingSelected, setIsUploadingSelected] = useState<boolean>(false);
   const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
+  const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
+  const [assignedFolders, setAssignedFolders] = useState<
+    Record<number, { id: string | null; name: string }>
+  >({});
 
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
@@ -136,7 +162,11 @@ export const MultiFileResponseDisplay = ({
     if (!r || !r.isCompleted || !r.response || r.error) return;
     const baseName = (displayNames[index] || r.file.name).replace(/\.[^.]+$/, '');
     try {
-      await uploadToGoogleDocs(r.file.name, baseName, r.response, selectedFolderId);
+      const folderIdForItem =
+        assignedFolders[index]?.id !== undefined
+          ? assignedFolders[index]?.id
+          : selectedFolderId;
+      await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
       toast.success('Uploaded to Google Docs');
     } catch (e) {
       toast.error('Upload failed');
@@ -165,7 +195,9 @@ export const MultiFileResponseDisplay = ({
       await Promise.all(
         eligible.map(async ({ r, i }) => {
           const baseName = (displayNames[i] || r!.file.name).replace(/\.[^.]+$/, '');
-          await uploadToGoogleDocs(r!.file.name, baseName, r!.response, selectedFolderId);
+          const folderIdForItem =
+            assignedFolders[i]?.id !== undefined ? assignedFolders[i]?.id : selectedFolderId;
+          await uploadToGoogleDocs(r!.file.name, baseName, r!.response, folderIdForItem);
         }),
       );
       toast.success(`Uploaded ${eligible.length} selected file${eligible.length > 1 ? 's' : ''}`);
@@ -190,7 +222,11 @@ export const MultiFileResponseDisplay = ({
         items.map(async (r) => {
           const idx = fileResults.indexOf(r);
           const baseName = (displayNames[idx] || r.file.name).replace(/\.[^.]+$/, '');
-          await uploadToGoogleDocs(r.file.name, baseName, r.response, selectedFolderId);
+          const folderIdForItem =
+            assignedFolders[idx]?.id !== undefined
+              ? assignedFolders[idx]?.id
+              : selectedFolderId;
+          await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
         }),
       );
       toast.success(`Uploaded ${items.length} file${items.length > 1 ? 's' : ''}`);
@@ -405,7 +441,9 @@ export const MultiFileResponseDisplay = ({
                   onToggleMarkdown={setShowMarkdown}
                   onRetry={onRetryFile ? () => onRetryFile(index) : undefined}
                   uploadStatus={uploadStatuses?.[result.file.name]}
-                  destinationFolderName={selectedFolderName || undefined}
+                  destinationFolderName={
+                    assignedFolders[index]?.name ?? selectedFolderName ?? undefined
+                  }
                   onUpload={uploadToGoogleDocs ? () => handleUploadSingle(index) : undefined}
                   canUpload={isDriveAuthenticated}
                   onViewResponse={() => {
@@ -431,55 +469,42 @@ export const MultiFileResponseDisplay = ({
             </>
           )}
           {selectedCount > 0 && (
-            <div className="sticky bottom-0 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-              <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
-              <div className="flex items-center gap-2">
-                {uploadToGoogleDocs && isDriveAuthenticated && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleUploadSelected}
-                    disabled={isUploadingSelected}
-                  >
-                    {isUploadingSelected ? (
-                      <span className="mr-1 inline-flex h-4 w-4 items-center justify-center">
-                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="none"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                          ></path>
-                        </svg>
-                      </span>
-                    ) : null}
-                    Upload Selected
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRetrySelected}
-                  disabled={!onRetryFile}
-                >
-                  Retry Selected
-                </Button>
-                <Button variant="default" size="sm" onClick={handleDownloadSelected}>
-                  Download Selected
-                </Button>
-              </div>
-            </div>
+            <ContextualActionBar
+              selectedCount={selectedCount}
+              onAssignFolder={() => setIsAssignOpen(true)}
+              onUploadSelected={uploadToGoogleDocs && isDriveAuthenticated ? handleUploadSelected : undefined}
+              onRetrySelected={onRetryFile ? handleRetrySelected : undefined}
+              onDownloadSelected={handleDownloadSelected}
+              isDriveAuthenticated={isDriveAuthenticated}
+              isUploadingSelected={isUploadingSelected}
+            />
           )}
         </div>
       </CardContent>
+      <AssignFolderModal
+        open={isAssignOpen}
+        onOpenChange={setIsAssignOpen}
+        selectedCount={selectedCount}
+        isAuthenticated={!!isDriveAuthenticated}
+        folders={driveFolders as any}
+        selectedFolder={driveSelectedFolder as any}
+        isLoadingFolders={!!driveIsLoadingFolders}
+        isLoadingMoreFolders={!!driveIsLoadingMoreFolders}
+        hasMoreFolders={!!driveHasMoreFolders}
+        loadFolders={driveLoadFolders || (async () => {})}
+        loadMoreFolders={driveLoadMoreFolders || (async () => {})}
+        selectFolder={driveSelectFolder || (() => {})}
+        createFolder={driveCreateFolder || (async (name: string) => ({ id: null, name }))}
+        onAssign={(folderId, folderName) => {
+          setAssignedFolders((prev) => {
+            const next = { ...prev };
+            for (const idx of selected) {
+              next[idx] = { id: folderId, name: folderName };
+            }
+            return next;
+          });
+        }}
+      />
     </Card>
   );
 };
