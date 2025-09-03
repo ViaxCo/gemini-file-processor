@@ -227,7 +227,7 @@ The Google Drive integration enhances your file processing workflow by automatic
 
 ### Version 2.0 Features
 
-- **Multi-file Upload**: Process and upload multiple files simultaneously to Google Drive
+- **Multi-file Upload**: Process and upload multiple files in queued batches to Google Drive
 - **Enhanced UI Feedback**: Loading indicators and clear status messages during upload
 - **Automatic File Clearing**: Uploaded files are automatically cleared from the interface after processing
 - **Improved Error Handling**: Better error messages and recovery options

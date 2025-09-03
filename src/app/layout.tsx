@@ -5,7 +5,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Gemini File Processor',
   description:
-    'Upload up to 10 text files and let Gemini AI process them in parallel with your custom instructions',
+    'Upload any number of .txt files. Processing runs in queued batches of 10 every 90 seconds with real-time updates.',
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },

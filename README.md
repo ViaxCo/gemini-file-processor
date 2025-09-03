@@ -1,13 +1,12 @@
 # Gemini File Processor
 
-A modern React application that processes multiple files in parallel using Google's Gemini AI, with integrated Google Drive upload functionality.
+A modern React application that processes large batches of .txt files using Google's Gemini AI with a queued, throttled workflow, and integrated Google Drive upload functionality.
 
 ## Features
 
-- **Multi-file Processing**: Upload and process up to 10 text files simultaneously with custom instructions
+- **Queue-Based Processing**: Upload any number of .txt files; processing runs in queued batches of 10 every 90 seconds
 - **Real-time Streaming**: See AI responses stream in real-time as they're generated
 - **Google Drive Integration**: Save processed content directly to Google Drive as formatted Google Docs
-- **Parallel Processing**: Process multiple files concurrently for maximum efficiency
 - **API Quota Monitoring**: Real-time visual tracking of Gemini API usage with model-specific limits
 - **Modern UI**: Clean, responsive interface built with Tailwind CSS v4 and shadcn/ui components
 
@@ -72,9 +71,9 @@ A modern React application that processes multiple files in parallel using Googl
 
 ### Basic File Processing
 
-1. **Upload Files**: Select up to 10 text files (supports .txt, .md, .json, .js, .ts, etc.)
+1. **Upload Files**: Select any number of .txt files (only .txt is supported)
 2. **Add Instructions**: Enter custom instructions for how you want the AI to process your files
-3. **Process**: Click "Process Files" to start parallel AI processing
+3. **Process**: Click "Process Files" to start queued processing (batches of 10 every 90 seconds)
 4. **View Results**: Watch as responses stream in real-time for each file
 
 ### Google Drive Integration & Quota Monitoring (Optional)
@@ -112,12 +111,12 @@ The application follows a component-based architecture with:
 - **FileUpload**: Handles file selection and validation
 - **InstructionsPanel**: Input for processing instructions and controls
 - **ResponseDisplay**: Single file response viewer
-- **MultiFileResponseDisplay**: Multi-file response viewer with parallel processing
+- **MultiFileResponseDisplay**: Multi-file response viewer with queue/batch status
 - **GoogleDriveUpload**: Optional Google Drive integration component
 
 ### Key Features
 
-- **Parallel Processing**: Files are processed concurrently using Promise.all
+- **Queue-Based Engine**: Files are processed in batches of 10 every 90 seconds
 - **Streaming Responses**: Real-time updates via callback patterns
 - **Error Handling**: Per-file error handling allows partial success
 - **State Management**: Clean React state management with custom hooks

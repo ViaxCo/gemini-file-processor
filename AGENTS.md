@@ -10,13 +10,13 @@
 
 ## Architecture
 
-This is a **Gemini File Processor** - a modern React TypeScript application built with Next.js that processes multiple text files in parallel using Google's Gemini AI, with integrated Google Drive upload functionality.
+This is a **Gemini File Processor** - a modern React TypeScript application built with Next.js that processes large batches of .txt files using Google's Gemini AI via a queued, throttled workflow, with integrated Google Drive upload functionality.
 
 ### Core Architecture Pattern
 
 The application follows a **component-based architecture** with custom hooks for business logic and React Context for global state management. Key architectural decisions:
 
-- **Parallel Processing**: Files are processed concurrently using Promise.all with streaming AI responses
+- **Queue-Based Processing**: Files are processed in batches of 10 every 90 seconds with streaming AI responses
 - **Real-time Updates**: AI responses stream in real-time using async generators and callback patterns
 - **Error Isolation**: Per-file error handling allows partial success across batch operations
 - **Mobile-First Design**: Built with Tailwind CSS v4 for responsive design
@@ -25,7 +25,7 @@ The application follows a **component-based architecture** with custom hooks for
 ### Data Flow & State Management
 
 1. **File Management**: App orchestrates file state and UI layout switching (single vs multi-file)
-2. **AI Processing**: `useAIProcessor` hook coordinates parallel AI calls via Next.js API routes (`/api/gemini`)
+2. **AI Processing**: `useAIProcessor` hook coordinates a client-side queue with batch throttling via Next.js API routes (`/api/gemini`)
 3. **Streaming Responses**: Server-to-client streaming via ReadableStream API with real-time updates
 4. **Google Drive Integration**: `useGoogleDrive` hook manages OAuth authentication and document uploads
 5. **Theme System**: Context-based dark/light mode with system preference detection
@@ -34,9 +34,9 @@ The application follows a **component-based architecture** with custom hooks for
 
 ### File Processing System
 
-- **Concurrent Processing**: Up to 10 text files processed simultaneously
+- **Queue Throughput**: Files are processed in queued batches of 10 every 90 seconds
 - **Streaming UI**: Each file gets its own FileResult with real-time processing state
-- **Format Support**: .txt, .md, .json, .js, .ts, and other text-based files
+- **Format Support**: .txt only
 - **Error Resilience**: Individual file failures don't block other files
 
 ### Tech Stack & Dependencies
@@ -136,7 +136,7 @@ The application follows a **component-based architecture** with custom hooks for
 ### File Processing Pipeline
 
 1. **Validation**: File type and size validation before processing
-2. **Parallel Execution**: Up to 10 files processed simultaneously via Promise.all
+2. **Queued Batches**: Files processed in batches of 10 with a 90-second throttle between batches
 3. **Streaming Updates**: Real-time UI updates via callback pattern with buffering
 4. **Completion Tracking**: Individual file completion states for precise UI feedback
 5. **Retry Logic**: Failed files can be retried individually or in batch

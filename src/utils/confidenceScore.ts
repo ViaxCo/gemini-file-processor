@@ -13,32 +13,7 @@ const normalize = (text: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-// Build character bigrams frequency map
-const bigrams = (s: string): Map<string, number> => {
-  const map = new Map<string, number>();
-  for (let i = 0; i < s.length - 1; i++) {
-    const g = s.slice(i, i + 2);
-    map.set(g, (map.get(g) || 0) + 1);
-  }
-  return map;
-};
-
-const cosineSimilarity = (a: Map<string, number>, b: Map<string, number>): number => {
-  if (a.size === 0 || b.size === 0) return 0;
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (const [, v] of a) normA += v * v;
-  for (const [, v] of b) normB += v * v;
-  const keys = new Set([...a.keys(), ...b.keys()]);
-  for (const k of keys) {
-    const va = a.get(k) || 0;
-    const vb = b.get(k) || 0;
-    dot += va * vb;
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-};
+// (Removed unused bigram/cosine helpers)
 
 export const getConfidenceScore = (
   original: string,

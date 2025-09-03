@@ -1,7 +1,7 @@
 {
   "name": "Gemini File Processor",
   "short_name": "Gemini Files",
-  "description": "Upload up to 10 text files and let Gemini AI process them in parallel with your custom instructions",
+  "description": "Upload any number of .txt files. Processing runs in queued batches of 10 every 90 seconds with real-time updates.",
   "theme_color": "#2563eb",
   "background_color": "#ffffff",
   "display": "standalone",

@@ -106,8 +106,8 @@ export function GeminiFileProcessor() {
                 Gemini File Processor
               </h1>
               <p className="text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-                Upload up to 10 text files and let Gemini AI process them in parallel with your
-                custom instructions
+                Upload any number of .txt files. Processing runs in queued batches of 10 every 90
+                seconds with real-time updates.
               </p>
             </div>
             <div className="flex items-center gap-3 sm:justify-between">

@@ -184,7 +184,7 @@ export const MultiFileResponseDisplay = ({
     try {
       setIsUploadingAll(true);
       await Promise.all(
-        items.map(async (r, i) => {
+        items.map(async (r) => {
           const idx = fileResults.indexOf(r);
           const baseName = (displayNames[idx] || r.file.name).replace(/\.[^.]+$/, '');
           await uploadToGoogleDocs(r.file.name, baseName, r.response, selectedFolderId);

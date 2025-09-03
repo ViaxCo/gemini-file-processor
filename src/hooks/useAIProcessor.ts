@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { processFileWithAI } from '../services/aiService';
 import { GeminiModel } from '../components/ModelSelector';
 import { scheduleIdleWork } from '../utils/performance';
@@ -32,6 +32,7 @@ export const useAIProcessor = () => {
   const processingRef = useRef<boolean>(false);
   const abortRef = useRef<boolean>(false);
   const throttleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cleanupIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Public API compatible with current components
   const processFiles = async (
@@ -346,6 +347,29 @@ export const useAIProcessor = () => {
       setThrottleSecondsRemaining(0);
     }
   };
+
+  // Periodically clean up stale responseStore entries during active processing sessions
+  useEffect(() => {
+    if (isProcessing && !cleanupIntervalRef.current) {
+      cleanupIntervalRef.current = setInterval(
+        () => {
+          // Purge entries that haven't been updated in the last 5 minutes (default)
+          responseStore.cleanupStale();
+        },
+        2 * 60 * 1000,
+      ); // run every 2 minutes
+    }
+    if (!isProcessing && cleanupIntervalRef.current) {
+      clearInterval(cleanupIntervalRef.current);
+      cleanupIntervalRef.current = null;
+    }
+    return () => {
+      if (cleanupIntervalRef.current) {
+        clearInterval(cleanupIntervalRef.current);
+        cleanupIntervalRef.current = null;
+      }
+    };
+  }, [isProcessing]);
 
   return {
     fileResults,
