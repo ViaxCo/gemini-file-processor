@@ -2,24 +2,73 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toggle } from '@/components/ui/toggle';
-import { Copy, Download, Loader2, MessageCircle } from 'lucide-react';
+import { Copy, Download, Loader2, MessageCircle, Upload, FolderOpen, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Streamdown } from 'streamdown';
 import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils';
+import { AssignFolderModal } from '@/components/AssignFolderModal';
 
 interface ResponseDisplayProps {
   response: string;
   isProcessing?: boolean;
   file?: File;
+  // Google Drive integration (optional)
+  uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
+  uploadToGoogleDocs?: (
+    fileId: string,
+    title: string,
+    content: string,
+    folderId?: string | null,
+  ) => Promise<any>;
+  isDriveAuthenticated?: boolean;
+  selectedFolderName?: string | null;
+  selectedFolderId?: string | null;
+  // Folder selection (Assign Folder modal) passthroughs
+  driveFolders?: any[];
+  driveSelectedFolder?: any | null;
+  driveIsLoadingFolders?: boolean;
+  driveIsLoadingMoreFolders?: boolean;
+  driveHasMoreFolders?: boolean;
+  driveLoadFolders?: (parentId?: string) => Promise<void>;
+  driveLoadMoreFolders?: () => Promise<void>;
+  driveSelectFolder?: (folder: any | null) => void;
+  driveCreateFolder?: (name: string, parentId?: string) => Promise<any>;
+  // Retry
+  hasError?: boolean;
+  onRetry?: () => void;
 }
 
-export const ResponseDisplay = ({ response, isProcessing = false, file }: ResponseDisplayProps) => {
+export const ResponseDisplay = ({
+  response,
+  isProcessing = false,
+  file,
+  uploadStatus,
+  uploadToGoogleDocs,
+  isDriveAuthenticated = false,
+  selectedFolderName = null,
+  selectedFolderId = null,
+  driveFolders = [],
+  driveSelectedFolder = null,
+  driveIsLoadingFolders = false,
+  driveIsLoadingMoreFolders = false,
+  driveHasMoreFolders = false,
+  driveLoadFolders,
+  driveLoadMoreFolders,
+  driveSelectFolder,
+  driveCreateFolder,
+  hasError = false,
+  onRetry,
+}: ResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [copyFeedback, setCopyFeedback] = useState<string>('');
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
   const [lastResponseLength, setLastResponseLength] = useState<number>(0);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
+  const [assignedFolder, setAssignedFolder] = useState<{ id: string | null; name: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     // Reset scrolling state when response is cleared or starts fresh
@@ -67,6 +116,28 @@ export const ResponseDisplay = ({ response, isProcessing = false, file }: Respon
     downloadAsMarkdown(response, fileName);
     toast.success('File downloaded successfully');
   };
+
+  const canUpload = Boolean(
+    response && file && uploadToGoogleDocs && isDriveAuthenticated && uploadStatus !== 'completed',
+  );
+
+  const handleUpload = async (): Promise<void> => {
+    if (!file || !uploadToGoogleDocs) return;
+    if (!isDriveAuthenticated) {
+      toast.error('Connect Google Drive to upload');
+      return;
+    }
+    const baseName = file.name.replace(/\.[^.]+$/, '');
+    const folderId = assignedFolder?.id ?? selectedFolderId ?? undefined;
+    try {
+      await uploadToGoogleDocs(file.name, baseName, response, folderId ?? null);
+      toast.success('Uploaded to Google Docs');
+    } catch (e) {
+      toast.error('Upload failed');
+    }
+  };
+
+  const destinationName = assignedFolder?.name || selectedFolderName || 'Root (My Drive)';
 
   return (
     <Card>
@@ -142,7 +213,7 @@ export const ResponseDisplay = ({ response, isProcessing = false, file }: Respon
         </div>
 
         {response && (
-          <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
+          <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row sm:flex-wrap">
             <Button
               onClick={handleCopyResponse}
               variant="outline"
@@ -164,9 +235,104 @@ export const ResponseDisplay = ({ response, isProcessing = false, file }: Respon
               <Download className="h-4 w-4" />
               Download
             </Button>
+            {onRetry && (
+              <Button
+                onClick={onRetry}
+                variant="outline"
+                size="sm"
+                className="text-xs sm:text-sm"
+                disabled={isProcessing}
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span className="ml-1">Retry</span>
+              </Button>
+            )}
+
+            {/* Upload to Google Docs */}
+            {uploadToGoogleDocs && (
+              <Button
+                onClick={handleUpload}
+                variant="default"
+                size="sm"
+                className="text-xs sm:text-sm"
+                disabled={isProcessing || !canUpload || uploadStatus === 'uploading'}
+              >
+                {uploadStatus === 'uploading' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                <span className="ml-1 hidden sm:inline">
+                  {uploadStatus === 'completed' ? 'Uploaded' : 'Upload to Drive'}
+                </span>
+                <span className="ml-1 sm:hidden">
+                  {uploadStatus === 'completed' ? 'Uploaded' : 'Upload'}
+                </span>
+              </Button>
+            )}
+
+            {/* Assign destination folder */}
+            {uploadToGoogleDocs && (
+              <Button
+                onClick={() => setIsAssignOpen(true)}
+                variant="outline"
+                size="sm"
+                className="text-xs sm:text-sm"
+                disabled={!isDriveAuthenticated}
+              >
+                <FolderOpen className="h-4 w-4" />
+                <span className="ml-1 hidden sm:inline">Assign Folder</span>
+                <span className="ml-1 sm:hidden">Folder</span>
+              </Button>
+            )}
+
+            {/* Destination hint */}
+            {uploadToGoogleDocs && (
+              <div className="flex items-center text-xs text-muted-foreground sm:text-sm">
+                Destination: {destinationName}
+              </div>
+            )}
+          </div>
+        )}
+
+        {hasError && !response && (
+          <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
+            {onRetry && (
+              <Button
+                onClick={onRetry}
+                variant="outline"
+                size="sm"
+                className="text-xs sm:text-sm border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+                disabled={isProcessing}
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span className="ml-1 hidden sm:inline">Retry</span>
+                <span className="ml-1 sm:hidden">Retry</span>
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
+
+      {/* Assign Folder Modal for single file */}
+      <AssignFolderModal
+        open={isAssignOpen}
+        onOpenChange={setIsAssignOpen}
+        selectedCount={1}
+        isAuthenticated={!!isDriveAuthenticated}
+        folders={driveFolders as any}
+        selectedFolder={driveSelectedFolder as any}
+        isLoadingFolders={!!driveIsLoadingFolders}
+        isLoadingMoreFolders={!!driveIsLoadingMoreFolders}
+        hasMoreFolders={!!driveHasMoreFolders}
+        loadFolders={driveLoadFolders || (async () => {})}
+        loadMoreFolders={driveLoadMoreFolders || (async () => {})}
+        selectFolder={driveSelectFolder || (() => {})}
+        createFolder={driveCreateFolder || (async (name: string) => ({ id: null, name }))}
+        onAssign={(folderId, folderName) => {
+          setAssignedFolder({ id: folderId, name: folderName });
+        }}
+      />
     </Card>
   );
 };
