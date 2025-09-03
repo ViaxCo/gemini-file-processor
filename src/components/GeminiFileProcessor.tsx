@@ -184,6 +184,10 @@ export function GeminiFileProcessor() {
               uploadStatuses={googleDrive.uploadStatuses}
               isWaitingForNextBatch={isWaitingForNextBatch}
               throttleSecondsRemaining={throttleSecondsRemaining}
+              selectedFolderName={googleDrive.selectedFolder?.name || null}
+              uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
+              selectedFolderId={googleDrive.selectedFolder?.id || null}
+              isDriveAuthenticated={googleDrive.isAuthenticated}
             />
           )}
         </div>

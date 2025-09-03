@@ -3,25 +3,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  AlertCircle,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Download,
-  DownloadCloud,
-  FileText,
-  Loader2,
-  RotateCcw,
-} from 'lucide-react';
-import { memo, useEffect, useRef, useState } from 'react';
+import { UnifiedFileCard } from '@/components/UnifiedFileCard';
+import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Streamdown } from 'streamdown';
 import { FileResult } from '../hooks/useAIProcessor';
-import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils';
+import { downloadAsMarkdown } from '../utils/fileUtils';
 
 interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
@@ -30,321 +18,19 @@ interface MultiFileResponseDisplayProps {
   uploadStatuses?: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
   isWaitingForNextBatch?: boolean;
   throttleSecondsRemaining?: number;
+  selectedFolderName?: string | null;
+  // Google Drive integration for inline uploads
+  uploadToGoogleDocs?: (
+    fileId: string,
+    title: string,
+    content: string,
+    folderId?: string | null,
+  ) => Promise<any>;
+  selectedFolderId?: string | null;
+  isDriveAuthenticated?: boolean;
 }
 
-interface FileItemProps {
-  result: FileResult;
-  index: number;
-  showMarkdown: boolean;
-  onToggleMarkdown: (show: boolean) => void;
-  onRetry?: () => void;
-}
-
-const FileItem = memo(
-  ({
-    result,
-    showMarkdown,
-    onToggleMarkdown,
-    onRetry,
-    uploadStatuses,
-  }: FileItemProps & {
-    uploadStatuses?: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
-  }) => {
-    const [isExpanded, setIsExpanded] = useState<boolean>(false);
-    const [copyFeedback, setCopyFeedback] = useState<string>('');
-    const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
-    const [lastResponseLength, setLastResponseLength] = useState<number>(0);
-    const scrollViewportRef = useRef<HTMLDivElement>(null);
-    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    const handleExpand = () => {
-      const newExpandedState = !isExpanded;
-      setIsExpanded(newExpandedState);
-
-      // If expanding and there's content, scroll to bottom after the transition
-      if (newExpandedState && result.response && scrollViewportRef.current) {
-        // Reset user scrolling state when opening
-        setIsUserScrolling(false);
-        // Use setTimeout to ensure the expand animation completes first
-        setTimeout(() => {
-          if (scrollViewportRef.current) {
-            scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
-          }
-        }, 300); // Match the transition duration
-      }
-    };
-
-    useEffect(() => {
-      // Reset scrolling state when response is cleared or starts fresh
-      if (result.response.length === 0) {
-        setIsUserScrolling(false);
-        setLastResponseLength(0);
-        return;
-      }
-
-      // Auto-scroll only when response is actively being streamed and user hasn't manually scrolled
-      if (
-        scrollViewportRef.current &&
-        result.response.length > lastResponseLength &&
-        !isUserScrolling &&
-        isExpanded
-      ) {
-        scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
-      }
-      setLastResponseLength(result.response.length);
-    }, [result.response, lastResponseLength, isUserScrolling, isExpanded]);
-
-    // Cleanup timeout on unmount
-    useEffect(() => {
-      return () => {
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
-      };
-    }, []);
-
-    const handleScroll = () => {
-      // Throttle scroll events to improve performance
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      scrollTimeoutRef.current = setTimeout(() => {
-        if (scrollViewportRef.current) {
-          const { scrollTop, scrollHeight, clientHeight } = scrollViewportRef.current;
-          const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px tolerance
-
-          // If user scrolled up from bottom, mark as user scrolling
-          if (!isAtBottom) {
-            setIsUserScrolling(true);
-          } else {
-            // If user scrolled back to bottom, resume auto-scrolling
-            setIsUserScrolling(false);
-          }
-        }
-      }, 50); // Throttle to 20fps
-    };
-
-    const handleCopy = async (): Promise<void> => {
-      const success = await copyToClipboard(result.response);
-      if (success) {
-        toast.success('Response copied to clipboard');
-      } else {
-        toast.error('Failed to copy response');
-      }
-      setCopyFeedback(success ? 'Copied!' : 'Failed to copy');
-      setTimeout(() => setCopyFeedback(''), 2000);
-    };
-
-    const handleDownload = (): void => {
-      downloadAsMarkdown(result.response, `${result.file.name.replace('.txt', '')}_processed.md`);
-      toast.success('File downloaded successfully');
-    };
-
-    const getStatusIcon = () => {
-      if (result.error) {
-        return <AlertCircle className="h-4 w-4 text-destructive" />;
-      }
-      if (result.isCompleted) {
-        return <CheckCircle className="h-4 w-4 text-primary" />;
-      }
-      if (result.isProcessing) {
-        return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
-      }
-      return <FileText className="h-4 w-4 text-muted-foreground" />;
-    };
-
-    const getStatusBadge = () => {
-      if (result.error) {
-        return <Badge variant="destructive">Error</Badge>;
-      }
-      if (result.isCompleted) {
-        return <Badge variant="default">Completed</Badge>;
-      }
-      if (result.isProcessing) {
-        return <Badge variant="secondary">Processing...</Badge>;
-      }
-      return <Badge variant="outline">Waiting</Badge>;
-    };
-
-    const getUploadBadge = () => {
-      if (!uploadStatuses) return null;
-      const uploadStatus = uploadStatuses[result.file.name];
-      if (uploadStatus === 'completed') {
-        return (
-          <Badge variant="secondary" className="ml-1">
-            Uploaded
-          </Badge>
-        );
-      }
-      return null;
-    };
-
-    return (
-      <Card className="w-full gap-0">
-        <CardHeader className="pb-2">
-          <div
-            className="flex min-w-0 cursor-pointer items-center justify-between overflow-hidden"
-            onClick={handleExpand}
-          >
-            <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden sm:space-x-3">
-              <div className="flex-shrink-0">{getStatusIcon()}</div>
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <CardTitle
-                  className="truncate overflow-hidden text-sm whitespace-nowrap sm:text-base lg:text-lg"
-                  title={result.file.name}
-                >
-                  {result.file.name}
-                </CardTitle>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  {getStatusBadge()}
-                  {getUploadBadge()}
-                </div>
-                {(result.response || result.error || result.isCompleted) && (
-                  <div className="mt-2 flex items-center gap-1">
-                    {result.response && (result.isCompleted || result.isProcessing) && (
-                      <>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopy();
-                              }}
-                              variant="ghost"
-                              size="sm"
-                              disabled={!result.response || result.isProcessing}
-                              className="h-7 w-7 p-0 hover:bg-muted/50"
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                              <span className="sr-only">{copyFeedback || 'Copy'}</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {copyFeedback || 'Copy response to clipboard'}
-                          </TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownload();
-                              }}
-                              variant="ghost"
-                              size="sm"
-                              disabled={!result.response || result.isProcessing}
-                              className="h-7 w-7 p-0 hover:bg-muted/50"
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                              <span className="sr-only">Download</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Download as markdown file</TooltipContent>
-                        </Tooltip>
-                      </>
-                    )}
-                    {onRetry && (result.isCompleted || result.error) && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRetry();
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 hover:bg-muted/50"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                            <span className="sr-only">Retry</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Retry processing this file</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="ml-2 flex flex-shrink-0 items-center space-x-1 sm:space-x-2">
-              {result.response ? (
-                <div className="flex-shrink-0">
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px]' : 'max-h-0'}`}
-          >
-            {result.response && (
-              <div className="mb-4 rounded-md border bg-background p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <div></div>
-                  <Toggle
-                    pressed={showMarkdown}
-                    onPressedChange={onToggleMarkdown}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {showMarkdown ? 'Raw' : 'Formatted'}
-                  </Toggle>
-                </div>
-                <div
-                  ref={scrollViewportRef}
-                  onScroll={handleScroll}
-                  className="max-h-96 overflow-y-auto"
-                >
-                  {showMarkdown ? (
-                    <div className="overflow-wrap-anywhere text-sm leading-relaxed break-words text-foreground">
-                      {result.isProcessing ? (
-                        <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground">
-                          {result.response}
-                        </pre>
-                      ) : (
-                        <Streamdown>{result.response}</Streamdown>
-                      )}
-                    </div>
-                  ) : (
-                    <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground">
-                      {result.response}
-                    </pre>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  },
-);
-
-FileItem.displayName = 'FileItem';
-
-// Memoization comparison function to prevent unnecessary re-renders
-const FileItemMemo = memo(FileItem, (prevProps, nextProps) => {
-  const prevUploadStatus = prevProps.uploadStatuses?.[prevProps.result.file.name];
-  const nextUploadStatus = nextProps.uploadStatuses?.[nextProps.result.file.name];
-
-  return (
-    prevProps.result.response === nextProps.result.response &&
-    prevProps.result.isProcessing === nextProps.result.isProcessing &&
-    prevProps.result.isCompleted === nextProps.result.isCompleted &&
-    prevProps.result.error === nextProps.result.error &&
-    prevProps.showMarkdown === nextProps.showMarkdown &&
-    prevProps.result.file.name === nextProps.result.file.name &&
-    prevUploadStatus === nextUploadStatus
-  );
-});
+// Replaced FileItem with UnifiedFileCard per Phase 2
 
 export const MultiFileResponseDisplay = ({
   fileResults,
@@ -353,12 +39,27 @@ export const MultiFileResponseDisplay = ({
   uploadStatuses,
   isWaitingForNextBatch = false,
   throttleSecondsRemaining = 0,
+  selectedFolderName = null,
+  uploadToGoogleDocs,
+  selectedFolderId = null,
+  isDriveAuthenticated = false,
 }: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [displayNames, setDisplayNames] = useState<Record<number, string>>({});
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
+  const [isUploadingAll, setIsUploadingAll] = useState<boolean>(false);
+  const [isUploadingSelected, setIsUploadingSelected] = useState<boolean>(false);
 
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
+  );
+  const uploadEligible = fileResults.filter(
+    (r) =>
+      r.isCompleted &&
+      !r.error &&
+      r.response &&
+      (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed'),
   );
   const allCompleted = fileResults.length > 0 && fileResults.every((result) => result.isCompleted);
   const isAnyProcessing = fileResults.some((result) => result.isProcessing);
@@ -372,6 +73,46 @@ export const MultiFileResponseDisplay = ({
   const progressPercentage =
     fileResults.length > 0 ? (completedCount / fileResults.length) * 100 : 0;
 
+  const allSelected = useMemo(
+    () => fileResults.length > 0 && fileResults.every((_, i) => selected.has(i)),
+    [fileResults, selected],
+  );
+  const selectedCount = selected.size;
+
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelected(new Set(fileResults.map((_, i) => i)));
+    } else {
+      setSelected(new Set());
+    }
+  };
+
+  const handleRetrySelected = () => {
+    if (!onRetryFile) return;
+    const count = selected.size;
+    if (count === 0) return;
+    const message = `Retry processing for ${count} selected file${count > 1 ? 's' : ''}?`;
+    if (!confirm(message)) return;
+    [...selected].forEach((i) => onRetryFile(i));
+  };
+
+  const handleDownloadSelected = () => {
+    const indices = [...selected];
+    if (indices.length === 0) return;
+    let count = 0;
+    indices.forEach((i) => {
+      const r = fileResults[i];
+      if (r && r.isCompleted && !r.error && r.response) {
+        const name = displayNames[i] || r.file.name.replace(/\.[^.]+$/, '');
+        downloadAsMarkdown(r.response, name);
+        count++;
+      }
+    });
+    if (count > 0) {
+      toast.success(`Downloaded ${count} file${count > 1 ? 's' : ''}`);
+    }
+  };
+
   const handleDownloadAll = (): void => {
     if (completedResults.length === 0) return;
 
@@ -384,6 +125,77 @@ export const MultiFileResponseDisplay = ({
     );
     setDownloadAllFeedback('Downloaded all files!');
     setTimeout(() => setDownloadAllFeedback(''), 3000);
+  };
+
+  const handleUploadSingle = async (index: number): Promise<void> => {
+    if (!uploadToGoogleDocs) return;
+    const r = fileResults[index];
+    if (!r || !r.isCompleted || !r.response || r.error) return;
+    const baseName = (displayNames[index] || r.file.name).replace(/\.[^.]+$/, '');
+    try {
+      await uploadToGoogleDocs(r.file.name, baseName, r.response, selectedFolderId);
+      toast.success('Uploaded to Google Docs');
+    } catch (e) {
+      toast.error('Upload failed');
+    }
+  };
+
+  const handleUploadSelected = async (): Promise<void> => {
+    if (!uploadToGoogleDocs || !isDriveAuthenticated) return;
+    const indices = [...selected];
+    if (indices.length === 0) return;
+
+    const eligible = indices
+      .map((i) => ({ r: fileResults[i], i }))
+      .filter(
+        ({ r }) =>
+          r &&
+          r.isCompleted &&
+          !r.error &&
+          r.response &&
+          (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed'),
+      );
+
+    if (eligible.length === 0) return;
+    try {
+      setIsUploadingSelected(true);
+      await Promise.all(
+        eligible.map(async ({ r, i }) => {
+          const baseName = (displayNames[i] || r!.file.name).replace(/\.[^.]+$/, '');
+          await uploadToGoogleDocs(r!.file.name, baseName, r!.response, selectedFolderId);
+        }),
+      );
+      toast.success(`Uploaded ${eligible.length} selected file${eligible.length > 1 ? 's' : ''}`);
+    } catch (e) {
+      toast.error('Some selected uploads failed.');
+    } finally {
+      setIsUploadingSelected(false);
+    }
+  };
+
+  const handleUploadAll = async (): Promise<void> => {
+    if (!uploadToGoogleDocs) return;
+    if (!isDriveAuthenticated) {
+      toast.error('Connect Google Drive to upload');
+      return;
+    }
+    const items = uploadEligible;
+    if (items.length === 0) return;
+    try {
+      setIsUploadingAll(true);
+      await Promise.all(
+        items.map(async (r, i) => {
+          const idx = fileResults.indexOf(r);
+          const baseName = (displayNames[idx] || r.file.name).replace(/\.[^.]+$/, '');
+          await uploadToGoogleDocs(r.file.name, baseName, r.response, selectedFolderId);
+        }),
+      );
+      toast.success(`Uploaded ${items.length} file${items.length > 1 ? 's' : ''}`);
+    } catch (e) {
+      toast.error('Some uploads failed. Check statuses.');
+    } finally {
+      setIsUploadingAll(false);
+    }
   };
 
   if (fileResults.length === 0) {
@@ -409,8 +221,23 @@ export const MultiFileResponseDisplay = ({
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg sm:text-xl">AI Responses</CardTitle>
+        <div className="flex items-center gap-3">
+          {fileResults.length > 0 && (
+            <label className="flex items-center gap-2 text-sm select-none">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-primary"
+                checked={allSelected}
+                onChange={(e) => toggleSelectAll(e.target.checked)}
+              />
+              <span className="text-muted-foreground">
+                Select All{selectedCount > 0 ? ` (${selectedCount})` : ''}
+              </span>
+            </label>
+          )}
+        </div>
         {allCompleted && completedResults.length > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -431,6 +258,45 @@ export const MultiFileResponseDisplay = ({
               </Button>
             </TooltipTrigger>
             <TooltipContent>Download all completed files as markdown</TooltipContent>
+          </Tooltip>
+        )}
+        {uploadToGoogleDocs && uploadEligible.length > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleUploadAll}
+                variant="default"
+                size="sm"
+                className="flex-shrink-0 text-xs sm:text-sm"
+                disabled={isAnyProcessing || !isDriveAuthenticated || isUploadingAll}
+              >
+                {isUploadingAll ? (
+                  <span className="inline-flex h-4 w-4 items-center justify-center">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      ></path>
+                    </svg>
+                  </span>
+                ) : (
+                  <DownloadCloud className="h-4 w-4 rotate-180" />
+                )}
+                <span className="hidden whitespace-nowrap sm:inline">Upload All</span>
+                <span className="whitespace-nowrap sm:hidden">Upload</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Upload all completed files to Google Docs</TooltipContent>
           </Tooltip>
         )}
       </CardHeader>
@@ -514,16 +380,80 @@ export const MultiFileResponseDisplay = ({
             </div>
           ) : (
             fileResults.map((result, index) => (
-              <FileItemMemo
+              <UnifiedFileCard
                 key={`${result.file.name}-${index}`}
                 result={result}
                 index={index}
+                selected={selected.has(index)}
+                onSelectChange={(checked) => {
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (checked) next.add(index);
+                    else next.delete(index);
+                    return next;
+                  });
+                }}
+                displayName={displayNames[index] || result.file.name}
+                onNameChange={(newName) =>
+                  setDisplayNames((prev) => ({ ...prev, [index]: newName }))
+                }
                 showMarkdown={showMarkdown}
                 onToggleMarkdown={setShowMarkdown}
                 onRetry={onRetryFile ? () => onRetryFile(index) : undefined}
-                uploadStatuses={uploadStatuses}
+                uploadStatus={uploadStatuses?.[result.file.name]}
+                destinationFolderName={selectedFolderName || undefined}
+                onUpload={uploadToGoogleDocs ? () => handleUploadSingle(index) : undefined}
+                canUpload={isDriveAuthenticated}
               />
             ))
+          )}
+          {selectedCount > 0 && (
+            <div className="sticky bottom-0 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+              <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+              <div className="flex items-center gap-2">
+                {uploadToGoogleDocs && isDriveAuthenticated && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleUploadSelected}
+                    disabled={isUploadingSelected}
+                  >
+                    {isUploadingSelected ? (
+                      <span className="mr-1 inline-flex h-4 w-4 items-center justify-center">
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          ></path>
+                        </svg>
+                      </span>
+                    ) : null}
+                    Upload Selected
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetrySelected}
+                  disabled={!onRetryFile}
+                >
+                  Retry Selected
+                </Button>
+                <Button variant="default" size="sm" onClick={handleDownloadSelected}>
+                  Download Selected
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </CardContent>
