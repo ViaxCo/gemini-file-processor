@@ -12,6 +12,14 @@ export interface FileResult {
   error?: string;
   // New queue status for Phase 1
   queueStatus?: 'pending' | 'processing' | 'completed' | 'failed';
+  // Retry tracking for Phase 1
+  retryCount?: number;
+  lowConfidenceRetryCount?: number;
+  // Store previous confidence score for retries
+  previousConfidence?: {
+    score: number;
+    level: 'high' | 'medium' | 'low';
+  };
 }
 
 export const useAIProcessor = () => {
@@ -27,14 +35,21 @@ export const useAIProcessor = () => {
     index: number; // position in fileResults
     key: string;
     status: 'pending' | 'processing' | 'completed' | 'failed';
+    retryCount?: number;
+    lowConfidenceRetryCount?: number;
   };
   const queueRef = useRef<QueueItem[]>([]);
   const processingRef = useRef<boolean>(false);
   const abortRef = useRef<boolean>(false);
   const throttleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cleanupIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimesRef = useRef<number[]>([]); // timestamps of starts within WINDOW
-  const activeCountRef = useRef<number>(0); // in-flight items
+  const requestTimestampsRef = useRef<number[]>([]); // timestamps of requests for token bucket algorithm
+
+  // Model-specific rate limits for Phase 1
+  const RATE_LIMITS = {
+    'gemini-2.5-flash': { limit: 10, interval: 60000 }, // 10 RPM
+    'gemini-2.5-flash-lite': { limit: 15, interval: 60000 }, // 15 RPM
+  };
 
   // Public API compatible with current components
   const processFiles = async (
@@ -132,7 +147,12 @@ export const useAIProcessor = () => {
   };
 
   // Queue management methods (Phase 1)
-  const addToQueue = (files: File[], overrideIndex?: number): void => {
+  const addToQueue = (
+    files: File[],
+    overrideIndex?: number,
+    retryCount = 0,
+    lowConfidenceRetryCount = 0,
+  ): void => {
     const items: QueueItem[] = files.map((file, idx) => {
       // Try to map to the correct fileResults index. Fallback to local idx.
       let index = overrideIndex ?? fileResults.findIndex((r) => r.file === file);
@@ -142,6 +162,8 @@ export const useAIProcessor = () => {
         index,
         key: makeFileKey(file),
         status: 'pending',
+        retryCount,
+        lowConfidenceRetryCount,
       };
     });
     queueRef.current = [...queueRef.current, ...items];
@@ -165,8 +187,8 @@ export const useAIProcessor = () => {
     setIsProcessing(true);
     abortRef.current = false;
 
-    const MAX_PER_WINDOW = 10; // also used as max concurrency
-    const WINDOW_MS = 90_000; // 90 seconds safety window
+    // Get model-specific rate limits
+    const { limit, interval } = RATE_LIMITS[model] || RATE_LIMITS['gemini-2.5-flash'];
 
     try {
       // Update UI to show queued files as pending
@@ -178,7 +200,7 @@ export const useAIProcessor = () => {
       );
 
       const processItem = async (item: QueueItem) => {
-        const { file, index, key } = item;
+        const { file, index, key, retryCount = 0, lowConfidenceRetryCount = 0 } = item;
         const streamToUI = mode === 'single';
         if (!streamToUI) {
           responseStore.addResponse(key, '');
@@ -212,15 +234,75 @@ export const useAIProcessor = () => {
             }
           });
           if (streamToUI) flushBufferToUI();
+
+          // For batch processing, get the final response before clearing it
+          let finalResponse = '';
           if (!streamToUI) {
-            const finalResponse = responseStore.getResponse(key);
+            finalResponse = responseStore.getResponse(key);
             setFileResults((prev) =>
               prev.map((result, i) =>
                 i === index ? { ...result, response: finalResponse } : result,
               ),
             );
-            responseStore.clearResponse(key);
+            // Don't clear the response yet, we need it for confidence checking
+          } else {
+            finalResponse = responseBuffer;
           }
+
+          // Check confidence for successful responses (only for batch processing)
+          if (mode === 'batch') {
+            const { getConfidenceScore } = await import('../utils/confidenceScore');
+            const originalContent = await file.text();
+            const confidenceResult = getConfidenceScore(originalContent, finalResponse);
+            const { level, score } = confidenceResult;
+
+            // If low confidence and we haven't exceeded retry limit, re-queue
+            if (level === 'low' && lowConfidenceRetryCount < 3) {
+              console.log(
+                `Low confidence for file ${file.name}, retrying... (${lowConfidenceRetryCount + 1}/3)`,
+              );
+              setFileResults((prev) =>
+                prev.map((result, i) =>
+                  i === index
+                    ? {
+                        ...result,
+                        isProcessing: false,
+                        isCompleted: false,
+                        queueStatus: 'pending',
+                        previousConfidence: {
+                          score,
+                          level,
+                        },
+                      }
+                    : result,
+                ),
+              );
+
+              // Clear the response from the store since we're done with it
+              if (!streamToUI) {
+                responseStore.clearResponse(key);
+              }
+
+              // Add exponential backoff delay before re-queuing
+              const backoffDelay = Math.pow(2, lowConfidenceRetryCount) * 1000;
+              setTimeout(() => {
+                addToQueue([file], index, retryCount, lowConfidenceRetryCount + 1);
+              }, backoffDelay);
+              return; // Don't mark as completed yet
+            }
+
+            // If we get here, the confidence was high enough or we've exceeded retry limit
+            // Clear the response from the store since we're done with it
+            if (!streamToUI) {
+              responseStore.clearResponse(key);
+            }
+          } else {
+            // For single file processing, clear the response immediately
+            if (!streamToUI) {
+              responseStore.clearResponse(key);
+            }
+          }
+
           setFileResults((prev) =>
             prev.map((result, i) =>
               i === index
@@ -229,79 +311,117 @@ export const useAIProcessor = () => {
                     isProcessing: false,
                     isCompleted: true,
                     queueStatus: 'completed',
+                    previousConfidence: undefined, // Clear previous confidence when processing succeeds
                   }
                 : result,
             ),
           );
         } catch (error) {
           console.error(`Error processing file ${file.name}:`, error);
-          setFileResults((prev) =>
-            prev.map((result, i) =>
-              i === index
-                ? {
-                    ...result,
-                    isProcessing: false,
-                    isCompleted: false,
-                    queueStatus: 'failed',
-                    error: error instanceof Error ? error.message : String(error),
-                  }
-                : result,
-            ),
-          );
-        } finally {
-          activeCountRef.current = Math.max(0, activeCountRef.current - 1);
+
+          // Clear the response from the store since we're done with it
+          if (!streamToUI) {
+            responseStore.clearResponse(key);
+          }
+
+          // If we haven't exceeded retry limit, re-queue with exponential backoff
+          if (retryCount < 3) {
+            console.log(`Retrying file ${file.name}... (${retryCount + 1}/3)`);
+            setFileResults((prev) =>
+              prev.map((result, i) =>
+                i === index
+                  ? {
+                      ...result,
+                      isProcessing: false,
+                      isCompleted: false,
+                      queueStatus: 'pending',
+                    }
+                  : result,
+              ),
+            );
+
+            // Add exponential backoff delay before re-queuing
+            const backoffDelay = Math.pow(2, retryCount) * 1000;
+            setTimeout(() => {
+              addToQueue([file], index, retryCount + 1, lowConfidenceRetryCount);
+            }, backoffDelay);
+          } else {
+            // Mark as permanently failed after 3 retries
+            setFileResults((prev) =>
+              prev.map((result, i) =>
+                i === index
+                  ? {
+                      ...result,
+                      isProcessing: false,
+                      isCompleted: false,
+                      queueStatus: 'failed',
+                      error: error instanceof Error ? error.message : String(error),
+                    }
+                  : result,
+              ),
+            );
+          }
         }
       };
 
-      // Sliding-window scheduler: fill capacity immediately when available
-      while (!abortRef.current && (queueRef.current.length > 0 || activeCountRef.current > 0)) {
+      // Token bucket scheduler: Process items respecting rate limits
+      while (
+        !abortRef.current &&
+        (queueRef.current.length > 0 || requestTimestampsRef.current.length > 0)
+      ) {
         if (isPaused) {
           await new Promise((res) => setTimeout(res, 200));
           continue;
         }
 
-        // purge old start timestamps
+        // Clean up old timestamps (older than the interval)
         const now = Date.now();
-        startTimesRef.current = startTimesRef.current.filter((t) => now - t < WINDOW_MS);
+        requestTimestampsRef.current = requestTimestampsRef.current.filter(
+          (timestamp) => now - timestamp < interval,
+        );
 
-        const rateSlots = Math.max(0, MAX_PER_WINDOW - startTimesRef.current.length);
-        const concurrencySlots = Math.max(0, MAX_PER_WINDOW - activeCountRef.current);
-        const availableSlots = Math.min(rateSlots, concurrencySlots, queueRef.current.length);
-
-        if (availableSlots > 0) {
+        // Check if we can make a new request
+        if (requestTimestampsRef.current.length < limit && queueRef.current.length > 0) {
           setIsWaitingForNextBatch(false);
           setThrottleSecondsRemaining(0);
 
-          const toStart = queueRef.current.splice(0, availableSlots);
-          // Mark as processing
+          // Get the next item from the queue
+          const item = queueRef.current.shift()!;
+
+          // Mark as processing in UI
           setFileResults((prev) =>
             prev.map((r, i) =>
-              toStart.some((q) => q.index === i)
-                ? { ...r, isProcessing: true, queueStatus: 'processing' }
-                : r,
+              i === item.index ? { ...r, isProcessing: true, queueStatus: 'processing' } : r,
             ),
           );
 
-          for (const item of toStart) {
-            activeCountRef.current++;
-            startTimesRef.current.push(Date.now());
-            // Fire and forget
-            void processItem(item);
-          }
+          // Record the request timestamp
+          requestTimestampsRef.current.push(now);
+
+          // Process the item without waiting for it to complete
+          void processItem(item);
+
           // Small yield to allow state to update
           await new Promise((res) => setTimeout(res, 50));
-        } else {
-          // No slots: either rate limited or at max concurrency
+        } else if (queueRef.current.length > 0) {
+          // We're rate limited - calculate wait time
           let waitMs = 250;
-          if (rateSlots === 0 && startTimesRef.current.length > 0) {
-            const oldest = startTimesRef.current[0]!;
-            const nextMs = Math.max(0, WINDOW_MS - (now - oldest));
+          if (
+            requestTimestampsRef.current.length >= limit &&
+            requestTimestampsRef.current.length > 0
+          ) {
+            // Find the oldest timestamp and calculate when we can make the next request
+            const oldest = Math.min(...requestTimestampsRef.current);
+            const nextMs = Math.max(0, interval - (now - oldest));
             waitMs = Math.min(1000, Math.max(250, nextMs));
             const secs = Math.ceil(nextMs / 1000);
             setIsWaitingForNextBatch(true);
             setThrottleSecondsRemaining(secs);
           }
           await new Promise((res) => setTimeout(res, waitMs));
+        } else {
+          // No items in queue but some requests are still processing
+          await new Promise((res) => setTimeout(res, 100));
         }
       }
     } finally {
@@ -337,6 +457,8 @@ export const useAIProcessor = () => {
         clearInterval(cleanupIntervalRef.current);
         cleanupIntervalRef.current = null;
       }
+      // Clean up timestamps when component unmounts
+      requestTimestampsRef.current = [];
     };
   }, [isProcessing]);
 

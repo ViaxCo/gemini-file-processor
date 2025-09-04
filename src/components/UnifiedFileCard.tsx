@@ -242,6 +242,14 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                     Confidence {confidence.level} ({Math.round(confidence.score * 100)}%)
                   </span>
                 )}
+                {result.previousConfidence && !result.isCompleted && !result.error && (
+                  <span
+                    className={`text-xs ${confidenceColorClass(result.previousConfidence.level)}`}
+                  >
+                    Previous Confidence {result.previousConfidence.level} (
+                    {Math.round(result.previousConfidence.score * 100)}%)
+                  </span>
+                )}
               </div>
 
               {(result.response || result.error || result.isCompleted) && (
