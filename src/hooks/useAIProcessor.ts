@@ -63,6 +63,8 @@ export const useAIProcessor = () => {
       alert('Please select files and provide instructions');
       return;
     }
+    // Ensure UI shows processing immediately upon user action (avoid flicker)
+    setIsProcessing(true);
     // Initialize results for all files (queue: pending)
     const initialResults: FileResult[] = files.map((file) => ({
       file,
@@ -109,6 +111,8 @@ export const useAIProcessor = () => {
       ),
     );
 
+    // Show processing state immediately when retrying
+    setIsProcessing(true);
     addToQueue([fileToRetry.file], fileIndex);
     await processQueue(instruction, model, 'single');
   };
@@ -138,6 +142,8 @@ export const useAIProcessor = () => {
       ),
     );
     const failedFiles = failedIndices.map((i) => fileResults[i]!.file);
+    // Show processing state immediately when retrying all failed
+    setIsProcessing(true);
     addToQueue(failedFiles);
     await processQueue(instruction, model, failedFiles.length === 1 ? 'single' : 'batch');
   };

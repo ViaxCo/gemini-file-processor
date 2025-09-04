@@ -87,6 +87,17 @@ export function GeminiFileProcessor() {
 
   const canProcess = files.length > 0;
 
+  // Derive per-file UI processing state for single-file flow
+  const singleResult = fileResults[0];
+  const isSingleInProgress = Boolean(
+    singleResult &&
+      !singleResult.isCompleted &&
+      !singleResult?.error &&
+      (singleResult.isProcessing ||
+        singleResult.queueStatus === 'pending' ||
+        singleResult.queueStatus === 'processing'),
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-7xl p-4">
@@ -131,7 +142,7 @@ export function GeminiFileProcessor() {
               <InstructionsPanel
                 onProcess={handleProcess}
                 onClearAll={handleClearAll}
-                isProcessing={isProcessing}
+                isProcessing={isProcessing || isSingleInProgress}
                 canProcess={canProcess}
                 fileCount={files.length}
               />
@@ -143,9 +154,7 @@ export function GeminiFileProcessor() {
               <div className="lg:col-span-3">
                 <ResponseDisplay
                   response={fileResults[0]?.response || ''}
-                  isProcessing={
-                    isProcessing && fileResults.length > 0 && !fileResults[0]?.isCompleted
-                  }
+                  isProcessing={isSingleInProgress}
                   file={fileResults[0]?.file}
                   hasError={Boolean(fileResults[0]?.error)}
                   onRetry={fileResults[0] ? () => handleRetryFile(0) : undefined}
