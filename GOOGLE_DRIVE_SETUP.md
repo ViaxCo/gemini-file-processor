@@ -154,7 +154,7 @@ This guide will help you set up Google Drive integration and API quota monitorin
 - **Batch Upload**: Upload multiple files at once
 - **Direct Links**: Get direct links to view uploaded documents
 - **Real-time Quota Monitoring**: Visual progress bars showing current API usage vs daily limits
-- **Model-specific Tracking**: Separate quota tracking for each Gemini model (2.5 Flash, 2.0 Flash, etc.)
+- **Model-specific Tracking**: Separate quota tracking for each Gemini model (2.5 Flash, 2.5 Flash-Lite)
 - **Usage Warnings**: Automatic alerts at 80% and 95% quota usage
 
 ## Troubleshooting
