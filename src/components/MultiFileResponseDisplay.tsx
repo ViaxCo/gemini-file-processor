@@ -452,7 +452,14 @@ export const MultiFileResponseDisplay = ({
                     {errorCount} error{errorCount > 1 ? 's' : ''}
                   </Badge>
                 )}
-                {uploadedCount > 0 && <Badge variant="secondary">{uploadedCount} uploaded</Badge>}
+                {uploadedCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-emerald-500 text-white dark:bg-emerald-600 [a&]:hover:bg-emerald-500/90"
+                  >
+                    {uploadedCount} uploaded
+                  </Badge>
+                )}
                 {pendingCount > 0 && <Badge variant="outline">{pendingCount} queued</Badge>}
               </div>
             </div>

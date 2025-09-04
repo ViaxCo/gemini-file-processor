@@ -18,6 +18,7 @@ import {
   Loader2,
   PencilLine,
   RotateCcw,
+  Undo2,
   UploadCloud,
 } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
@@ -224,6 +225,26 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                   </TooltipTrigger>
                   <TooltipContent>Edit filename</TooltipContent>
                 </Tooltip>
+                {displayName !== result.file.name && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 flex-shrink-0"
+                        onClick={() => {
+                          setIsEditingName(false);
+                          setEditValue(result.file.name);
+                          onNameChange(result.file.name);
+                        }}
+                        aria-label="Reset to original filename"
+                      >
+                        <Undo2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Reset to original filename</TooltipContent>
+                  </Tooltip>
+                )}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {result.error ? (
@@ -235,7 +256,14 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                 ) : (
                   <Badge variant="outline">Queued</Badge>
                 )}
-                {uploadStatus === 'completed' && <Badge variant="secondary">Uploaded</Badge>}
+                {uploadStatus === 'completed' && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-emerald-500 text-white dark:bg-emerald-600 [a&]:hover:bg-emerald-500/90"
+                  >
+                    Uploaded
+                  </Badge>
+                )}
                 <Badge variant="outline">{destinationFolderName || 'Root (My Drive)'}</Badge>
                 {confidence && result.isCompleted && !result.error && (
                   <span className={`text-xs ${confidenceColorClass(confidence.level)}`}>
@@ -250,6 +278,15 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                     {Math.round(result.previousConfidence.score * 100)}%)
                   </span>
                 )}
+                {result.isRetryingDueToError && !result.isCompleted && !result.error && (
+                  <span className="text-xs text-rose-600 dark:text-rose-400">
+                    Retrying due to error
+                  </span>
+                )}
+                {result.retryCount !== undefined &&
+                  result.retryCount > 0 &&
+                  !result.isCompleted &&
+                  !result.error && <Badge variant="secondary">Retry {result.retryCount}/3</Badge>}
               </div>
 
               {(result.response || result.error || result.isCompleted) && (

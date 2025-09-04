@@ -20,6 +20,8 @@ export interface FileResult {
     score: number;
     level: 'high' | 'medium' | 'low';
   };
+  // Track if file is being retried due to error
+  isRetryingDueToError?: boolean;
 }
 
 export const useAIProcessor = () => {
@@ -273,6 +275,8 @@ export const useAIProcessor = () => {
                           score,
                           level,
                         },
+                        isRetryingDueToError: false, // Clear error retry flag since this is confidence-based retry
+                        retryCount: (result.retryCount || 0) + 1, // Update retry count for display
                       }
                     : result,
                 ),
@@ -287,6 +291,10 @@ export const useAIProcessor = () => {
               const backoffDelay = Math.pow(2, lowConfidenceRetryCount) * 1000;
               setTimeout(() => {
                 addToQueue([file], index, retryCount, lowConfidenceRetryCount + 1);
+                // Restart processing if it's not already running
+                if (!processingRef.current) {
+                  void processQueue(instruction, model, mode);
+                }
               }, backoffDelay);
               return; // Don't mark as completed yet
             }
@@ -312,6 +320,8 @@ export const useAIProcessor = () => {
                     isCompleted: true,
                     queueStatus: 'completed',
                     previousConfidence: undefined, // Clear previous confidence when processing succeeds
+                    isRetryingDueToError: undefined, // Clear retry flags when processing succeeds
+                    retryCount: undefined, // Clear retry count when processing succeeds
                   }
                 : result,
             ),
@@ -335,6 +345,9 @@ export const useAIProcessor = () => {
                       isProcessing: false,
                       isCompleted: false,
                       queueStatus: 'pending',
+                      previousConfidence: result.previousConfidence, // Preserve previous confidence if exists
+                      isRetryingDueToError: true,
+                      retryCount: retryCount + 1, // Update retry count for display
                     }
                   : result,
               ),
@@ -344,6 +357,10 @@ export const useAIProcessor = () => {
             const backoffDelay = Math.pow(2, retryCount) * 1000;
             setTimeout(() => {
               addToQueue([file], index, retryCount + 1, lowConfidenceRetryCount);
+              // Restart processing if it's not already running
+              if (!processingRef.current) {
+                void processQueue(instruction, model, mode);
+              }
             }, backoffDelay);
           } else {
             // Mark as permanently failed after 3 retries
@@ -356,6 +373,8 @@ export const useAIProcessor = () => {
                       isCompleted: false,
                       queueStatus: 'failed',
                       error: error instanceof Error ? error.message : String(error),
+                      isRetryingDueToError: undefined, // Clear retry flag when permanently failed
+                      // Keep retryCount so user can see how many times it was retried
                     }
                   : result,
               ),
