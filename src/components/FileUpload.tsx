@@ -1,10 +1,10 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { CheckCircle, Upload, X, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FileUploadProps {
@@ -88,7 +88,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
   return (
     <Card className="w-full max-w-full overflow-hidden">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>Upload Text Files</CardTitle>
           <Badge variant={files.length > 0 ? 'secondary' : 'outline'}>
             {files.length} file{files.length === 1 ? '' : 's'} selected

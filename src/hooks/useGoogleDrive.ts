@@ -249,6 +249,18 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       if (!driveService) {
         throw new Error('Google Drive service not available');
       }
+      // Ensure authentication before starting upload to avoid stuck states
+      try {
+        // If not authenticated or token near expiry, trigger sign-in/refresh once
+        const info = driveService.getTokenExpiryInfo();
+        if (!driveService.isAuthenticated() || info.isNearExpiry) {
+          const ok = await driveService.signIn();
+          if (!ok) throw new Error('Authentication required');
+        }
+      } catch (err: any) {
+        setError(err.message || 'Authentication failed');
+        throw err;
+      }
 
       setUploadStatuses((prev) => ({ ...prev, [fileId]: 'uploading' }));
       setError(null);

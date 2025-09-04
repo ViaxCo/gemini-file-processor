@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -8,17 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Toggle } from '@/components/ui/toggle';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Toggle } from '@/components/ui/toggle';
+import { FileResult } from '@/hooks/useAIProcessor';
 import { copyToClipboard, downloadAsMarkdown } from '@/utils/fileUtils';
 import { generateVerificationSnippet } from '@/utils/verificationSnippet';
-import { Streamdown } from 'streamdown';
-import { FileResult } from '@/hooks/useAIProcessor';
 import { Copy, Download, Loader2, RotateCcw, UploadCloud, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Streamdown } from 'streamdown';
 
 interface ViewResponseModalProps {
   open: boolean;
@@ -117,9 +117,18 @@ export function ViewResponseModal({
     onOpenChange(false);
   };
 
+  const handleUploadClick = () => {
+    // Trigger the upload action, then close the modal immediately
+    onUpload?.();
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="overflow-auto sm:max-w-3xl md:max-w-4xl">
+      <DialogContent
+        showCloseButton={false}
+        className="overflow-y-auto overflow-x-hidden sm:max-w-3xl md:max-w-4xl"
+      >
         <DialogHeader className="sticky top-0 z-10 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 sm:py-4">
           <div className="relative">
             <DialogTitle className="truncate pr-10 text-base sm:text-lg">{prettyTitle}</DialogTitle>
@@ -225,7 +234,7 @@ export function ViewResponseModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onUpload}
+                  onClick={handleUploadClick}
                   disabled={!result?.response || uploadStatus === 'uploading'}
                   className="text-xs sm:text-sm"
                 >
@@ -254,24 +263,38 @@ export function ViewResponseModal({
           {/* Body */}
           <div
             ref={viewportRef}
-            className="max-h-[40vh] overflow-y-auto rounded-md border bg-background p-3 sm:max-h-[55vh]"
+            className="max-h-[40vh] overflow-y-auto overflow-x-hidden rounded-md border bg-background p-3 sm:max-h-[55vh]"
           >
             {!result?.response ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> No response yet
               </div>
             ) : showMarkdown ? (
-              <div className="overflow-wrap-anywhere text-sm leading-relaxed break-words text-foreground">
+              <div
+                className="text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground max-w-full"
+                style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+              >
                 {result.isProcessing ? (
-                  <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground">
+                  <pre
+                    className="max-w-full font-sans text-sm leading-relaxed whitespace-pre-wrap text-foreground"
+                    style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                  >
                     {result.response}
                   </pre>
                 ) : (
-                  <Streamdown>{result.response}</Streamdown>
+                  <div
+                    className="max-w-full"
+                    style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                  >
+                    <Streamdown>{result.response}</Streamdown>
+                  </div>
                 )}
               </div>
             ) : (
-              <pre className="overflow-wrap-anywhere max-w-full overflow-x-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground">
+              <pre
+                className="max-w-full font-sans text-sm leading-relaxed whitespace-pre-wrap text-foreground"
+                style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+              >
                 {result.response}
               </pre>
             )}

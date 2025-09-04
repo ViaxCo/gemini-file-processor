@@ -8,8 +8,9 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UnifiedFileCard } from '@/components/UnifiedFileCard';
 import { ViewResponseModal } from '@/components/ViewResponseModal';
+import { getConfidenceScore } from '@/utils/confidenceScore';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { FileResult } from '../hooks/useAIProcessor';
 import { downloadAsMarkdown } from '../utils/fileUtils';
@@ -79,6 +80,33 @@ export const MultiFileResponseDisplay = ({
   const [assignedFolders, setAssignedFolders] = useState<
     Record<number, { id: string | null; name: string }>
   >({});
+  const [lowConfidenceIndices, setLowConfidenceIndices] = useState<number[]>([]);
+
+  // Compute low-confidence files whenever results change
+  useEffect(() => {
+    let cancelled = false;
+    const compute = async () => {
+      const indices: number[] = [];
+      await Promise.all(
+        fileResults.map(async (r, i) => {
+          if (!r || !r.isCompleted || !!r.error || !r.response) return;
+          try {
+            const original = await r.file.text();
+            if (cancelled) return;
+            const { level } = getConfidenceScore(original, r.response);
+            if (level === 'low') indices.push(i);
+          } catch {
+            // ignore
+          }
+        }),
+      );
+      if (!cancelled) setLowConfidenceIndices(indices);
+    };
+    void compute();
+    return () => {
+      cancelled = true;
+    };
+  }, [fileResults]);
 
   // Order indices so that uploaded items ('completed' upload status) sink to the bottom
   const orderedIndices = useMemo(() => {
@@ -115,7 +143,10 @@ export const MultiFileResponseDisplay = ({
   const processingCount = fileResults.filter((result) => result.isProcessing).length;
   const uploadedCount = useMemo(() => {
     if (!uploadStatuses) return 0;
-    return fileResults.reduce((acc, r) => acc + (uploadStatuses[r.file.name] === 'completed' ? 1 : 0), 0);
+    return fileResults.reduce(
+      (acc, r) => acc + (uploadStatuses[r.file.name] === 'completed' ? 1 : 0),
+      0,
+    );
   }, [fileResults, uploadStatuses]);
   const progressPercentage =
     fileResults.length > 0 ? (completedCount / fileResults.length) * 100 : 0;
@@ -201,6 +232,13 @@ export const MultiFileResponseDisplay = ({
         assignedFolders[index]?.id !== undefined ? assignedFolders[index]?.id : selectedFolderId;
       await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
       toast.success('Uploaded to Google Docs');
+      // Deselect if it was selected
+      setSelected((prev) => {
+        if (!prev.has(index)) return prev;
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
     } catch (e) {
       toast.error('Upload failed');
     }
@@ -225,15 +263,36 @@ export const MultiFileResponseDisplay = ({
     if (eligible.length === 0) return;
     try {
       setIsUploadingSelected(true);
-      await Promise.all(
+      const results = await Promise.allSettled(
         eligible.map(async ({ r, i }) => {
           const baseName = (displayNames[i] || r!.file.name).replace(/\.[^.]+$/, '');
           const folderIdForItem =
             assignedFolders[i]?.id !== undefined ? assignedFolders[i]?.id : selectedFolderId;
           await uploadToGoogleDocs(r!.file.name, baseName, r!.response, folderIdForItem);
+          return i;
         }),
       );
-      toast.success(`Uploaded ${eligible.length} selected file${eligible.length > 1 ? 's' : ''}`);
+      const succeeded: number[] = results
+        .filter((res): res is PromiseFulfilledResult<number> => res.status === 'fulfilled')
+        .map((res) => res.value);
+      const failed = results.length - succeeded.length;
+      if (succeeded.length > 0) {
+        // Deselect successfully uploaded items
+        setSelected((prev) => {
+          const next = new Set(prev);
+          for (const idx of succeeded) next.delete(idx);
+          return next;
+        });
+      }
+      if (failed === 0) {
+        toast.success(
+          `Uploaded ${succeeded.length} selected file${succeeded.length > 1 ? 's' : ''}`,
+        );
+      } else if (succeeded.length > 0) {
+        toast.success(`Uploaded ${succeeded.length} selected; ${failed} failed. Check statuses.`);
+      } else {
+        toast.error('All selected uploads failed.');
+      }
     } catch (e) {
       toast.error('Some selected uploads failed.');
     } finally {
@@ -251,16 +310,35 @@ export const MultiFileResponseDisplay = ({
     if (items.length === 0) return;
     try {
       setIsUploadingAll(true);
-      await Promise.all(
+      const results = await Promise.allSettled(
         items.map(async (r) => {
           const idx = fileResults.indexOf(r);
           const baseName = (displayNames[idx] || r.file.name).replace(/\.[^.]+$/, '');
           const folderIdForItem =
             assignedFolders[idx]?.id !== undefined ? assignedFolders[idx]?.id : selectedFolderId;
           await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
+          return idx;
         }),
       );
-      toast.success(`Uploaded ${items.length} file${items.length > 1 ? 's' : ''}`);
+      const succeeded: number[] = results
+        .filter((res): res is PromiseFulfilledResult<number> => res.status === 'fulfilled')
+        .map((res) => res.value);
+      const failed = results.length - succeeded.length;
+      if (succeeded.length > 0) {
+        // Deselect successfully uploaded items if they were selected
+        setSelected((prev) => {
+          const next = new Set(prev);
+          for (const idx of succeeded) next.delete(idx);
+          return next;
+        });
+      }
+      if (failed === 0) {
+        toast.success(`Uploaded ${succeeded.length} file${succeeded.length > 1 ? 's' : ''}`);
+      } else if (succeeded.length > 0) {
+        toast.success(`Uploaded ${succeeded.length}; ${failed} failed. Check statuses.`);
+      } else {
+        toast.error('All uploads failed.');
+      }
     } catch (e) {
       toast.error('Some uploads failed. Check statuses.');
     } finally {
@@ -293,71 +371,72 @@ export const MultiFileResponseDisplay = ({
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg sm:text-xl">AI Responses</CardTitle>
-        <div className="flex items-center gap-3" />
-        {allCompleted && completedResults.length > 0 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={handleDownloadAll}
-                variant="default"
-                size="sm"
-                className="flex-shrink-0 text-xs sm:text-sm"
-                disabled={isAnyProcessing}
-              >
-                <DownloadCloud className="h-4 w-4" />
-                <span className="hidden whitespace-nowrap sm:inline">
-                  {downloadAllFeedback || 'Download All'}
-                </span>
-                <span className="whitespace-nowrap sm:hidden">
-                  {downloadAllFeedback || 'Download'}
-                </span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Download all completed files as markdown</TooltipContent>
-          </Tooltip>
-        )}
-        {uploadToGoogleDocs && uploadEligible.length > 0 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={handleUploadAll}
-                variant="default"
-                size="sm"
-                className="flex-shrink-0 text-xs sm:text-sm"
-                disabled={isAnyProcessing || !isDriveAuthenticated || isUploadingAll}
-              >
-                {isUploadingAll ? (
-                  <span className="inline-flex h-4 w-4 items-center justify-center">
-                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                      ></path>
-                    </svg>
+        <div className="flex items-center gap-3">
+          {allCompleted && completedResults.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleDownloadAll}
+                  variant="default"
+                  size="sm"
+                  className="flex-shrink-0 text-xs sm:text-sm"
+                  disabled={isAnyProcessing}
+                >
+                  <DownloadCloud className="h-4 w-4" />
+                  <span className="hidden whitespace-nowrap sm:inline">
+                    {downloadAllFeedback || 'Download All'}
                   </span>
-                ) : (
-                  <DownloadCloud className="h-4 w-4 rotate-180" />
-                )}
-                <span className="hidden whitespace-nowrap sm:inline">Upload All</span>
-                <span className="whitespace-nowrap sm:hidden">Upload</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Upload all completed files to Google Docs</TooltipContent>
-          </Tooltip>
-        )}
+                  <span className="whitespace-nowrap sm:hidden">
+                    {downloadAllFeedback || 'Download'}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Download all completed files as markdown</TooltipContent>
+            </Tooltip>
+          )}
+          {uploadToGoogleDocs && uploadEligible.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleUploadAll}
+                  variant="default"
+                  size="sm"
+                  className="flex-shrink-0 text-xs sm:text-sm"
+                  disabled={isAnyProcessing || !isDriveAuthenticated || isUploadingAll}
+                >
+                  {isUploadingAll ? (
+                    <span className="inline-flex h-4 w-4 items-center justify-center">
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        ></path>
+                      </svg>
+                    </span>
+                  ) : (
+                    <DownloadCloud className="h-4 w-4 rotate-180" />
+                  )}
+                  <span className="hidden whitespace-nowrap sm:inline">Upload All</span>
+                  <span className="whitespace-nowrap sm:hidden">Upload</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Upload all completed files to Google Docs</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-200 lg:overflow-y-auto">
+        <div className="max-h-200 space-y-4 overflow-y-auto pr-2 lg:overflow-y-auto">
           <div className="sticky top-0 z-20 space-y-3 border-b bg-card/95 pt-1 pb-3 backdrop-blur supports-[backdrop-filter]:bg-card/60">
             <div className="flex flex-col justify-between gap-2 text-sm sm:flex-row sm:items-center">
               <span className="text-muted-foreground">
@@ -373,9 +452,7 @@ export const MultiFileResponseDisplay = ({
                     {errorCount} error{errorCount > 1 ? 's' : ''}
                   </Badge>
                 )}
-                {uploadedCount > 0 && (
-                  <Badge variant="secondary">{uploadedCount} uploaded</Badge>
-                )}
+                {uploadedCount > 0 && <Badge variant="secondary">{uploadedCount} uploaded</Badge>}
                 {pendingCount > 0 && <Badge variant="outline">{pendingCount} queued</Badge>}
               </div>
             </div>
@@ -428,6 +505,37 @@ export const MultiFileResponseDisplay = ({
                 </AlertDescription>
               </Alert>
             )}
+            {lowConfidenceIndices.length > 0 && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <span>
+                    {lowConfidenceIndices.length} file{lowConfidenceIndices.length > 1 ? 's' : ''}{' '}
+                    have low confidence. Review and retry if needed.
+                  </span>
+                  {onRetryFile && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => {
+                            // Retry all low-confidence files without confirmation
+                            lowConfidenceIndices.forEach((i) => onRetryFile(i));
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="ml-2"
+                        >
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                          <span className="hidden sm:inline">Retry Low Confidence</span>
+                          <span className="sm:hidden">Retry</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Retry all low-confidence files</TooltipContent>
+                    </Tooltip>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           {fileResults.length === 0 ? (
@@ -447,37 +555,39 @@ export const MultiFileResponseDisplay = ({
               {orderedIndices.map((orderedIndex) => {
                 const result = fileResults[orderedIndex]!;
                 return (
-                <UnifiedFileCard
-                  key={`${result.file.name}-${orderedIndex}`}
-                  result={result}
-                  index={orderedIndex}
-                  selected={selected.has(orderedIndex)}
-                  onSelectChange={(checked) => {
-                    setSelected((prev) => {
-                      const next = new Set(prev);
-                      if (checked) next.add(orderedIndex);
-                      else next.delete(orderedIndex);
-                      return next;
-                    });
-                  }}
-                  displayName={displayNames[orderedIndex] || result.file.name}
-                  onNameChange={(newName) =>
-                    setDisplayNames((prev) => ({ ...prev, [orderedIndex]: newName }))
-                  }
-                  showMarkdown={showMarkdown}
-                  onToggleMarkdown={setShowMarkdown}
-                  onRetry={onRetryFile ? () => onRetryFile(orderedIndex) : undefined}
-                  uploadStatus={uploadStatuses?.[result.file.name]}
-                  destinationFolderName={
-                    assignedFolders[orderedIndex]?.name ?? selectedFolderName ?? undefined
-                  }
-                  onUpload={uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined}
-                  canUpload={isDriveAuthenticated}
-                  onViewResponse={() => {
-                    setViewIndex(orderedIndex);
-                    setIsViewOpen(true);
-                  }}
-                />
+                  <UnifiedFileCard
+                    key={`${result.file.name}-${orderedIndex}`}
+                    result={result}
+                    index={orderedIndex}
+                    selected={selected.has(orderedIndex)}
+                    onSelectChange={(checked) => {
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        if (checked) next.add(orderedIndex);
+                        else next.delete(orderedIndex);
+                        return next;
+                      });
+                    }}
+                    displayName={displayNames[orderedIndex] || result.file.name}
+                    onNameChange={(newName) =>
+                      setDisplayNames((prev) => ({ ...prev, [orderedIndex]: newName }))
+                    }
+                    showMarkdown={showMarkdown}
+                    onToggleMarkdown={setShowMarkdown}
+                    onRetry={onRetryFile ? () => onRetryFile(orderedIndex) : undefined}
+                    uploadStatus={uploadStatuses?.[result.file.name]}
+                    destinationFolderName={
+                      assignedFolders[orderedIndex]?.name ?? selectedFolderName ?? undefined
+                    }
+                    onUpload={
+                      uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined
+                    }
+                    canUpload={isDriveAuthenticated}
+                    onViewResponse={() => {
+                      setViewIndex(orderedIndex);
+                      setIsViewOpen(true);
+                    }}
+                  />
                 );
               })}
 
