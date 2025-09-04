@@ -111,6 +111,12 @@ export function ViewResponseModal({
 
   const folderLabel = destinationFolderName ?? 'Root (My Drive)';
 
+  const handleRetryClick = () => {
+    // Trigger the retry action, then close the modal immediately
+    onRetry?.();
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="overflow-auto sm:max-w-3xl md:max-w-4xl">
@@ -209,7 +215,7 @@ export function ViewResponseModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onRetry}
+                  onClick={handleRetryClick}
                   className="text-xs sm:text-sm"
                 >
                   <RotateCcw className="mr-1 h-3.5 w-3.5" /> Retry
