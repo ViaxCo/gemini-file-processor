@@ -127,7 +127,7 @@ export function ViewResponseModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="overflow-y-auto overflow-x-hidden sm:max-w-3xl md:max-w-4xl"
+        className="overflow-x-hidden overflow-y-auto sm:max-w-3xl md:max-w-4xl"
       >
         <DialogHeader className="sticky top-0 z-10 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 sm:py-4">
           <div className="relative">
@@ -263,7 +263,7 @@ export function ViewResponseModal({
           {/* Body */}
           <div
             ref={viewportRef}
-            className="max-h-[40vh] overflow-y-auto overflow-x-hidden rounded-md border bg-background p-3 sm:max-h-[55vh]"
+            className="max-h-[40vh] overflow-x-hidden overflow-y-auto rounded-md border bg-background p-3 sm:max-h-[55vh]"
           >
             {!result?.response ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
@@ -271,7 +271,7 @@ export function ViewResponseModal({
               </div>
             ) : showMarkdown ? (
               <div
-                className="text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground max-w-full"
+                className="max-w-full text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground"
                 style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
               >
                 {result.isProcessing ? (

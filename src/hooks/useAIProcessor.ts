@@ -193,9 +193,7 @@ export const useAIProcessor = () => {
               scheduleIdleWork(() => {
                 setFileResults((prev) =>
                   prev.map((result, i) =>
-                    i === index
-                      ? { ...result, response: result.response + currentBuffer }
-                      : result,
+                    i === index ? { ...result, response: result.response + currentBuffer } : result,
                   ),
                 );
               });
@@ -256,7 +254,7 @@ export const useAIProcessor = () => {
       };
 
       // Sliding-window scheduler: fill capacity immediately when available
-      while ((!abortRef.current && (queueRef.current.length > 0 || activeCountRef.current > 0))) {
+      while (!abortRef.current && (queueRef.current.length > 0 || activeCountRef.current > 0)) {
         if (isPaused) {
           await new Promise((res) => setTimeout(res, 200));
           continue;

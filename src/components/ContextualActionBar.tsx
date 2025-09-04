@@ -56,7 +56,9 @@ export function ContextualActionBar({
             variant="default"
             size="sm"
             onClick={onUploadSelected}
-            disabled={!isDriveAuthenticated || isUploadingSelected || (uploadSelectedCount ?? 0) === 0}
+            disabled={
+              !isDriveAuthenticated || isUploadingSelected || (uploadSelectedCount ?? 0) === 0
+            }
           >
             {isUploadingSelected ? (
               <span className="mr-1 inline-flex h-4 w-4 items-center justify-center">

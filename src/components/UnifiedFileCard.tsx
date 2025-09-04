@@ -362,7 +362,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
               >
                 {showMarkdown ? (
                   <div
-                    className="text-sm leading-relaxed break-words text-foreground max-w-full"
+                    className="max-w-full text-sm leading-relaxed break-words text-foreground"
                     style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                   >
                     {result.isProcessing ? (
