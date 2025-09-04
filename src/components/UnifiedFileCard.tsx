@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { FileResult } from '@/hooks/useAIProcessor';
+import { confidenceColorClass, getConfidenceScore } from '@/utils/confidenceScore';
+import { copyToClipboard, downloadAsMarkdown } from '@/utils/fileUtils';
 import {
   AlertCircle,
   CheckCircle,
@@ -18,11 +21,8 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
-import { Streamdown } from 'streamdown';
-import { FileResult } from '@/hooks/useAIProcessor';
-import { copyToClipboard, downloadAsMarkdown } from '@/utils/fileUtils';
-import { confidenceColorClass, getConfidenceScore } from '@/utils/confidenceScore';
 import { toast } from 'sonner';
+import { Streamdown } from 'streamdown';
 
 export interface UnifiedFileCardProps {
   result: FileResult;
@@ -205,7 +205,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                   />
                 ) : (
                   <CardTitle
-                    className="truncate overflow-hidden text-sm whitespace-nowrap sm:text-base lg:text-lg"
+                    className="truncate overflow-hidden text-sm whitespace-nowrap"
                     title={displayName || result.file.name}
                   >
                     {displayName || result.file.name}
@@ -233,7 +233,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                 ) : result.isProcessing ? (
                   <Badge variant="secondary">Processing...</Badge>
                 ) : (
-                  <Badge variant="outline">Waiting</Badge>
+                  <Badge variant="outline">Queued</Badge>
                 )}
                 {uploadStatus === 'completed' && <Badge variant="secondary">Uploaded</Badge>}
                 <Badge variant="outline">{destinationFolderName || 'Root (My Drive)'}</Badge>

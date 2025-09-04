@@ -12,6 +12,7 @@ interface ContextualActionBarProps {
   isUploadingSelected?: boolean;
   allSelected?: boolean;
   onToggleSelectAll?: (checked: boolean) => void;
+  uploadSelectedCount?: number;
 }
 
 export function ContextualActionBar({
@@ -24,6 +25,7 @@ export function ContextualActionBar({
   isUploadingSelected = false,
   allSelected = false,
   onToggleSelectAll,
+  uploadSelectedCount,
 }: ContextualActionBarProps) {
   if (selectedCount <= 0) return null;
 
@@ -54,7 +56,7 @@ export function ContextualActionBar({
             variant="default"
             size="sm"
             onClick={onUploadSelected}
-            disabled={!isDriveAuthenticated || isUploadingSelected}
+            disabled={!isDriveAuthenticated || isUploadingSelected || (uploadSelectedCount ?? 0) === 0}
           >
             {isUploadingSelected ? (
               <span className="mr-1 inline-flex h-4 w-4 items-center justify-center">
@@ -76,7 +78,7 @@ export function ContextualActionBar({
                 </svg>
               </span>
             ) : null}
-            Upload Selected
+            {`Upload Selected${typeof uploadSelectedCount === 'number' ? ` (${uploadSelectedCount})` : ''}`}
           </Button>
         )}
         {onRetrySelected && (

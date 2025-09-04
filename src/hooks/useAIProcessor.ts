@@ -33,6 +33,8 @@ export const useAIProcessor = () => {
   const abortRef = useRef<boolean>(false);
   const throttleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cleanupIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimesRef = useRef<number[]>([]); // timestamps of starts within WINDOW
+  const activeCountRef = useRef<number>(0); // in-flight items
 
   // Public API compatible with current components
   const processFiles = async (
@@ -163,8 +165,8 @@ export const useAIProcessor = () => {
     setIsProcessing(true);
     abortRef.current = false;
 
-    const BATCH_SIZE = 10;
-    const BATCH_DELAY_MS = 90_000; // 90 seconds
+    const MAX_PER_WINDOW = 10; // also used as max concurrency
+    const WINDOW_MS = 90_000; // 90 seconds safety window
 
     try {
       // Update UI to show queued files as pending
@@ -175,164 +177,133 @@ export const useAIProcessor = () => {
         })),
       );
 
-      while (queueRef.current.length > 0 && !abortRef.current) {
+      const processItem = async (item: QueueItem) => {
+        const { file, index, key } = item;
+        const streamToUI = mode === 'single';
+        if (!streamToUI) {
+          responseStore.addResponse(key, '');
+        }
+        try {
+          let responseBuffer = '';
+          let lastUpdateTime = Date.now();
+          const flushBufferToUI = () => {
+            if (responseBuffer) {
+              const currentBuffer = responseBuffer;
+              responseBuffer = '';
+              scheduleIdleWork(() => {
+                setFileResults((prev) =>
+                  prev.map((result, i) =>
+                    i === index
+                      ? { ...result, response: result.response + currentBuffer }
+                      : result,
+                  ),
+                );
+              });
+            }
+          };
+          await processFileWithAI(file, instruction, model, (chunk: string) => {
+            if (streamToUI) {
+              responseBuffer += chunk;
+              const now = Date.now();
+              if (now - lastUpdateTime >= 100 || responseBuffer.length >= 500) {
+                flushBufferToUI();
+                lastUpdateTime = now;
+              }
+            } else {
+              responseStore.updateResponse(key, chunk);
+            }
+          });
+          if (streamToUI) flushBufferToUI();
+          if (!streamToUI) {
+            const finalResponse = responseStore.getResponse(key);
+            setFileResults((prev) =>
+              prev.map((result, i) =>
+                i === index ? { ...result, response: finalResponse } : result,
+              ),
+            );
+            responseStore.clearResponse(key);
+          }
+          setFileResults((prev) =>
+            prev.map((result, i) =>
+              i === index
+                ? {
+                    ...result,
+                    isProcessing: false,
+                    isCompleted: true,
+                    queueStatus: 'completed',
+                  }
+                : result,
+            ),
+          );
+        } catch (error) {
+          console.error(`Error processing file ${file.name}:`, error);
+          setFileResults((prev) =>
+            prev.map((result, i) =>
+              i === index
+                ? {
+                    ...result,
+                    isProcessing: false,
+                    isCompleted: false,
+                    queueStatus: 'failed',
+                    error: error instanceof Error ? error.message : String(error),
+                  }
+                : result,
+            ),
+          );
+        } finally {
+          activeCountRef.current = Math.max(0, activeCountRef.current - 1);
+        }
+      };
+
+      // Sliding-window scheduler: fill capacity immediately when available
+      while ((!abortRef.current && (queueRef.current.length > 0 || activeCountRef.current > 0))) {
         if (isPaused) {
-          // Wait until resumed
           await new Promise((res) => setTimeout(res, 200));
           continue;
         }
 
-        const currentBatch = queueRef.current.splice(0, BATCH_SIZE);
+        // purge old start timestamps
+        const now = Date.now();
+        startTimesRef.current = startTimesRef.current.filter((t) => now - t < WINDOW_MS);
 
-        // Mark batch as processing in UI
-        setFileResults((prev) =>
-          prev.map((r, i) =>
-            currentBatch.some((q) => q.index === i)
-              ? { ...r, isProcessing: true, queueStatus: 'processing' }
-              : r,
-          ),
-        );
+        const rateSlots = Math.max(0, MAX_PER_WINDOW - startTimesRef.current.length);
+        const concurrencySlots = Math.max(0, MAX_PER_WINDOW - activeCountRef.current);
+        const availableSlots = Math.min(rateSlots, concurrencySlots, queueRef.current.length);
 
-        // If there are more files remaining beyond this batch, start the countdown NOW
-        let deadline: number | null = null;
-        if (queueRef.current.length > 0) {
-          // Clear any previous countdown
-          if (throttleIntervalRef.current) {
-            clearInterval(throttleIntervalRef.current);
-            throttleIntervalRef.current = null;
-          }
-
-          setIsWaitingForNextBatch(true);
-          deadline = Date.now() + BATCH_DELAY_MS;
-          const updateCountdown = () => {
-            const remaining = Math.ceil(((deadline as number) - Date.now()) / 1000);
-            const clamped = Math.max(0, remaining);
-            setThrottleSecondsRemaining(clamped);
-            if (clamped <= 0 && throttleIntervalRef.current) {
-              clearInterval(throttleIntervalRef.current);
-              throttleIntervalRef.current = null;
-            }
-          };
-          updateCountdown();
-          throttleIntervalRef.current = setInterval(updateCountdown, 1000);
-        }
-
-        // Process files in this batch concurrently
-        await Promise.all(
-          currentBatch.map(async (item) => {
-            const { file, index, key } = item;
-
-            // For batch mode, stream to responseStore only; for single, stream to UI
-            const streamToUI = mode === 'single';
-
-            // Ensure store entry exists when in batch mode
-            if (!streamToUI) {
-              responseStore.addResponse(key, '');
-            }
-
-            try {
-              let responseBuffer = '';
-              let lastUpdateTime = Date.now();
-
-              const flushBufferToUI = () => {
-                if (responseBuffer) {
-                  const currentBuffer = responseBuffer;
-                  responseBuffer = '';
-                  scheduleIdleWork(() => {
-                    setFileResults((prev) =>
-                      prev.map((result, i) =>
-                        i === index
-                          ? { ...result, response: result.response + currentBuffer }
-                          : result,
-                      ),
-                    );
-                  });
-                }
-              };
-
-              await processFileWithAI(file, instruction, model, (chunk: string) => {
-                if (streamToUI) {
-                  responseBuffer += chunk;
-                  const now = Date.now();
-                  if (now - lastUpdateTime >= 100 || responseBuffer.length >= 500) {
-                    flushBufferToUI();
-                    lastUpdateTime = now;
-                  }
-                } else {
-                  // Stream to store directly for batch mode
-                  responseStore.updateResponse(key, chunk);
-                }
-              });
-
-              // Finalize flush
-              if (streamToUI) {
-                flushBufferToUI();
-              }
-
-              // On completion, if batch mode, push final content from store to UI
-              if (!streamToUI) {
-                const finalResponse = responseStore.getResponse(key);
-                setFileResults((prev) =>
-                  prev.map((result, i) =>
-                    i === index
-                      ? {
-                          ...result,
-                          response: finalResponse,
-                        }
-                      : result,
-                  ),
-                );
-                // Clean up store for this entry to avoid leaks
-                responseStore.clearResponse(key);
-              }
-
-              // Mark as completed
-              setFileResults((prev) =>
-                prev.map((result, i) =>
-                  i === index
-                    ? {
-                        ...result,
-                        isProcessing: false,
-                        isCompleted: true,
-                        queueStatus: 'completed',
-                      }
-                    : result,
-                ),
-              );
-            } catch (error) {
-              console.error(`Error processing file ${file.name}:`, error);
-              setFileResults((prev) =>
-                prev.map((result, i) =>
-                  i === index
-                    ? {
-                        ...result,
-                        isProcessing: false,
-                        isCompleted: false,
-                        queueStatus: 'failed',
-                        error: error instanceof Error ? error.message : String(error),
-                      }
-                    : result,
-                ),
-              );
-            }
-          }),
-        );
-
-        // If there are more files remaining, throttle between batches.
-        // Only wait the remaining time if processing finished earlier than the throttle window.
-        if (queueRef.current.length > 0) {
-          const remainingMs = deadline ? Math.max(0, deadline - Date.now()) : BATCH_DELAY_MS;
-          if (remainingMs > 0) {
-            await new Promise((res) => setTimeout(res, remainingMs));
-          }
-
-          // Clear countdown for next iteration
-          if (throttleIntervalRef.current) {
-            clearInterval(throttleIntervalRef.current);
-            throttleIntervalRef.current = null;
-          }
+        if (availableSlots > 0) {
           setIsWaitingForNextBatch(false);
           setThrottleSecondsRemaining(0);
+
+          const toStart = queueRef.current.splice(0, availableSlots);
+          // Mark as processing
+          setFileResults((prev) =>
+            prev.map((r, i) =>
+              toStart.some((q) => q.index === i)
+                ? { ...r, isProcessing: true, queueStatus: 'processing' }
+                : r,
+            ),
+          );
+
+          for (const item of toStart) {
+            activeCountRef.current++;
+            startTimesRef.current.push(Date.now());
+            // Fire and forget
+            void processItem(item);
+          }
+          // Small yield to allow state to update
+          await new Promise((res) => setTimeout(res, 50));
+        } else {
+          // No slots: either rate limited or at max concurrency
+          let waitMs = 250;
+          if (rateSlots === 0 && startTimesRef.current.length > 0) {
+            const oldest = startTimesRef.current[0]!;
+            const nextMs = Math.max(0, WINDOW_MS - (now - oldest));
+            waitMs = Math.min(1000, Math.max(250, nextMs));
+            const secs = Math.ceil(nextMs / 1000);
+            setIsWaitingForNextBatch(true);
+            setThrottleSecondsRemaining(secs);
+          }
+          await new Promise((res) => setTimeout(res, waitMs));
         }
       }
     } finally {

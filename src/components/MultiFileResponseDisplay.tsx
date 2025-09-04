@@ -80,6 +80,20 @@ export const MultiFileResponseDisplay = ({
     Record<number, { id: string | null; name: string }>
   >({});
 
+  // Order indices so that uploaded items ('completed' upload status) sink to the bottom
+  const orderedIndices = useMemo(() => {
+    const indices = fileResults.map((_, i) => i);
+    if (!uploadStatuses) return indices;
+    const notUploaded: number[] = [];
+    const uploaded: number[] = [];
+    for (const i of indices) {
+      const status = uploadStatuses[fileResults[i]!.file.name];
+      if (status === 'completed') uploaded.push(i);
+      else notUploaded.push(i);
+    }
+    return [...notUploaded, ...uploaded];
+  }, [fileResults, uploadStatuses]);
+
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
   );
@@ -99,6 +113,10 @@ export const MultiFileResponseDisplay = ({
   const completedCount = fileResults.filter((result) => result.isCompleted).length;
   const errorCount = fileResults.filter((result) => result.error).length;
   const processingCount = fileResults.filter((result) => result.isProcessing).length;
+  const uploadedCount = useMemo(() => {
+    if (!uploadStatuses) return 0;
+    return fileResults.reduce((acc, r) => acc + (uploadStatuses[r.file.name] === 'completed' ? 1 : 0), 0);
+  }, [fileResults, uploadStatuses]);
   const progressPercentage =
     fileResults.length > 0 ? (completedCount / fileResults.length) * 100 : 0;
 
@@ -107,6 +125,23 @@ export const MultiFileResponseDisplay = ({
     [fileResults, selected],
   );
   const selectedCount = selected.size;
+  const uploadSelectedEligibleCount = useMemo(() => {
+    const indices = [...selected];
+    if (indices.length === 0) return 0;
+    return indices.reduce((count, i) => {
+      const r = fileResults[i];
+      if (
+        r &&
+        r.isCompleted &&
+        !r.error &&
+        r.response &&
+        (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed')
+      ) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+  }, [selected, fileResults, uploadStatuses]);
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -338,6 +373,10 @@ export const MultiFileResponseDisplay = ({
                     {errorCount} error{errorCount > 1 ? 's' : ''}
                   </Badge>
                 )}
+                {uploadedCount > 0 && (
+                  <Badge variant="secondary">{uploadedCount} uploaded</Badge>
+                )}
+                {pendingCount > 0 && <Badge variant="outline">{pendingCount} queued</Badge>}
               </div>
             </div>
             {(isAnyProcessing || hasPending || isWaitingForNextBatch) && (
@@ -351,7 +390,11 @@ export const MultiFileResponseDisplay = ({
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>Pending files: {pendingCount}</span>
                     {isWaitingForNextBatch && (
-                      <span>Next batch in {throttleSecondsRemaining}s</span>
+                      <span>
+                        {Math.ceil(throttleSecondsRemaining || 0) > 0
+                          ? `Next batch in ${Math.ceil(throttleSecondsRemaining || 0)}s`
+                          : 'Scheduling next batch…'}
+                      </span>
                     )}
                   </div>
                 )}
@@ -401,39 +444,42 @@ export const MultiFileResponseDisplay = ({
             </div>
           ) : (
             <>
-              {fileResults.map((result, index) => (
+              {orderedIndices.map((orderedIndex) => {
+                const result = fileResults[orderedIndex]!;
+                return (
                 <UnifiedFileCard
-                  key={`${result.file.name}-${index}`}
+                  key={`${result.file.name}-${orderedIndex}`}
                   result={result}
-                  index={index}
-                  selected={selected.has(index)}
+                  index={orderedIndex}
+                  selected={selected.has(orderedIndex)}
                   onSelectChange={(checked) => {
                     setSelected((prev) => {
                       const next = new Set(prev);
-                      if (checked) next.add(index);
-                      else next.delete(index);
+                      if (checked) next.add(orderedIndex);
+                      else next.delete(orderedIndex);
                       return next;
                     });
                   }}
-                  displayName={displayNames[index] || result.file.name}
+                  displayName={displayNames[orderedIndex] || result.file.name}
                   onNameChange={(newName) =>
-                    setDisplayNames((prev) => ({ ...prev, [index]: newName }))
+                    setDisplayNames((prev) => ({ ...prev, [orderedIndex]: newName }))
                   }
                   showMarkdown={showMarkdown}
                   onToggleMarkdown={setShowMarkdown}
-                  onRetry={onRetryFile ? () => onRetryFile(index) : undefined}
+                  onRetry={onRetryFile ? () => onRetryFile(orderedIndex) : undefined}
                   uploadStatus={uploadStatuses?.[result.file.name]}
                   destinationFolderName={
-                    assignedFolders[index]?.name ?? selectedFolderName ?? undefined
+                    assignedFolders[orderedIndex]?.name ?? selectedFolderName ?? undefined
                   }
-                  onUpload={uploadToGoogleDocs ? () => handleUploadSingle(index) : undefined}
+                  onUpload={uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined}
                   canUpload={isDriveAuthenticated}
                   onViewResponse={() => {
-                    setViewIndex(index);
+                    setViewIndex(orderedIndex);
                     setIsViewOpen(true);
                   }}
                 />
-              ))}
+                );
+              })}
 
               <ViewResponseModal
                 open={isViewOpen}
@@ -482,6 +528,7 @@ export const MultiFileResponseDisplay = ({
               isUploadingSelected={isUploadingSelected}
               allSelected={allSelected}
               onToggleSelectAll={(checked) => toggleSelectAll(checked)}
+              uploadSelectedCount={uploadSelectedEligibleCount}
             />
           )}
         </div>
