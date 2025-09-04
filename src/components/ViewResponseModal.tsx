@@ -127,9 +127,9 @@ export function ViewResponseModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="overflow-x-hidden overflow-y-auto sm:max-w-3xl md:max-w-4xl"
+        className="min-w-0 overflow-y-auto sm:max-w-3xl md:max-w-4xl"
       >
-        <DialogHeader className="sticky top-0 z-10 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 sm:py-4">
+        <DialogHeader className="sticky top-0 z-10 min-w-0 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 sm:py-4">
           <div className="relative">
             <DialogTitle className="truncate pr-10 text-base sm:text-lg">{prettyTitle}</DialogTitle>
             <DialogClose asChild>
@@ -142,9 +142,9 @@ export function ViewResponseModal({
             </DialogClose>
           </div>
         </DialogHeader>
-        <div className="px-4 pb-6 pb-[env(safe-area-inset-bottom)] sm:px-6 sm:pb-8">
+        <div className="min-w-0 px-4 pb-[env(safe-area-inset-bottom)] sm:px-6 sm:pb-8">
           {/* Verification snippet */}
-          <div className="rounded-md border bg-muted/30 p-3 sm:p-4">
+          <div className="min-w-0 rounded-md border bg-muted/30 p-3 sm:p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="text-xs font-medium text-foreground sm:text-sm">
                 Verification Snippet
@@ -156,8 +156,8 @@ export function ViewResponseModal({
               ) : null}
             </div>
             {verification ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-md bg-background p-2">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0 rounded-md bg-background p-2">
                   <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground sm:text-xs">
                     <span>Original (tail)</span>
                     <button
@@ -173,7 +173,7 @@ export function ViewResponseModal({
                     </pre>
                   </ScrollArea>
                 </div>
-                <div className="rounded-md bg-background p-2">
+                <div className="min-w-0 rounded-md bg-background p-2">
                   <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground sm:text-xs">
                     <span>Processed (tail)</span>
                     <button
@@ -200,7 +200,7 @@ export function ViewResponseModal({
           <Separator className="my-3" />
 
           {/* Actions */}
-          <div className="mb-2 flex flex-col-reverse items-stretch justify-between gap-2 sm:flex-row sm:items-center">
+          <div className="mb-2 flex min-w-0 flex-col-reverse items-stretch justify-between gap-2 sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
@@ -263,7 +263,7 @@ export function ViewResponseModal({
           {/* Body */}
           <div
             ref={viewportRef}
-            className="max-h-[40vh] overflow-x-hidden overflow-y-auto rounded-md border bg-background p-3 sm:max-h-[55vh]"
+            className="max-h-[40vh] min-w-0 overflow-x-auto overflow-y-auto rounded-md border bg-background p-3 sm:max-h-[55vh]"
           >
             {!result?.response ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
@@ -271,7 +271,7 @@ export function ViewResponseModal({
               </div>
             ) : showMarkdown ? (
               <div
-                className="max-w-full text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground"
+                className="max-w-full text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground [&_*]:max-w-full [&_*]:min-w-0 [&_code]:break-words [&_pre]:break-words [&_pre]:whitespace-pre-wrap [&_table]:w-full [&_table]:table-fixed [&_td]:break-words [&_th]:break-words"
                 style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
               >
                 {result.isProcessing ? (
@@ -283,7 +283,7 @@ export function ViewResponseModal({
                   </pre>
                 ) : (
                   <div
-                    className="max-w-full"
+                    className="max-w-full [&_*]:max-w-full [&_*]:min-w-0 [&_code]:break-words [&_pre]:break-words [&_pre]:whitespace-pre-wrap"
                     style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                   >
                     <Streamdown>{result.response}</Streamdown>
