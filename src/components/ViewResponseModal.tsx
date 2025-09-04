@@ -9,13 +9,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Toggle } from '@/components/ui/toggle';
 import { Separator } from '@/components/ui/separator';
 import { copyToClipboard, downloadAsMarkdown } from '@/utils/fileUtils';
 import { generateVerificationSnippet } from '@/utils/verificationSnippet';
 import { Streamdown } from 'streamdown';
 import { FileResult } from '@/hooks/useAIProcessor';
-import { Copy, Download, Loader2, X } from 'lucide-react';
+import { Copy, Download, Loader2, RotateCcw, UploadCloud, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -24,6 +25,12 @@ interface ViewResponseModalProps {
   onOpenChange: (open: boolean) => void;
   result: FileResult | null;
   displayName?: string;
+  // Optional actions and info from parent
+  onRetry?: () => void;
+  onUpload?: () => void;
+  canUpload?: boolean;
+  uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
+  destinationFolderName?: string | null;
 }
 
 export function ViewResponseModal({
@@ -31,6 +38,11 @@ export function ViewResponseModal({
   onOpenChange,
   result,
   displayName,
+  onRetry,
+  onUpload,
+  canUpload = true,
+  uploadStatus,
+  destinationFolderName,
 }: ViewResponseModalProps) {
   const [showMarkdown, setShowMarkdown] = useState(true);
   const [originalText, setOriginalText] = useState<string>('');
@@ -96,6 +108,8 @@ export function ViewResponseModal({
     downloadAsMarkdown(result.response, `${base}_processed.md`);
     toast.success('File downloaded');
   };
+
+  const folderLabel = destinationFolderName ?? 'Root (My Drive)';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -171,8 +185,8 @@ export function ViewResponseModal({
           <Separator className="my-3" />
 
           {/* Actions */}
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+          <div className="mb-2 flex flex-col-reverse items-stretch justify-between gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -191,6 +205,35 @@ export function ViewResponseModal({
               >
                 <Download className="mr-1 h-3.5 w-3.5" /> Download
               </Button>
+              {onRetry && (result?.isCompleted || !!result?.error) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRetry}
+                  className="text-xs sm:text-sm"
+                >
+                  <RotateCcw className="mr-1 h-3.5 w-3.5" /> Retry
+                </Button>
+              )}
+              {onUpload && canUpload && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onUpload}
+                  disabled={!result?.response || uploadStatus === 'uploading'}
+                  className="text-xs sm:text-sm"
+                >
+                  {uploadStatus === 'uploading' ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  {uploadStatus === 'uploading' ? 'Uploading…' : 'Upload'}
+                </Button>
+              )}
+              <Badge variant="outline" className="ml-1">
+                {folderLabel}
+              </Badge>
             </div>
             <Toggle
               pressed={showMarkdown}

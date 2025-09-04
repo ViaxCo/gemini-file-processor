@@ -10,6 +10,8 @@ interface ContextualActionBarProps {
   onDownloadSelected?: () => void;
   isDriveAuthenticated?: boolean;
   isUploadingSelected?: boolean;
+  allSelected?: boolean;
+  onToggleSelectAll?: (checked: boolean) => void;
 }
 
 export function ContextualActionBar({
@@ -20,12 +22,27 @@ export function ContextualActionBar({
   onDownloadSelected,
   isDriveAuthenticated = false,
   isUploadingSelected = false,
+  allSelected = false,
+  onToggleSelectAll,
 }: ContextualActionBarProps) {
   if (selectedCount <= 0) return null;
 
   return (
     <div className="sticky bottom-0 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+      <div className="flex items-center gap-2">
+        {onToggleSelectAll && (
+          <label className="flex cursor-pointer items-center gap-2 text-xs select-none">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-primary"
+              checked={allSelected}
+              onChange={(e) => onToggleSelectAll?.(e.target.checked)}
+            />
+            <span className="text-muted-foreground">Select All - </span>
+          </label>
+        )}
+        <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         {onAssignFolder && (
           <Button variant="outline" size="sm" onClick={onAssignFolder}>

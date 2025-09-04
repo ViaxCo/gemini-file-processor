@@ -1,3 +1,5 @@
+import { AssignFolderModal } from '@/components/AssignFolderModal';
+import { ContextualActionBar } from '@/components/ContextualActionBar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -5,11 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UnifiedFileCard } from '@/components/UnifiedFileCard';
-import { AssignFolderModal } from '@/components/AssignFolderModal';
-import { ContextualActionBar } from '@/components/ContextualActionBar';
+import { ViewResponseModal } from '@/components/ViewResponseModal';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { ViewResponseModal } from '@/components/ViewResponseModal';
 import { toast } from 'sonner';
 import { FileResult } from '../hooks/useAIProcessor';
 import { downloadAsMarkdown } from '../utils/fileUtils';
@@ -258,21 +258,7 @@ export const MultiFileResponseDisplay = ({
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg sm:text-xl">AI Responses</CardTitle>
-        <div className="flex items-center gap-3">
-          {fileResults.length > 0 && (
-            <label className="flex items-center gap-2 text-sm select-none">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-primary"
-                checked={allSelected}
-                onChange={(e) => toggleSelectAll(e.target.checked)}
-              />
-              <span className="text-muted-foreground">
-                Select All{selectedCount > 0 ? ` (${selectedCount})` : ''}
-              </span>
-            </label>
-          )}
-        </div>
+        <div className="flex items-center gap-3" />
         {allCompleted && completedResults.length > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -336,8 +322,8 @@ export const MultiFileResponseDisplay = ({
         )}
       </CardHeader>
       <CardContent>
-        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-176 lg:overflow-y-auto">
-          <div className="space-y-3">
+        <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2 lg:max-h-200 lg:overflow-y-auto">
+          <div className="sticky top-0 z-20 space-y-3 border-b bg-card/95 pt-1 pb-3 backdrop-blur supports-[backdrop-filter]:bg-card/60">
             <div className="flex flex-col justify-between gap-2 text-sm sm:flex-row sm:items-center">
               <span className="text-muted-foreground">
                 Processing Results ({fileResults.length} file{fileResults.length !== 1 ? 's' : ''})
@@ -461,6 +447,25 @@ export const MultiFileResponseDisplay = ({
                     ? displayNames[viewIndex] || fileResults[viewIndex]?.file.name
                     : undefined
                 }
+                onRetry={
+                  viewIndex != null && onRetryFile ? () => onRetryFile(viewIndex) : undefined
+                }
+                onUpload={
+                  viewIndex != null && uploadToGoogleDocs
+                    ? () => handleUploadSingle(viewIndex)
+                    : undefined
+                }
+                canUpload={isDriveAuthenticated}
+                uploadStatus={
+                  viewIndex != null && fileResults[viewIndex]
+                    ? uploadStatuses?.[fileResults[viewIndex].file.name]
+                    : undefined
+                }
+                destinationFolderName={
+                  viewIndex != null
+                    ? (assignedFolders[viewIndex]?.name ?? selectedFolderName ?? undefined)
+                    : undefined
+                }
               />
             </>
           )}
@@ -475,6 +480,8 @@ export const MultiFileResponseDisplay = ({
               onDownloadSelected={handleDownloadSelected}
               isDriveAuthenticated={isDriveAuthenticated}
               isUploadingSelected={isUploadingSelected}
+              allSelected={allSelected}
+              onToggleSelectAll={(checked) => toggleSelectAll(checked)}
             />
           )}
         </div>
