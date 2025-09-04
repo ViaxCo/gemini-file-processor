@@ -1,323 +1,142 @@
-# Gemini File Processor v2 Implementation Plan
+# Gemini File Processor Implementation Plan
 
-## Overview
+## Overview of Changes
 
-Transform the current application from a 10-file parallel processor into a scalable, queue-based system that can handle 100+ files with automated verification and a unified UI workflow.
+- I want to convert the monitoring of the requests to be tracked within the application instead of using the cloud monitoring api.
 
-## Phase 1: Core Architecture & Processing Engine (Priority 1)
+- I want to change the way the rate limiting works currently. It appears that it only processes 10 requests concurrently at any given time (according to 2.5 flash limits), but I want it to actually be that it rate limits requests to 10 per minute (for 2.5 flash) and 15 per minute (for 2.5 flash lite). That way, if I upload 50 files, within 5 minutes (for 2.5 flash) all, the requests should have been sent.
 
-### 1.1 Create Non-Reactive Response Store
+- I want a feature that automatically retries failed requests (requests that show error on the card and show up in the alert that has the retry all button). They should retry at least 3 times if they failed repeatedly. Afterwards, they don't automatically retry but allow the user to manually retry or resolve it some other way. (This should still respect the rate limits for either 2.5 flash or 2.5 flash lite, depending on which is selected). I want this feature for automatic retries also for the ones that have low confidence (the alert also shows to retry low confidence files). They should automatically retry and also respect rate limits.
 
-- **New file**: `src/services/responseStore.ts`
-- Implement singleton class to store AI responses outside React state
-- Methods: `addResponse()`, `getResponse()`, `updateResponse()`, `clearResponse()`
-- Prevent memory leaks with explicit cleanup methods
+- I have this issue where when I make 10 requests to api/gemini, the browser only makes 6 requests and has 4 as pending. Probably some http 1.1 limitation or something. Change this to allow all 10 or more (since we can have more than 10 requests if a minute has passed between batch requests). I don't know if you need to use sse or whatever, but fix it.
 
-### 1.2 Enhanced Queue System in useAIProcessor
+- For single file responses, responses should stream in. But I think for multiple file responses, we probably don't need streaming? Since we don't show the user the results as they stream in. Maybe we should just use generatetext for that one. But if streamtext doesn't affect performance for large number of files (since it's not streaming into the UI), then I guess we can leave it? You decide which you think is better.
 
-- **Modify**: `src/hooks/useAIProcessor.ts`
-- Replace parallel processing with queue-based system
-- Add queue states: `pending`, `processing`, `completed`, `failed`
-- Implement batch throttling: 10 files every 90 seconds
-- Add queue management methods: `addToQueue()`, `processQueue()`, `pauseQueue()`
+- I want a feature that allows me to do bulk rename. The file names are typically in this format:
+  `In+the+Spirit+By+the+Spirit+Series+7a+-+The+Power+of+the+Holy+Spirit+Track+6+6th+Jan+2021.txt`
+  I usually rename them to something like:
+  `In the Spirit By the Spirit - Series 7a - The Power of the Holy Spirit - Track 6`
+  So, I should be able to select multiple files and have a bulk rename button (probably where the upload selected, download selected etc buttons are) and have a way to rename them all together
 
-### 1.3 Remove File Upload Limits
+## Implementation Details
 
-- **Modify**: `src/components/FileUpload.tsx`
-- Remove 10-file limit validation (line 70)
-- Update UI messaging from "10 files max" to support large batches
-- Add batch upload progress indicator
+### Executive Summary
 
-### 1.4 Selective Streaming Implementation
+The plan is broken down into four phases, starting with the most critical architectural changes and progressing to new features.
 
-- **Modify**: `src/hooks/useAIProcessor.ts`
-- Single file: Stream to UI in real-time (current behavior)
-- Batch processing: Stream directly to responseStore (background)
-- Add processing mode detection logic
+1. **Phase 1: Core Processing Engine Overhaul:** We will replace the current concurrency-based processing with a true rate-limiter (token bucket approach). This new engine will be the foundation for implementing intelligent, automatic retries for both failed and low-confidence requests.
+2. **Phase 2: In-Application Usage Monitoring:** We will shift from the Google Cloud Monitoring API to a self-contained, client-side usage tracker. This will remove the need for billing-enabled projects for this feature and provide instantaneous feedback, though it will require us to manage rate limit values within the app.
+3. **Phase 3: API and Streaming Strategy:** This phase involves a critical analysis of the current API communication. I will explain how the changes in Phase 1 inherently solve the browser's concurrent connection limit. I'll also provide a recommendation on whether to keep `streamText` for batch processing (short answer: yes, for server-side stability).
+4. **Phase 4: Bulk Rename Feature:** Finally, we will build the requested bulk renaming functionality. This will involve a new modal for defining renaming rules and a preview of the changes before applying them to the selected files.
 
-## Phase 2: Unified File Card & Results UI (Priority 2)
+---
 
-### 2.1 Create Unified File Card Component
+### Phase 1: Core Processing Engine Overhaul (Rate Limiting & Retries)
 
-- **New file**: `src/components/UnifiedFileCard.tsx`
-- Replace current FileItem in MultiFileResponseDisplay
-- Features:
-  - Editable filename with inline editing
-  - Confidence score display with color coding
-  - Integrated action buttons (Copy, Download, Retry, Upload, View Response)
-  - Destination folder display
-  - File selection checkbox for bulk operations
+This is the foundational phase that addresses the rate limiting and automatic retry requirements. We will modify `src/hooks/useAIProcessor.ts` significantly.
 
-### 2.2 Confidence Score System
+#### 1.1. Implement a True Rate Limiter
 
-- **New file**: `src/utils/confidenceScore.ts`
-- Implement "smart" similarity comparison
-- Compare last ~250 characters of original vs processed text
-- Return color-coded confidence level (High/Medium/Low)
+The current system uses a sliding window that primarily limits concurrency. We will replace this with a more flexible token bucket algorithm that respects requests-per-minute (RPM) and allows for bursts.
 
-### 2.3 Enhanced MultiFileResponseDisplay
+- **File to Modify:** `src/hooks/useAIProcessor.ts`
+- **Plan:**
+  1. Define model-specific rate limits within the hook:
 
-- **Modify**: `src/components/MultiFileResponseDisplay.tsx`
-- Replace current FileItem with UnifiedFileCard
-- Add bulk selection capabilities
-- Add contextual action bar for selected files
-- Support for 100+ files with virtualization if needed
+     ```typescript
+     const RATE_LIMITS = {
+       'gemini-2.5-flash': { limit: 10, interval: 60000 }, // 10 RPM
+       'gemini-2.5-flash-lite': { limit: 15, interval: 60000 }, // 15 RPM
+     };
+     ```
 
-## Phase 3: Modal-Based Workflows (Priority 3)
+  2. Refactor the `processQueue` function to use a token bucket approach. This involves:
+     - Maintaining a timestamp queue for recent requests.
+     - Before processing an item, check if a request can be made based on the timestamps of past requests within the `interval`.
+     - If the limit is reached, calculate the precise wait time until the next request can be sent.
+     - This allows an initial burst of requests up to the limit, then spaces out subsequent requests, perfectly matching your requirement for processing 50 files in 5 minutes (at 10 RPM).
 
-### 3.1 View Response Modal
+#### 1.2. Implement Automatic Retries for Failed Requests
 
-- **New file**: `src/components/ViewResponseModal.tsx`
-- Load response on-demand from responseStore
-- Auto-scroll to bottom on open
-- Display verification snippet at top (side-by-side comparison)
-- Include markdown/raw toggle and copy/download actions
+- **File to Modify:** `src/hooks/useAIProcessor.ts`
+- **Plan:**
+  1. Extend the `FileResult` interface to include `retryCount: number`.
+  2. In the `catch` block where a processing error is handled, check `retryCount`.
+  3. If `retryCount < 3`, increment the count and add the failed file back to the _front_ of the processing queue. An exponential backoff delay (e.g., `(2^retryCount) * 1000ms`) will be added before it's re-queued to avoid overwhelming a temporarily failing API.
+  4. If `retryCount >= 3`, mark the file as permanently failed as it does now.
+  5. The re-queued item will be picked up by the rate limiter automatically.
 
-### 3.2 Assign Folder Modal
+#### 1.3. Implement Automatic Retries for Low-Confidence Results
 
-- **New file**: `src/components/AssignFolderModal.tsx`
-- Replace current GoogleDriveFolderSelector integration
-- Support bulk folder assignment for selected files
-- Show folder selection tree with create folder option
+- **File to Modify:** `src/hooks/useAIProcessor.ts`
+- **Plan:**
+  1. Extend the `FileResult` interface with `lowConfidenceRetryCount: number`.
+  2. After a file is processed successfully, calculate its confidence score using the existing `getConfidenceScore` utility.
+  3. If `level` is `'low'` and `lowConfidenceRetryCount < 3`, increment the count, and add the file back to the queue for reprocessing, just like a failed request.
+  4. The UI will be updated to reflect that a file is being retried due to low confidence, providing better user feedback.
 
-### 3.3 Verification Snippet Logic
+### Phase 2: In-Application Usage Monitoring
 
-- **New file**: `src/utils/verificationSnippet.ts`
-- Extract and compare ending snippets from original and processed text
-- Generate side-by-side comparison markup for modal display
+This phase removes the dependency on the Google Cloud Monitoring API for usage tracking.
 
-## Phase 4: UI Layout Overhaul (Priority 4)
+#### 2.1. Create a Client-Side Usage Tracking Service
 
-### 4.1 Asymmetrical Dashboard Layout
+- **New File:** `src/services/usageTracker.ts`
+- **Plan:**
+  1. Create a singleton class `UsageTracker` that persists its state to `localStorage`.
+  2. It will track requests per minute and per day for each model.
+  3. Methods will include `recordRequest(model)`, `getUsage(model)`, and `canMakeRequest(model)`.
+  4. The daily limits (e.g., 1000 requests/day) will be hardcoded here, as we are no longer fetching them from Google's API.
 
-- **Modify**: `src/components/GeminiFileProcessor.tsx`
-- Change from 2-column grid to asymmetrical: 40% left, 60% right
-- Left column: FileUpload + InstructionsPanel (stacked vertically)
-- Right column: Enhanced MultiFileResponseDisplay (full height)
+#### 2.2. Refactor the Quota UI
 
-### 4.2 Header Reorganization
+- **Files to Modify:** `src/components/QuotaMonitor.tsx` and `src/hooks/useQuotaMonitoring.ts`
+- **Plan:**
+  1. Delete the API route `src/app/api/quota/route.ts`.
+  2. Remove `@google-cloud/monitoring` and `@google-cloud/service-usage` from `package.json`.
+  3. Rewrite the `useQuotaMonitoring` hook to get its data from our new `usageTracker.ts` service instead of fetching from an API.
+  4. The `QuotaMonitor` component will now display data from the local tracker, making it faster and removing the external dependency. The `useAIProcessor` hook will call `usageTracker.recordRequest()` after each successful API call.
 
-- **Modify**: `src/components/GeminiFileProcessor.tsx`
-- Main header: Title and description
-- Sub-header/control bar: ModelSelector + GoogleAuth + QuotaMonitor
-- Move GoogleDrive components to modal-only (remove from main layout)
+### Phase 3: API and Streaming Strategy
 
-### 4.3 Contextual Action Bar
+This phase addresses the browser request limit and the batch processing strategy.
 
-- **New file**: `src/components/ContextualActionBar.tsx`
-- Appears when files are selected
-- Actions: Assign Folder, Retry Selected, Upload Selected, Download Selected
-- Sticky positioning at bottom of results panel
+#### 3.1. Solving the Browser Concurrent Request Limit
 
-## Phase 5: Integration & Polish
+- **Analysis:** Your diagnosis is correct; browsers limit concurrent connections to a single domain (usually around 6 for HTTP/1.1).
+- **Solution:** The new rate-limiting engine from **Phase 1** inherently solves this problem.
+  - Instead of attempting to fire 10+ requests simultaneously, our new `processQueue` function will dispatch them one by one, respecting the token bucket algorithm.
+  - For a 10 RPM limit, after an initial burst, requests will be naturally spaced out by about 6 seconds. This is well below the browser's concurrency limit threshold.
+  - **Conclusion:** No extra work (like implementing SSE) is needed. The architectural change in Phase 1 is the correct and most robust solution.
 
-### 5.1 Default Instructions Integration
+#### 3.2. Batch Processing: `streamText` vs. `generateText`
 
-- **Modify**: `src/hooks/useInstructions.ts`
-- Set custom transcript processing prompt as default
-- Auto-populate instructions panel on app load
+- **Analysis:** You are correct that for batch processing, the UI does not display the response as it streams in. The question is whether switching to `generateText` (a non-streaming equivalent) offers benefits.
+- **Recommendation:** **Keep `streamText` for all API calls.**
+  - **Server-Side Stability:** `streamText` is significantly more memory-efficient and resilient on the server (especially in serverless environments). `generateText` must buffer the entire response in memory, which can lead to timeouts or memory allocation errors for large files.
+  - **Unified Code Path:** Using `streamText` for both single and batch files simplifies the backend logic in `src/app/api/gemini/route.ts`.
+  - **Performance:** The performance difference on the client-side for this background-processing use case is negligible. The stability gained on the server side far outweighs any minor client-side simplification.
 
-### 5.2 Enhanced Google Drive Integration
+### Phase 4: Bulk Rename Feature
 
-- **Modify**: `src/hooks/useGoogleDrive.ts`
-- Support bulk upload operations
-- Add progress tracking for multiple file uploads
-- Integrate with new modal-based folder selection
+This phase implements the requested user-facing feature for renaming files in bulk.
 
-### 5.3 Error Handling & Resilience
+#### 4.1. Create a Bulk Rename Modal
 
-- **Modify**: Various components
-- Add comprehensive error boundaries
-- Implement graceful degradation for large batches
-- Add user feedback for queue status and processing errors
+- **New File:** `src/components/BulkRenameModal.tsx`
+- **Plan:**
+  1. This modal will be triggered by a new "Bulk Rename" button in `ContextualActionBar.tsx`.
+  2. The modal will feature a simple UI for defining renaming rules:
+     - A text input to find a string or regex pattern.
+     - A text input for the replacement string.
+     - Checkboxes for common tasks: "Replace all `+` with spaces", and "Remove `.txt` extension".
+  3. A preview area will show a list of selected files with their original and new names based on the current rules, updating in real-time.
 
-## Implementation Timeline
+#### 4.2. Implement Renaming Logic
 
-### Week 1: Foundation (Phase 1)
-
-- ✅ Create responseStore service
-- ✅ Implement queue-based processing in useAIProcessor
-- ✅ Remove file upload limits
-- ✅ Add selective streaming logic
-
-### Week 2: New Components (Phase 2)
-
-- ✅ Build confidence score system
-- ✅ Create UnifiedFileCard component
-- ✅ Update MultiFileResponseDisplay
-
-### Week 3: Modal Workflows (Phase 3)
-
-- ✅ Implement ViewResponseModal
-- ✅ Build AssignFolderModal
-- ✅ Add verification snippet logic
-
-### Week 4: Layout & Integration (Phase 4-5)
-
-- ✅ Refactor main layout to asymmetrical design
-- ✅ Create contextual action bar
-- ✅ Integrate all components and test workflow
-
-## Technical Specifications
-
-### Architecture Decisions
-
-- **State Management**: Non-reactive responseStore for large data, React state for UI
-- **Processing Strategy**: Queue-based with 90-second throttling between batches
-- **Memory Management**: Explicit cleanup methods and garbage collection
-- **UI Strategy**: Modal-driven workflows, on-demand loading, bulk operations
-
-### Performance Targets
-
-- **File Capacity**: 100+ files without browser crashes
-- **Memory Usage**: Stable memory profile regardless of batch size
-- **Processing Speed**: 10 files per 90-second batch (API rate limit compliance)
-- **UI Responsiveness**: Smooth interactions during background processing
-
-### Browser Compatibility
-
-- **Target Browsers**: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
-- **Mobile Support**: Responsive design for tablet and mobile devices
-- **Memory Constraints**: Optimized for 8GB RAM systems with multiple browser tabs
-
-## MVP Success Criteria
-
-### Core Functionality
-
-- ✅ Upload 50+ files without browser crashes
-- ✅ Queue-based processing with 90-second throttling
-- ✅ At-a-glance confidence scores on all completed files
-- ✅ Bulk folder assignment and upload functionality
-- ✅ On-demand response viewing via modal
-- ✅ Unified file management in new card-based UI
-
-### User Experience
-
-- ✅ Single workflow for file processing, verification, and upload
-- ✅ Reduced clicks for common operations (rename, assign folder, upload)
-- ✅ Automated verification with manual override capability
-- ✅ Clear progress indicators and error handling
-
-## Out of Scope for MVP
-
-### Deferred Features (Phase 2 Development)
-
-- **Automatic Retry System**: Manual retry buttons only for MVP
-- **User-Configurable Settings**: Hard-coded batch size and delays
-- **Persistent Queue Recovery**: Queue lost on browser refresh
-- **Advanced Batch Renaming**: Individual file renaming only
-- **Real-time Collaboration**: Single-user sessions only
-- **Cloud Storage Integration**: Google Drive only, no Dropbox/OneDrive
-
-### Future Enhancements (1-2 Year Horizon)
-
-- **Backend Processing Service**: Serverless queue management
-- **Multi-AI Model Support**: Claude, OpenAI integration
-- **Project-Based Workflows**: Saved templates and batch configurations
-- **Advanced Analytics**: Processing statistics and performance metrics
-
-## Risk Mitigation
-
-### Technical Risks
-
-- **Memory Leaks**: Implemented explicit cleanup in responseStore
-- **Rate Limiting**: Conservative 90-second batching with buffer
-- **Browser Crashes**: Non-reactive storage and chunked processing
-- **API Failures**: Comprehensive error handling and retry mechanisms
-
-### User Experience Risks
-
-- **Complexity**: Progressive disclosure and contextual help
-- **Performance**: Background processing with UI feedback
-- **Data Loss**: Local storage backup and recovery options
-- **Learning Curve**: Maintain familiar patterns where possible
-
-## Testing Strategy
-
-### Unit Testing
-
-- Core utilities (confidence score, verification snippets)
-- Service classes (responseStore, queue management)
-- Pure functions and data transformations
-
-### Integration Testing
-
-- Complete file processing workflow
-- Google Drive upload and folder assignment
-- Modal interactions and state management
-
-### Performance Testing
-
-- Large batch processing (50-100 files)
-- Memory usage monitoring
-- UI responsiveness under load
-- Rate limiting compliance
-
-### User Acceptance Testing
-
-- End-to-end workflow validation
-- Error handling scenarios
-- Cross-browser compatibility
-- Mobile responsiveness
-
-## Deployment Strategy
-
-### Development Environment
-
-- Local development with hot reload
-- TypeScript strict mode validation
-- ESLint and Prettier formatting
-- Component story documentation
-
-### Staging Environment
-
-- Production build testing
-- Google API integration validation
-- Cross-browser testing
-- Performance benchmarking
-
-### Production Deployment
-
-- Gradual feature rollout
-- User feedback collection
-- Performance monitoring
-- Error tracking and alerting
-
-## Success Metrics
-
-### Technical Metrics
-
-- **Processing Capacity**: 100+ files per session
-- **Error Rate**: <5% processing failures
-- **Performance**: <2 second UI response times
-- **Stability**: Zero browser crashes during testing
-
-### User Metrics
-
-- **Task Completion**: End-to-end workflow success rate >95%
-- **Time Savings**: 90%+ reduction in verification time
-- **User Satisfaction**: Positive feedback on workflow efficiency
-- **Adoption**: Successful processing of real user batches
-
-## Maintenance & Support
-
-### Documentation
-
-- Updated README with new features
-- Component documentation and examples
-- API integration guides
-- Troubleshooting and FAQ
-
-### Monitoring
-
-- Error tracking and alerting
-- Performance monitoring
-- User analytics and feedback
-- API quota usage tracking
-
-### Future Development
-
-- Feature request prioritization
-- Technical debt management
-- Security updates and patches
-- Third-party dependency maintenance
+- **File to Modify:** `src/components/MultiFileResponseDisplay.tsx`
+- **Plan:**
+  1. The modal will be controlled from `MultiFileResponseDisplay`.
+  2. When the user clicks "Apply" in the modal, a handler function will iterate through the selected file indices.
+  3. For each selected file, it will apply the transformation rules to its current `displayName` and update the component's `displayNames` state.
+  4. This approach reuses the existing `displayNames` state, making the integration clean and efficient.
