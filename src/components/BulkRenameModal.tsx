@@ -66,7 +66,7 @@ function applyRulesToName(name: string, rules: BulkRenameRules): string {
 export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRenameModalProps) {
   const [findPattern, setFindPattern] = useState<string>('');
   const [replacement, setReplacement] = useState<string>('');
-  const [useRegex, setUseRegex] = useState<boolean>(false);
+  const [useRegex, setUseRegex] = useState<boolean>(true);
   const [replacePlusWithSpace, setReplacePlusWithSpace] = useState<boolean>(true);
   const [removeTxtExtension, setRemoveTxtExtension] = useState<boolean>(true);
 
@@ -74,13 +74,10 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
     if (!open) {
       // Reset to sensible defaults when closed
       setFindPattern('');
-      setReplacement(' ');
-      setUseRegex(false);
+      setReplacement('');
+      setUseRegex(true);
       setReplacePlusWithSpace(true);
       setRemoveTxtExtension(true);
-    } else {
-      // When opening, default replacement to a space for convenience
-      setReplacement((prev) => (prev === '' ? ' ' : prev));
     }
   }, [open]);
 
@@ -98,7 +95,14 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
       from: it.currentName,
       to: applyRulesToName(it.currentName, rules),
     }));
-  }, [items, rules.findPattern, rules.replacement, rules.useRegex, rules.replacePlusWithSpace, rules.removeTxtExtension]);
+  }, [
+    items,
+    rules.findPattern,
+    rules.replacement,
+    rules.useRegex,
+    rules.replacePlusWithSpace,
+    rules.removeTxtExtension,
+  ]);
 
   const handleApply = () => {
     const mapping: Record<number, string> = {};
@@ -120,7 +124,9 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground" htmlFor="find">Find (text or regex)</label>
+              <label className="text-xs text-muted-foreground" htmlFor="find">
+                Find (text or regex)
+              </label>
               <Input
                 id="find"
                 placeholder={useRegex ? 'e.g. (Series\\s*\\d+)[a-z]?' : 'Text to find'}
@@ -138,7 +144,9 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
               </label>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground" htmlFor="replace">Replace with</label>
+              <label className="text-xs text-muted-foreground" htmlFor="replace">
+                Replace with
+              </label>
               <Input
                 id="replace"
                 placeholder="Replacement"
@@ -171,13 +179,17 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
           <Separator />
 
           <div className="space-y-2">
-            <div className="text-xs text-muted-foreground">Preview ({items.length} file{items.length === 1 ? '' : 's'})</div>
+            <div className="text-xs text-muted-foreground">
+              Preview ({items.length} file{items.length === 1 ? '' : 's'})
+            </div>
             <div className="max-h-64 overflow-y-auto rounded-md border">
               <ul className="divide-y text-sm">
                 {preview.map((p) => (
                   <li key={p.index} className="flex items-center gap-2 p-2">
                     <div className="min-w-0 flex-1">
-                      <div className="truncate" title={p.from}>{p.from}</div>
+                      <div className="truncate" title={p.from}>
+                        {p.from}
+                      </div>
                       <div className="truncate text-muted-foreground" title={p.to}>
                         → {p.to}
                       </div>
@@ -189,8 +201,12 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleApply} disabled={items.length === 0}>Apply</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApply} disabled={items.length === 0}>
+              Apply
+            </Button>
           </div>
         </div>
       </DialogContent>
