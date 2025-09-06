@@ -6,7 +6,6 @@ import { InstructionsPanel } from '@/components/InstructionsPanel';
 import { ModelSelector } from '@/components/ModelSelector';
 import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay';
 import { QuotaMonitor } from '@/components/QuotaMonitor';
-import { ResponseDisplay } from '@/components/ResponseDisplay';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toaster } from '@/components/ui/sonner';
 import { useAIProcessor } from '@/hooks/useAIProcessor';
@@ -87,16 +86,7 @@ export function GeminiFileProcessor() {
 
   const canProcess = files.length > 0;
 
-  // Derive per-file UI processing state for single-file flow
-  const singleResult = fileResults[0];
-  const isSingleInProgress = Boolean(
-    singleResult &&
-      !singleResult.isCompleted &&
-      !singleResult?.error &&
-      (singleResult.isProcessing ||
-        singleResult.queueStatus === 'pending' ||
-        singleResult.queueStatus === 'processing'),
-  );
+  // Single-file response view removed; unified multi-file view is used for all cases
 
   return (
     <div className="min-h-screen bg-background">
@@ -142,7 +132,7 @@ export function GeminiFileProcessor() {
               <InstructionsPanel
                 onProcess={handleProcess}
                 onClearAll={handleClearAll}
-                isProcessing={isProcessing || isSingleInProgress}
+                isProcessing={isProcessing}
                 canProcess={canProcess}
                 fileCount={files.length}
               />
@@ -150,59 +140,29 @@ export function GeminiFileProcessor() {
           </ErrorBoundary>
 
           <ErrorBoundary>
-            {files.length <= 1 && fileResults.length <= 1 ? (
-              <div className="lg:col-span-3">
-                <ResponseDisplay
-                  response={fileResults[0]?.response || ''}
-                  isProcessing={isSingleInProgress}
-                  file={fileResults[0]?.file}
-                  hasError={Boolean(fileResults[0]?.error)}
-                  onRetry={fileResults[0] ? () => handleRetryFile(0) : undefined}
-                  uploadStatus={
-                    fileResults[0]?.file
-                      ? googleDrive.uploadStatuses[fileResults[0]?.file.name]
-                      : undefined
-                  }
-                  uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
-                  isDriveAuthenticated={googleDrive.isAuthenticated}
-                  selectedFolderName={googleDrive.selectedFolder?.name || null}
-                  selectedFolderId={googleDrive.selectedFolder?.id || null}
-                  driveFolders={googleDrive.folders}
-                  driveSelectedFolder={googleDrive.selectedFolder}
-                  driveIsLoadingFolders={googleDrive.isLoadingFolders}
-                  driveIsLoadingMoreFolders={googleDrive.isLoadingMoreFolders}
-                  driveHasMoreFolders={googleDrive.hasMoreFolders}
-                  driveLoadFolders={googleDrive.loadFolders}
-                  driveLoadMoreFolders={googleDrive.loadMoreFolders}
-                  driveSelectFolder={googleDrive.selectFolder}
-                  driveCreateFolder={googleDrive.createFolder}
-                />
-              </div>
-            ) : (
-              <div className="lg:col-span-3">
-                <MultiFileResponseDisplay
-                  fileResults={fileResults}
-                  onRetryFile={handleRetryFile}
-                  onRetryAllFailed={handleRetryAllFailed}
-                  uploadStatuses={googleDrive.uploadStatuses}
-                  isWaitingForNextBatch={isWaitingForNextBatch}
-                  throttleSecondsRemaining={throttleSecondsRemaining}
-                  selectedFolderName={googleDrive.selectedFolder?.name || null}
-                  uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
-                  selectedFolderId={googleDrive.selectedFolder?.id || null}
-                  isDriveAuthenticated={googleDrive.isAuthenticated}
-                  driveFolders={googleDrive.folders}
-                  driveSelectedFolder={googleDrive.selectedFolder}
-                  driveIsLoadingFolders={googleDrive.isLoadingFolders}
-                  driveIsLoadingMoreFolders={googleDrive.isLoadingMoreFolders}
-                  driveHasMoreFolders={googleDrive.hasMoreFolders}
-                  driveLoadFolders={googleDrive.loadFolders}
-                  driveLoadMoreFolders={googleDrive.loadMoreFolders}
-                  driveSelectFolder={googleDrive.selectFolder}
-                  driveCreateFolder={googleDrive.createFolder}
-                />
-              </div>
-            )}
+            <div className="lg:col-span-3">
+              <MultiFileResponseDisplay
+                fileResults={fileResults}
+                onRetryFile={handleRetryFile}
+                onRetryAllFailed={handleRetryAllFailed}
+                uploadStatuses={googleDrive.uploadStatuses}
+                isWaitingForNextBatch={isWaitingForNextBatch}
+                throttleSecondsRemaining={throttleSecondsRemaining}
+                selectedFolderName={googleDrive.selectedFolder?.name || null}
+                uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
+                selectedFolderId={googleDrive.selectedFolder?.id || null}
+                isDriveAuthenticated={googleDrive.isAuthenticated}
+                driveFolders={googleDrive.folders}
+                driveSelectedFolder={googleDrive.selectedFolder}
+                driveIsLoadingFolders={googleDrive.isLoadingFolders}
+                driveIsLoadingMoreFolders={googleDrive.isLoadingMoreFolders}
+                driveHasMoreFolders={googleDrive.hasMoreFolders}
+                driveLoadFolders={googleDrive.loadFolders}
+                driveLoadMoreFolders={googleDrive.loadMoreFolders}
+                driveSelectFolder={googleDrive.selectFolder}
+                driveCreateFolder={googleDrive.createFolder}
+              />
+            </div>
           </ErrorBoundary>
         </div>
       </div>
