@@ -8,6 +8,7 @@ interface ContextualActionBarProps {
   onUploadSelected?: () => void;
   onRetrySelected?: () => void;
   onDownloadSelected?: () => void;
+  onBulkRename?: () => void;
   isDriveAuthenticated?: boolean;
   isUploadingSelected?: boolean;
   allSelected?: boolean;
@@ -21,6 +22,7 @@ export function ContextualActionBar({
   onUploadSelected,
   onRetrySelected,
   onDownloadSelected,
+  onBulkRename,
   isDriveAuthenticated = false,
   isUploadingSelected = false,
   allSelected = false,
@@ -46,6 +48,11 @@ export function ContextualActionBar({
         <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {onBulkRename && (
+          <Button variant="outline" size="sm" onClick={onBulkRename}>
+            Bulk Rename
+          </Button>
+        )}
         {onAssignFolder && (
           <Button variant="outline" size="sm" onClick={onAssignFolder}>
             Assign Folder

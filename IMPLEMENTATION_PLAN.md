@@ -117,7 +117,7 @@ This phase addresses the browser request limit and the batch processing strategy
   - **Unified Code Path:** Using `streamText` for both single and batch files simplifies the backend logic in `src/app/api/gemini/route.ts`.
   - **Performance:** The performance difference on the client-side for this background-processing use case is negligible. The stability gained on the server side far outweighs any minor client-side simplification.
 
-### Phase 4: Bulk Rename Feature
+### ~~Phase 4: Bulk Rename Feature~~ Done
 
 This phase implements the requested user-facing feature for renaming files in bulk.
 

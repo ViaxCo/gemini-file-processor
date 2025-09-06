@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UnifiedFileCard } from '@/components/UnifiedFileCard';
 import { ViewResponseModal } from '@/components/ViewResponseModal';
+import { BulkRenameModal } from '@/components/BulkRenameModal';
 import { getConfidenceScore } from '@/utils/confidenceScore';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -77,6 +78,7 @@ export const MultiFileResponseDisplay = ({
   const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
+  const [isBulkRenameOpen, setIsBulkRenameOpen] = useState<boolean>(false);
   const [assignedFolders, setAssignedFolders] = useState<
     Record<number, { id: string | null; name: string }>
   >({});
@@ -636,6 +638,7 @@ export const MultiFileResponseDisplay = ({
             <ContextualActionBar
               selectedCount={selectedCount}
               onAssignFolder={() => setIsAssignOpen(true)}
+              onBulkRename={() => setIsBulkRenameOpen(true)}
               onUploadSelected={
                 uploadToGoogleDocs && isDriveAuthenticated ? handleUploadSelected : undefined
               }
@@ -650,6 +653,17 @@ export const MultiFileResponseDisplay = ({
           )}
         </div>
       </CardContent>
+      <BulkRenameModal
+        open={isBulkRenameOpen}
+        onOpenChange={setIsBulkRenameOpen}
+        items={[...selected].map((idx) => ({
+          index: idx,
+          currentName: displayNames[idx] || fileResults[idx]?.file.name || '',
+        }))}
+        onApply={(mapping) => {
+          setDisplayNames((prev) => ({ ...prev, ...mapping }));
+        }}
+      />
       <AssignFolderModal
         open={isAssignOpen}
         onOpenChange={setIsAssignOpen}
