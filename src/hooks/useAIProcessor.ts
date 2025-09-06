@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { processFileWithAI } from '../services/aiService';
 import { GeminiModel } from '../components/ModelSelector';
-import { scheduleIdleWork } from '../utils/performance';
+import { processFileWithAI } from '../services/aiService';
 import { makeFileKey, responseStore } from '../services/responseStore';
+import { scheduleIdleWork } from '../utils/performance';
 
 export interface FileResult {
   file: File;
@@ -49,7 +49,7 @@ export const useAIProcessor = () => {
 
   // Model-specific rate limits for Phase 1
   const RATE_LIMITS = {
-    'gemini-2.5-flash': { limit: 10, interval: 60000 }, // 10 RPM
+    'gemini-2.5-flash': { limit: 9, interval: 60000 }, // 10 RPM
     'gemini-2.5-flash-lite': { limit: 15, interval: 60000 }, // 15 RPM
   };
 
