@@ -21,6 +21,9 @@ export function GeminiFileProcessor() {
   const {
     fileResults,
     isProcessing,
+    abortAll,
+    abortFile,
+    abortSelected,
     processFiles,
     retryFile,
     retryAllFailed,
@@ -145,6 +148,9 @@ export function GeminiFileProcessor() {
                 fileResults={fileResults}
                 onRetryFile={handleRetryFile}
                 onRetryAllFailed={handleRetryAllFailed}
+                onAbortAll={abortAll}
+                onAbortFile={(i) => abortFile(i)}
+                onAbortSelected={(indices) => abortSelected(indices)}
                 uploadStatuses={googleDrive.uploadStatuses}
                 isWaitingForNextBatch={isWaitingForNextBatch}
                 throttleSecondsRemaining={throttleSecondsRemaining}

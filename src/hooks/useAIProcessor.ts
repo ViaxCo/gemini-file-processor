@@ -22,6 +22,15 @@ export interface FileResult {
   };
   // Track if file is being retried due to error
   isRetryingDueToError?: boolean;
+  // Snapshot before manual retry; used to restore on abort
+  previousState?: {
+    response: string;
+    isCompleted: boolean;
+    error?: string;
+    queueStatus?: 'pending' | 'processing' | 'completed' | 'failed';
+  };
+  // Marks a manual retry attempt
+  isManuallyRetrying?: boolean;
 }
 
 export const useAIProcessor = () => {
@@ -43,6 +52,7 @@ export const useAIProcessor = () => {
   const queueRef = useRef<QueueItem[]>([]);
   const processingRef = useRef<boolean>(false);
   const abortRef = useRef<boolean>(false);
+  const controllersRef = useRef<Map<string, AbortController>>(new Map());
   const throttleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cleanupIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestTimestampsRef = useRef<number[]>([]); // timestamps of requests for token bucket algorithm
@@ -51,6 +61,93 @@ export const useAIProcessor = () => {
   const RATE_LIMITS = {
     'gemini-2.5-flash': { limit: 9, interval: 60000 }, // 10 RPM
     'gemini-2.5-flash-lite': { limit: 15, interval: 60000 }, // 15 RPM
+  };
+
+  // Abort helpers
+  const abortFilesByIndices = (indices: number[]): void => {
+    if (indices.length === 0) return;
+    // Remove queued items for these indices
+    queueRef.current = queueRef.current.filter((q) => !indices.includes(q.index));
+
+    setFileResults((prev) =>
+      prev.map((result, i) => {
+        if (!indices.includes(i)) return result;
+        const key = makeFileKey(result.file);
+        const controller = controllersRef.current.get(key);
+        if (controller) {
+          try {
+            controller.abort();
+          } catch {}
+          controllersRef.current.delete(key);
+        }
+        if (result.isManuallyRetrying && result.previousState) {
+          const snap = result.previousState;
+          return {
+            ...result,
+            response: snap.response,
+            isCompleted: snap.isCompleted,
+            error: snap.error,
+            queueStatus: snap.queueStatus,
+            isProcessing: false,
+            isManuallyRetrying: undefined,
+            previousState: undefined,
+          };
+        }
+        return {
+          ...result,
+          isProcessing: false,
+          isCompleted: false,
+          queueStatus: 'failed',
+          error: 'Processing cancelled',
+          isManuallyRetrying: undefined,
+          previousState: undefined,
+        };
+      }),
+    );
+  };
+
+  const abortFile = (index: number): void => abortFilesByIndices([index]);
+  const abortSelected = (indices: number[]): void => abortFilesByIndices(indices);
+
+  const abortAll = (): void => {
+    abortRef.current = true;
+    queueRef.current = [];
+    // Abort all active controllers
+    for (const [, controller] of controllersRef.current) {
+      try {
+        controller.abort();
+      } catch {}
+    }
+    controllersRef.current.clear();
+    setFileResults((prev) =>
+      prev.map((result) => {
+        if (result.isManuallyRetrying && result.previousState) {
+          const snap = result.previousState;
+          return {
+            ...result,
+            response: snap.response,
+            isCompleted: snap.isCompleted,
+            error: snap.error,
+            queueStatus: snap.queueStatus,
+            isProcessing: false,
+            isManuallyRetrying: undefined,
+            previousState: undefined,
+          };
+        }
+        if (result.isProcessing || result.queueStatus === 'pending') {
+          return {
+            ...result,
+            isProcessing: false,
+            isCompleted: false,
+            queueStatus: 'failed',
+            error: 'Processing cancelled',
+            isManuallyRetrying: undefined,
+            previousState: undefined,
+          };
+        }
+        return result;
+      }),
+    );
   };
 
   // Public API compatible with current components
@@ -101,6 +198,14 @@ export const useAIProcessor = () => {
         i === fileIndex
           ? {
               ...result,
+              // Snapshot current state for potential restore on abort
+              previousState: {
+                response: result.response,
+                isCompleted: result.isCompleted,
+                error: result.error,
+                queueStatus: result.queueStatus,
+              },
+              isManuallyRetrying: true,
               response: '',
               isProcessing: false,
               isCompleted: false,
@@ -229,18 +334,26 @@ export const useAIProcessor = () => {
               });
             }
           };
-          await processFileWithAI(file, instruction, model, (chunk: string) => {
-            if (streamToUI) {
-              responseBuffer += chunk;
-              const now = Date.now();
-              if (now - lastUpdateTime >= 100 || responseBuffer.length >= 500) {
-                flushBufferToUI();
-                lastUpdateTime = now;
+          const controller = new AbortController();
+          controllersRef.current.set(key, controller);
+          await processFileWithAI(
+            file,
+            instruction,
+            model,
+            (chunk: string) => {
+              if (streamToUI) {
+                responseBuffer += chunk;
+                const now = Date.now();
+                if (now - lastUpdateTime >= 100 || responseBuffer.length >= 500) {
+                  flushBufferToUI();
+                  lastUpdateTime = now;
+                }
+              } else {
+                responseStore.updateResponse(key, chunk);
               }
-            } else {
-              responseStore.updateResponse(key, chunk);
-            }
-          });
+            },
+            { signal: controller.signal },
+          );
           if (streamToUI) flushBufferToUI();
 
           // For batch processing, get the final response before clearing it
@@ -317,6 +430,8 @@ export const useAIProcessor = () => {
             }
           }
 
+          // Clear controller after success
+          controllersRef.current.delete(key);
           setFileResults((prev) =>
             prev.map((result, i) =>
               i === index
@@ -328,6 +443,9 @@ export const useAIProcessor = () => {
                     previousConfidence: undefined, // Clear previous confidence when processing succeeds
                     isRetryingDueToError: undefined, // Clear retry flags when processing succeeds
                     retryCount: undefined, // Clear retry count when processing succeeds
+                    // Clear manual retry flags/snapshot on success
+                    isManuallyRetrying: undefined,
+                    previousState: undefined,
                   }
                 : result,
             ),
@@ -338,6 +456,42 @@ export const useAIProcessor = () => {
           // Clear the response from the store since we're done with it
           if (!streamToUI) {
             responseStore.clearResponse(key);
+          }
+
+          // If aborted by user, restore snapshot or mark cancelled
+          const isAbortError =
+            (error as any)?.name === 'AbortError' ||
+            (error instanceof Error && /abort/i.test(error.message));
+          if (isAbortError) {
+            controllersRef.current.delete(key);
+            setFileResults((prev) =>
+              prev.map((result, i) => {
+                if (i !== index) return result;
+                if (result.isManuallyRetrying && result.previousState) {
+                  const snap = result.previousState;
+                  return {
+                    ...result,
+                    response: snap.response,
+                    isCompleted: snap.isCompleted,
+                    error: snap.error,
+                    queueStatus: snap.queueStatus,
+                    isProcessing: false,
+                    isManuallyRetrying: undefined,
+                    previousState: undefined,
+                  };
+                }
+                return {
+                  ...result,
+                  isProcessing: false,
+                  isCompleted: false,
+                  queueStatus: 'failed',
+                  error: 'Processing cancelled',
+                  isManuallyRetrying: undefined,
+                  previousState: undefined,
+                };
+              }),
+            );
+            return;
           }
 
           // If we haven't exceeded retry limit, re-queue with exponential backoff
@@ -501,5 +655,8 @@ export const useAIProcessor = () => {
     processQueue,
     pauseQueue,
     resumeQueue,
+    abortFile,
+    abortSelected,
+    abortAll,
   };
 };

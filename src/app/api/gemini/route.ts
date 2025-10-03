@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     const result = streamText({
       model: google(model),
       prompt: prompt,
+      // Forward the abort signal so cancelling the client request aborts model generation
+      abortSignal: request.signal,
     });
 
     // Return a streaming response

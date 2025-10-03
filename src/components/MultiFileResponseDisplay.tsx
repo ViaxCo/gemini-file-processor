@@ -20,6 +20,9 @@ interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
   onRetryFile?: (index: number) => void;
   onRetryAllFailed?: () => void;
+  onAbortFile?: (index: number) => void;
+  onAbortSelected?: (indices: number[]) => void;
+  onAbortAll?: () => void;
   uploadStatuses?: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
   isWaitingForNextBatch?: boolean;
   throttleSecondsRemaining?: number;
@@ -52,6 +55,9 @@ export const MultiFileResponseDisplay = ({
   fileResults,
   onRetryFile,
   onRetryAllFailed,
+  onAbortFile,
+  onAbortSelected,
+  onAbortAll,
   uploadStatuses,
   isWaitingForNextBatch = false,
   throttleSecondsRemaining = 0,
@@ -83,6 +89,7 @@ export const MultiFileResponseDisplay = ({
     Record<number, { id: string | null; name: string }>
   >({});
   const [lowConfidenceIndices, setLowConfidenceIndices] = useState<number[]>([]);
+  const lowConfidenceSet = useMemo(() => new Set(lowConfidenceIndices), [lowConfidenceIndices]);
 
   // Compute low-confidence files whenever results change
   useEffect(() => {
@@ -128,11 +135,12 @@ export const MultiFileResponseDisplay = ({
     (result) => result.isCompleted && !result.error && result.response,
   );
   const uploadEligible = fileResults.filter(
-    (r) =>
+    (r, i) =>
       r.isCompleted &&
       !r.error &&
       r.response &&
-      (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed'),
+      (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed') &&
+      !lowConfidenceSet.has(i),
   );
   const allCompleted = fileResults.length > 0 && fileResults.every((result) => result.isCompleted);
   const isAnyProcessing = fileResults.some((result) => result.isProcessing);
@@ -168,13 +176,14 @@ export const MultiFileResponseDisplay = ({
         r.isCompleted &&
         !r.error &&
         r.response &&
-        (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed')
+        (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed') &&
+        !lowConfidenceSet.has(i)
       ) {
         return count + 1;
       }
       return count;
     }, 0);
-  }, [selected, fileResults, uploadStatuses]);
+  }, [selected, fileResults, uploadStatuses, lowConfidenceSet]);
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -261,12 +270,14 @@ export const MultiFileResponseDisplay = ({
           r.response &&
           (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed'),
       );
+    // Exclude low-confidence files from selected uploads
+    const eligibleFiltered = eligible.filter(({ i }) => !lowConfidenceSet.has(i));
 
-    if (eligible.length === 0) return;
+    if (eligibleFiltered.length === 0) return;
     try {
       setIsUploadingSelected(true);
       const results = await Promise.allSettled(
-        eligible.map(async ({ r, i }) => {
+        eligibleFiltered.map(async ({ r, i }) => {
           const baseName = (displayNames[i] || r!.file.name).replace(/\.[^.]+$/, '');
           const folderIdForItem =
             assignedFolders[i]?.id !== undefined ? assignedFolders[i]?.id : selectedFolderId;
@@ -438,7 +449,7 @@ export const MultiFileResponseDisplay = ({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="max-h-200 space-y-4 overflow-y-auto pr-2 lg:overflow-y-auto">
+        <div className="max-h-189 space-y-4 overflow-y-auto pr-2 lg:overflow-y-auto">
           <div className="sticky top-0 z-20 space-y-3 border-b bg-card/95 pt-1 pb-3 backdrop-blur supports-[backdrop-filter]:bg-card/60">
             <div className="flex flex-col justify-between gap-2 text-sm sm:flex-row sm:items-center">
               <span className="text-muted-foreground">
@@ -482,6 +493,18 @@ export const MultiFileResponseDisplay = ({
                           : 'Scheduling next batch…'}
                       </span>
                     )}
+                  </div>
+                )}
+                {(isAnyProcessing || hasPending) && onAbortAll && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+                      onClick={() => onAbortAll?.()}
+                    >
+                      Abort All
+                    </Button>
                   </div>
                 )}
               </div>
@@ -584,6 +607,7 @@ export const MultiFileResponseDisplay = ({
                     showMarkdown={showMarkdown}
                     onToggleMarkdown={setShowMarkdown}
                     onRetry={onRetryFile ? () => onRetryFile(orderedIndex) : undefined}
+                    onAbort={onAbortFile ? () => onAbortFile(orderedIndex) : undefined}
                     uploadStatus={uploadStatuses?.[result.file.name]}
                     destinationFolderName={
                       assignedFolders[orderedIndex]?.name ?? selectedFolderName ?? undefined
@@ -643,6 +667,7 @@ export const MultiFileResponseDisplay = ({
                 uploadToGoogleDocs && isDriveAuthenticated ? handleUploadSelected : undefined
               }
               onRetrySelected={onRetryFile ? handleRetrySelected : undefined}
+              onAbortSelected={onAbortSelected ? () => onAbortSelected([...selected]) : undefined}
               onDownloadSelected={handleDownloadSelected}
               isDriveAuthenticated={isDriveAuthenticated}
               isUploadingSelected={isUploadingSelected}

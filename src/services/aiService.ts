@@ -5,6 +5,7 @@ export const processFileWithAI = async (
   instruction: string,
   model: GeminiModel,
   onChunk: (chunk: string) => void,
+  options?: { signal?: AbortSignal },
 ): Promise<void> => {
   const fileContent = await file.text();
 
@@ -20,6 +21,8 @@ export const processFileWithAI = async (
         instruction,
         model,
       }),
+      // Allow caller to cancel this request
+      signal: options?.signal,
     });
 
     if (!response.ok) {

@@ -2,9 +2,8 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FileResult } from '@/hooks/useAIProcessor';
 import { confidenceColorClass, getConfidenceScore } from '@/utils/confidenceScore';
@@ -23,7 +22,7 @@ import {
 } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Streamdown } from 'streamdown';
+// import { Streamdown } from 'streamdown';
 
 export interface UnifiedFileCardProps {
   result: FileResult;
@@ -35,6 +34,7 @@ export interface UnifiedFileCardProps {
   showMarkdown: boolean;
   onToggleMarkdown: (show: boolean) => void;
   onRetry?: () => void;
+  onAbort?: () => void;
   onUpload?: () => void;
   onViewResponse?: () => void; // optional external handler; defaults to local expand
   uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
@@ -49,9 +49,10 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     onSelectChange,
     displayName,
     onNameChange,
-    showMarkdown,
-    onToggleMarkdown,
+    // showMarkdown,
+    // onToggleMarkdown,
     onRetry,
+    onAbort,
     onUpload,
     onViewResponse,
     uploadStatus,
@@ -160,15 +161,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     [],
   );
 
-  const handleScroll = () => {
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      if (!scrollViewportRef.current) return;
-      const { scrollTop, clientHeight, scrollHeight } = scrollViewportRef.current;
-      const atBottom = scrollTop + clientHeight >= scrollHeight - 5;
-      setIsUserScrolling(!atBottom);
-    }, 50);
-  };
+  // Note: Inline scroll handling removed in favor of modal view
 
   return (
     <Card className="w-full gap-0">
@@ -302,7 +295,6 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                         aria-label="Copy response"
                       >
                         <Copy className="h-3.5 w-3.5" />
-                        <span className="sr-only">{copyFeedback || 'Copy'}</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>{copyFeedback || 'Copy response to clipboard'}</TooltipContent>
@@ -336,6 +328,30 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Retry processing this file</TooltipContent>
+                    </Tooltip>
+                  )}
+                  {onAbort && (result.isProcessing || result.queueStatus === 'pending') && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={onAbort}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:bg-muted/50"
+                          aria-label="Abort"
+                        >
+                          {/* Use a simple square/stop icon via SVG to avoid adding new imports */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="h-3.5 w-3.5"
+                          >
+                            <rect x="6" y="6" width="12" height="12" rx="1" />
+                          </svg>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Abort this file</TooltipContent>
                     </Tooltip>
                   )}
                   {onUpload && canUpload && (
@@ -383,62 +399,6 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
           {/* Removed accordion arrow since responses are viewed in a modal */}
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px]' : 'max-h-0'}`}
-        >
-          {result.response && (
-            <div className="mb-4 rounded-md border bg-background p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <div></div>
-                <Toggle
-                  pressed={showMarkdown}
-                  onPressedChange={onToggleMarkdown}
-                  variant="outline"
-                  size="sm"
-                >
-                  {showMarkdown ? 'Raw' : 'Formatted'}
-                </Toggle>
-              </div>
-              <div
-                ref={scrollViewportRef}
-                onScroll={handleScroll}
-                className="max-h-96 overflow-y-auto"
-              >
-                {showMarkdown ? (
-                  <div
-                    className="max-w-full text-sm leading-relaxed break-words text-foreground"
-                    style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
-                  >
-                    {result.isProcessing ? (
-                      <pre
-                        className="max-w-full font-sans text-sm leading-relaxed whitespace-pre-wrap text-foreground"
-                        style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
-                      >
-                        {result.response}
-                      </pre>
-                    ) : (
-                      <div
-                        className="max-w-full"
-                        style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
-                      >
-                        <Streamdown>{result.response}</Streamdown>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <pre
-                    className="max-w-full font-sans text-sm leading-relaxed whitespace-pre-wrap text-foreground"
-                    style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
-                  >
-                    {result.response}
-                  </pre>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
     </Card>
   );
 });

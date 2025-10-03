@@ -7,6 +7,7 @@ interface ContextualActionBarProps {
   onAssignFolder?: () => void;
   onUploadSelected?: () => void;
   onRetrySelected?: () => void;
+  onAbortSelected?: () => void;
   onDownloadSelected?: () => void;
   onBulkRename?: () => void;
   isDriveAuthenticated?: boolean;
@@ -21,6 +22,7 @@ export function ContextualActionBar({
   onAssignFolder,
   onUploadSelected,
   onRetrySelected,
+  onAbortSelected,
   onDownloadSelected,
   onBulkRename,
   isDriveAuthenticated = false,
@@ -93,6 +95,16 @@ export function ContextualActionBar({
         {onRetrySelected && (
           <Button variant="outline" size="sm" onClick={onRetrySelected}>
             Retry Selected
+          </Button>
+        )}
+        {onAbortSelected && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+            onClick={onAbortSelected}
+          >
+            Abort Selected
           </Button>
         )}
         {onDownloadSelected && (
