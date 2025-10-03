@@ -191,7 +191,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
                         {p.from}
                       </div>
                       <div className="truncate text-muted-foreground" title={p.to}>
-                        → {p.to}
+                        {p.to}
                       </div>
                     </div>
                   </li>

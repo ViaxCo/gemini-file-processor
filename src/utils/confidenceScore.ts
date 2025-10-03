@@ -41,8 +41,8 @@ export const getConfidenceScore = (
   const jaccard = union === 0 ? 0 : intersection / union;
 
   let level: ConfidenceLevel;
-  if (jaccard >= 0.8) level = 'high';
-  else if (jaccard >= 0.5) level = 'medium';
+  if (jaccard >= 0.7) level = 'high';
+  else if (jaccard >= 0.4) level = 'medium';
   else level = 'low';
   return { score: jaccard, level };
 };
