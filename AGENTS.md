@@ -1,160 +1,117 @@
-## Commands
+# Gemini File Processor
 
-- `npm run build` - Build for production (includes dependency install and TypeScript compilation)
-- `npm run lint` - Lint the codebase with ESLint 9
-- `npm run preview` - Preview the built application
-- `npm run dev` - Development server (don't run this, user runs it themselves)
-- `npm run prettier` - Format code with Prettier and Tailwind CSS plugin
-- `npm run prettier:check` - Check code formatting without making changes
-- `npm run ts-check` - Check TypeScript types
+## IMPORTANT Guidelines
 
-## Architecture
+- Only stage changes when explicitly requested
+- Only commit when explicitly requested
+- NEVER run `npm run build`.
+- Use shadcn/ui for all components.
+- When using shadcn components, use the MCP server.
+  - Prefer full blocks when applicable (e.g., login, calendar, dashboard).
+  - Before implementing, call the demo tool to see correct usage and props.
+- Every UI change must be mobile‑first and responsive.
+- Use Context7 to look up documentation for every package you interact with.
+- Only commit when explicitly requested.
+- Always run `npm run pretest` after changes.
+- Never start the dev server.
+- Always implement simple code that is easy to read, understand and maintain.
+- If a file gets too large, split it up into smaller pieces.
 
-This is a **Gemini File Processor** - a modern React TypeScript application built with Next.js that processes large batches of .txt files using Google's Gemini AI via a queued, throttled workflow, with integrated Google Drive upload functionality.
+## Project Overview
 
-### Core Architecture Pattern
+This is a Next.js application that allows users to process large batches of `.txt` files using Google's Gemini AI. The application features a queue-based workflow, real-time streaming of AI responses, and integration with Google Drive for saving processed content. It also includes a real-time API quota monitoring system.
 
-The application follows a **component-based architecture** with custom hooks for business logic and React Context for global state management. Key architectural decisions:
+The frontend is built with React 19, TypeScript, and Next.js, and the UI is styled with Tailwind CSS v4 and shadcn/ui components. The backend is a Next.js API route that uses the `@ai-sdk/google` library to interact with the Gemini API.
 
-- **Queue-Based Processing**: Files are processed in batches of 10 every 90 seconds with streaming AI responses
-- **Real-time Updates**: AI responses stream in real-time using async generators and callback patterns
-- **Error Isolation**: Per-file error handling allows partial success across batch operations
-- **Mobile-First Design**: Built with Tailwind CSS v4 for responsive design
-- **Quota Monitoring**: Real-time API quota usage monitoring with Google Cloud integration
+## Building and Running
 
-### Data Flow & State Management
+### Prerequisites
 
-1. **File Management**: App orchestrates file state and UI layout switching (single vs multi-file)
-2. **AI Processing**: `useAIProcessor` hook coordinates a client-side queue with batch throttling via Next.js API routes (`/api/gemini`)
-3. **Streaming Responses**: Server-to-client streaming via ReadableStream API with real-time updates
-4. **Google Drive Integration**: `useGoogleDrive` hook manages OAuth authentication and document uploads
-5. **Theme System**: Context-based dark/light mode with system preference detection
-6. **Instructions Management**: `useInstructions` hook handles preset management and localStorage
-7. **Quota Monitoring**: `useQuotaMonitoring` hook tracks real-time API usage via Google Cloud APIs
+- Node.js (v18 or higher)
+- Google Gemini API key
+- (Optional) Google Cloud credentials for Drive integration
 
-### File Processing System
+### Installation
 
-- **Queue Throughput**: Files are processed in queued batches of 10 every 90 seconds
-- **Streaming UI**: Each file gets its own FileResult with real-time processing state
-- **Format Support**: .txt only
-- **Error Resilience**: Individual file failures don't block other files
+1. **Clone the repository:**
 
-### Tech Stack & Dependencies
+   ```bash
+   git clone <repository-url>
+   cd gemini-file-processor
+   ```
 
-- **Core**: React 19 + TypeScript 5.9 + Next.js 15 (ES modules, path aliases `@/` → `./src/`)
-- **AI Integration**: Google Gemini 2.5 Flash via AI SDK (`@ai-sdk/google`, `ai` for streaming)
-- **UI Framework**: Tailwind CSS v4 + shadcn/ui components + 12+ Radix UI primitives
-- **Build Tools**: ESLint 9 + Prettier (with Tailwind plugin) + TypeScript strict mode
-- **Additional**: Sonner notifications, Lucide React icons, markdown-it processing
+2. **Install dependencies:**
 
-### Environment Variables
+   ```bash
+   npm install
+   ```
 
-**Required:**
+3. **Set up environment variables:**
+   Create a `.env` file in the root of the project and add your API keys:
 
-- `MY_GEMINI_API_KEY` - Google Gemini API key for AI processing (server-only, no NEXT_PUBLIC prefix)
+   ```env
+   MY_GEMINI_API_KEY=your_gemini_api_key_here
+   # Optional: For Google Drive integration
+   NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
+   NEXT_PUBLIC_GOOGLE_API_KEY=your_google_api_key_here
+   # Optional: For API quota monitoring
+   NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER=your_project_number_here
+   GOOGLE_SERVICE_ACCOUNT_KEY='{"type":"service_account",...}'
+   ```
 
-**Optional (for Google Drive integration):**
+### Running the Application
 
-- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` - Google OAuth 2.0 client ID for Drive authentication
-- `NEXT_PUBLIC_GOOGLE_API_KEY` - Google API key for Drive/Docs API access
+- **Development:**
 
-**Optional (for real-time API quota monitoring):**
+  ```bash
+  npm run dev
+  ```
 
-- `NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER` - Google Cloud project number for quota monitoring (find in Google Cloud Console project settings)
-- `GOOGLE_APPLICATION_CREDENTIALS` - Path to Google Cloud service account JSON key file (server-only)
-- `GOOGLE_SERVICE_ACCOUNT_KEY` - Google Cloud service account JSON key as string (server-only, alternative to file path)
+  This will start the development server on `http://localhost:5173`.
 
-**Note**: Quota monitoring provides real-time API usage tracking with visual progress indicators. Requires Google Cloud Service Usage API and Cloud Monitoring API to be enabled. Service account needs `Service Usage Consumer`, `Monitoring Viewer`, and `Service Management Service Agent` roles.
+- **Production Build:**
 
-**Note**: AI model selection is configurable through the UI (ModelSelector component) and persisted in localStorage. See `GOOGLE_DRIVE_SETUP.md` for detailed Google Drive API setup instructions.
+  ```bash
+  npm run build
+  ```
 
-## Development Notes
+- **Preview Production Build:**
 
-### Code Quality
+  ```bash
+  npm run preview
+  ```
 
-- **Checks**: Always run `npm run pretest` to ensure everything works and is properly formatted
-- **TypeScript**: Strict mode enabled - all type errors must be resolved
-- **No testing framework**: Project relies on TypeScript + ESLint for code quality and manual testing
+### Testing and Linting
 
-### Component Development
+- **Run ESLint:**
 
-- **shadcn/ui Integration**: Use the MCP server for shadcn components
-  - First call the demo tool to understand correct usage patterns
-  - Apply components wherever applicable; prefer whole blocks (e.g., login pages, calendars)
-  - All UI components are in `src/components/ui/` with 12+ Radix primitives already integrated
-- **Mobile-First**: Every UI change must be mobile-first responsive using Tailwind CSS v4
-- **Theme Support**: All new components must support the existing dark/light theme system
-- **Quota Integration**: QuotaMonitor component automatically tracks selected model usage with SSR-safe hydration
+  ```bash
+  npm run lint
+  ```
 
-### Development Workflow
+- **Check TypeScript types:**
 
-- **Server Management**: Don't run dev server or preview (user manages this)
-- **Browser Debugging**: Use browser mcp for this. When referenced, browser tab is already loaded - don't navigate
-- **Git Operations**: Only stage/commit changes when explicitly requested
-- **Documentation**: Use context7 MCP server for package documentation lookup
+  ```bash
+  npm run ts-check
+  ```
 
-### Architecture Guidelines
+- **Format code with Prettier:**
 
-- **Custom Hooks Pattern**: Business logic belongs in custom hooks (`useAIProcessor`, `useGoogleDrive`, etc.)
-- **Component Separation**: Keep components focused - file processing, UI display, and Google Drive integration are separate concerns
-- **Error Handling**: Maintain per-file error isolation pattern for batch operations
-- **State Management**: Use React Context only for truly global state (theme, instructions); prefer component state otherwise
+  ```bash
+  npm run prettier
+  ```
 
-## Key Implementation Details
+- **Check code formatting:**
 
-### Performance Optimizations
+  ```bash
+  npm run prettier:check
+  ```
 
-- **Buffered Updates**: AI streaming responses are buffered to prevent excessive React re-renders (100ms intervals or 500 char buffers)
-- **Idle Work Scheduling**: Non-critical UI updates use `requestIdleCallback` via `scheduleIdleWork` utility
-- **Memory Management**: Response buffers are cleared after each flush to prevent memory leaks
+## Development Conventions
 
-### TypeScript Configuration
-
-- **Project References**: Uses TypeScript project references pattern with separate configs for app (`tsconfig.app.json`) and Node.js (`tsconfig.node.json`)
-- **Strict Mode**: Full TypeScript strict mode enabled with `noUnusedLocals`, `noUnusedParameters`, and `noFallthroughCasesInSwitch`
-- **Path Aliases**: `@/*` maps to `./src/*` for clean imports
-
-### ESLint Configuration
-
-- **Modern Setup**: Uses ESLint 9 with flat config system (`eslint.config.js`)
-- **React Integration**: Includes react-hooks and react-refresh plugins
-- **Custom Rules**: Allows unused variables with uppercase names (constants pattern)
-
-### State Persistence Patterns
-
-- **Instructions Storage**: `useInstructions` hook manages localStorage for custom instructions with validation and limits
-- **Theme Persistence**: Theme context automatically syncs with localStorage and system preferences
-- **Model Selection**: Selected Gemini model persists across sessions via `useModelSelector` hook with SSR-safe hydration
-- **Quota Caching**: API quota limits cached server-side (1 hour TTL) to minimize Google Cloud API calls
-
-### Error Handling Strategy
-
-- **Per-File Isolation**: Individual file processing errors don't affect other files in batch operations
-- **Graceful Degradation**: Google Drive features are optional - app works without API keys
-- **Safe Storage Operations**: All localStorage operations wrapped in try-catch with fallbacks
-
-### File Processing Pipeline
-
-1. **Validation**: File type and size validation before processing
-2. **Queued Batches**: Files processed in batches of 10 with a 90-second throttle between batches
-3. **Streaming Updates**: Real-time UI updates via callback pattern with buffering
-4. **Completion Tracking**: Individual file completion states for precise UI feedback
-5. **Retry Logic**: Failed files can be retried individually or in batch
-
-### Quota Monitoring System
-
-- **Real-time Tracking**: Live API usage data from Google Cloud Monitoring API
-- **Model-specific Limits**: Dynamic quota limits fetched per selected Gemini model
-- **Visual Indicators**: Progress bars with warning states (80% near limit, 95% at limit)
-- **SSR-safe Hydration**: Prevents duplicate API requests on page reload using `isModelLoaded` state
-- **Auto-refresh**: 5-minute intervals with manual refresh capability
-- **Usage Calculation**: West African Time (UTC+1) daily usage window from 7am UTC
-- **Error Resilience**: Graceful degradation when quota APIs are unavailable
-
-# important-instruction-reminders
-
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
-NEVER run `npm run build`.
+- **Component-Based Architecture:** The application follows a component-based architecture, with the main logic encapsulated in the `GeminiFileProcessor` component.
+- **Custom Hooks:** Custom hooks are used to manage complex state and logic, such as AI processing (`useAIProcessor`), Google Drive integration (`useGoogleDrive`), and instructions management (`useInstructions`).
+- **Styling:** The application uses Tailwind CSS v4 for styling, with shadcn/ui components for the UI.
+- **State Management:** State is managed using a combination of `useState`, `useRef`, and custom hooks.
+- **API Communication:** The frontend communicates with the backend via a Next.js API route. The backend then communicates with the Gemini API using the `@ai-sdk/google` library.
+- **Error Handling:** The application has a robust error handling mechanism that includes retries with exponential backoff and confidence scoring to ensure the quality of the AI responses.
