@@ -8,7 +8,7 @@
     "build": "next build",
     "lint": "eslint .",
     "ts-check": "tsc -b",
-    "preview": "next start -p 5178",
+    "preview": "next start -p 5173",
     "prettier": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "prettier:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "pretest": "npm run prettier && npm run lint && npm run ts-check"

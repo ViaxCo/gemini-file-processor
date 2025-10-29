@@ -17,6 +17,7 @@ export interface BulkRenameRules {
   useRegex: boolean;
   replacePlusWithSpace: boolean;
   removeTxtExtension: boolean;
+  formatTrackTitles: boolean;
 }
 
 interface BulkRenameModalProps {
@@ -55,6 +56,10 @@ function applyRulesToName(name: string, rules: BulkRenameRules): string {
     next = next.replace(/\.txt$/i, '');
   }
 
+  if (rules.formatTrackTitles) {
+    next = next.replace(/^(.*?)\s+Track\s+(\d+).*$/, '$1 - Track $2');
+  }
+
   // Trim leftover separators and whitespace artifacts
   next = next.replace(/\s{2,}/g, ' ').trim();
   // Remove trailing separators like '-' if left hanging
@@ -69,6 +74,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
   const [useRegex, setUseRegex] = useState<boolean>(true);
   const [replacePlusWithSpace, setReplacePlusWithSpace] = useState<boolean>(true);
   const [removeTxtExtension, setRemoveTxtExtension] = useState<boolean>(true);
+  const [formatTrackTitles, setFormatTrackTitles] = useState<boolean>(false);
 
   useEffect(() => {
     if (!open) {
@@ -78,6 +84,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
       setUseRegex(true);
       setReplacePlusWithSpace(true);
       setRemoveTxtExtension(true);
+      setFormatTrackTitles(false);
     }
   }, [open]);
 
@@ -87,6 +94,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
     useRegex,
     replacePlusWithSpace,
     removeTxtExtension,
+    formatTrackTitles,
   };
 
   const preview = useMemo(() => {
@@ -102,6 +110,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
     rules.useRegex,
     rules.replacePlusWithSpace,
     rules.removeTxtExtension,
+    rules.formatTrackTitles,
   ]);
 
   const handleApply = () => {
@@ -171,6 +180,15 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
                     onChange={(e) => setRemoveTxtExtension(e.target.checked)}
                   />
                   Remove .txt extension
+                </label>
+                <label className="inline-flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={formatTrackTitles}
+                    onChange={(e) => setFormatTrackTitles(e.target.checked)}
+                  />
+                  Format track titles
                 </label>
               </div>
             </div>
