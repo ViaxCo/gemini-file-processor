@@ -276,7 +276,8 @@ export const MultiFileResponseDisplay = ({
     if (eligibleFiltered.length === 0) return;
     try {
       setIsUploadingSelected(true);
-      const results = await Promise.allSettled(
+      // Add overall timeout to prevent the operation from hanging indefinitely
+      const uploadOperation = Promise.allSettled(
         eligibleFiltered.map(async ({ r, i }) => {
           const baseName = (displayNames[i] || r!.file.name).replace(/\.[^.]+$/, '');
           const folderIdForItem =
@@ -285,6 +286,10 @@ export const MultiFileResponseDisplay = ({
           return i;
         }),
       );
+      const timeoutPromise = new Promise<never>(
+        (_, reject) => setTimeout(() => reject(new Error('Upload operation timeout')), 60000), // 60 second overall timeout
+      );
+      const results = await Promise.race([uploadOperation, timeoutPromise]);
       const succeeded: number[] = results
         .filter((res): res is PromiseFulfilledResult<number> => res.status === 'fulfilled')
         .map((res) => res.value);
@@ -306,8 +311,12 @@ export const MultiFileResponseDisplay = ({
       } else {
         toast.error('All selected uploads failed.');
       }
-    } catch (e) {
-      toast.error('Some selected uploads failed.');
+    } catch (e: any) {
+      if (e.message === 'Upload operation timeout') {
+        toast.error('Upload operation timed out. Please try again.');
+      } else {
+        toast.error('Some selected uploads failed.');
+      }
     } finally {
       setIsUploadingSelected(false);
     }
@@ -323,7 +332,8 @@ export const MultiFileResponseDisplay = ({
     if (items.length === 0) return;
     try {
       setIsUploadingAll(true);
-      const results = await Promise.allSettled(
+      // Add overall timeout to prevent the operation from hanging indefinitely
+      const uploadOperation = Promise.allSettled(
         items.map(async (r) => {
           const idx = fileResults.indexOf(r);
           const baseName = (displayNames[idx] || r.file.name).replace(/\.[^.]+$/, '');
@@ -333,6 +343,10 @@ export const MultiFileResponseDisplay = ({
           return idx;
         }),
       );
+      const timeoutPromise = new Promise<never>(
+        (_, reject) => setTimeout(() => reject(new Error('Upload operation timeout')), 60000), // 60 second overall timeout
+      );
+      const results = await Promise.race([uploadOperation, timeoutPromise]);
       const succeeded: number[] = results
         .filter((res): res is PromiseFulfilledResult<number> => res.status === 'fulfilled')
         .map((res) => res.value);
@@ -352,8 +366,12 @@ export const MultiFileResponseDisplay = ({
       } else {
         toast.error('All uploads failed.');
       }
-    } catch (e) {
-      toast.error('Some uploads failed. Check statuses.');
+    } catch (e: any) {
+      if (e.message === 'Upload operation timeout') {
+        toast.error('Upload operation timed out. Please try again.');
+      } else {
+        toast.error('Some uploads failed. Check statuses.');
+      }
     } finally {
       setIsUploadingAll(false);
     }

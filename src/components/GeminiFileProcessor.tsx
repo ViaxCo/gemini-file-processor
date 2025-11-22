@@ -1,11 +1,11 @@
 'use client';
 
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { FileUpload } from '@/components/FileUpload';
 import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
 import { InstructionsPanel } from '@/components/InstructionsPanel';
 import { ModelSelector } from '@/components/ModelSelector';
 import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay';
-import { QuotaMonitor } from '@/components/QuotaMonitor';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toaster } from '@/components/ui/sonner';
 import { useAIProcessor } from '@/hooks/useAIProcessor';
@@ -13,11 +13,10 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useModelSelector } from '@/hooks/useModelSelector';
 import { useState } from 'react';
-import ErrorBoundary from '@/components/ErrorBoundary';
 
 export function GeminiFileProcessor() {
   const [files, setFiles] = useState<File[]>([]);
-  const { selectedModel, setSelectedModel, isModelLoaded } = useModelSelector();
+  const { selectedModel, setSelectedModel } = useModelSelector();
   const {
     fileResults,
     isProcessing,
@@ -113,7 +112,7 @@ export function GeminiFileProcessor() {
                 </div>
               </div>
               <div className="flex flex-row flex-wrap items-center gap-3">
-                <QuotaMonitor
+                {/* <QuotaMonitor
                   projectNumber={process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER}
                   model={selectedModel}
                   isModelLoaded={isModelLoaded}
@@ -121,7 +120,7 @@ export function GeminiFileProcessor() {
                   className=""
                   showRefreshButton={true}
                   autoRefresh={true}
-                />
+                /> */}
                 <ThemeToggle />
               </div>
             </div>

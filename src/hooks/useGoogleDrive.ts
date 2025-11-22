@@ -265,11 +265,16 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setUploadStatuses((prev) => ({ ...prev, [fileId]: 'uploading' }));
       setError(null);
       try {
-        const file = await driveService.createGoogleDoc(
+        // Add timeout to prevent hanging uploads
+        const uploadPromise = driveService.createGoogleDoc(
           title,
           content,
           folderId || selectedFolder?.id,
         );
+        const timeoutPromise = new Promise<never>(
+          (_, reject) => setTimeout(() => reject(new Error('Upload timeout')), 30000), // 30 second timeout
+        );
+        const file = await Promise.race([uploadPromise, timeoutPromise]);
         setUploadStatuses((prev) => ({ ...prev, [fileId]: 'completed' }));
         return file;
       } catch (err: any) {
