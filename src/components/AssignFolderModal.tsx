@@ -28,6 +28,7 @@ interface AssignFolderModalProps {
   loadMoreFolders: () => Promise<void>;
   selectFolder: (folder: DriveFolder | null) => void;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
+  getFolder: (folderId: string) => Promise<DriveFolder>;
 
   // Callback invoked when user confirms assignment
   onAssign: (folderId: string | null, folderName: string) => void;
@@ -48,6 +49,7 @@ export function AssignFolderModal(props: AssignFolderModalProps) {
     loadMoreFolders,
     selectFolder,
     createFolder,
+    getFolder,
     onAssign,
   } = props;
 
@@ -107,6 +109,7 @@ export function AssignFolderModal(props: AssignFolderModalProps) {
             loadMoreFolders={loadMoreFolders}
             selectFolder={selectFolder}
             createFolder={createFolder}
+            getFolder={getFolder}
             isAuthenticated={isAuthenticated}
             onFolderSelect={() => {
               /* handled by hook selection */

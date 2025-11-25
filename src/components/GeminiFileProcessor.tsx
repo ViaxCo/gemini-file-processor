@@ -166,6 +166,7 @@ export function GeminiFileProcessor() {
                 driveLoadMoreFolders={googleDrive.loadMoreFolders}
                 driveSelectFolder={googleDrive.selectFolder}
                 driveCreateFolder={googleDrive.createFolder}
+                driveGetFolder={googleDrive.getFolder}
               />
             </div>
           </ErrorBoundary>

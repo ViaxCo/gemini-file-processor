@@ -47,6 +47,7 @@ interface MultiFileResponseDisplayProps {
   driveLoadMoreFolders?: () => Promise<void>;
   driveSelectFolder?: (folder: any | null) => void;
   driveCreateFolder?: (name: string, parentId?: string) => Promise<any>;
+  driveGetFolder?: (folderId: string) => Promise<any>;
 }
 
 // Replaced FileItem with UnifiedFileCard per Phase 2
@@ -74,6 +75,7 @@ export const MultiFileResponseDisplay = ({
   driveLoadMoreFolders,
   driveSelectFolder,
   driveCreateFolder,
+  driveGetFolder,
 }: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -721,6 +723,9 @@ export const MultiFileResponseDisplay = ({
         loadMoreFolders={driveLoadMoreFolders || (async () => {})}
         selectFolder={driveSelectFolder || (() => {})}
         createFolder={driveCreateFolder || (async (name: string) => ({ id: null, name }))}
+        getFolder={
+          driveGetFolder || (async (folderId: string) => ({ id: folderId, name: 'Unknown' }))
+        }
         onAssign={(folderId, folderName) => {
           setAssignedFolders((prev) => {
             const next = { ...prev };

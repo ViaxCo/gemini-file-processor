@@ -378,6 +378,33 @@ export class GoogleDriveService {
     }
   }
 
+  async getFolder(folderId: string): Promise<DriveFolder> {
+    await this.initializationPromise;
+
+    if (!this.isAuthenticated()) {
+      throw new Error('User not authenticated');
+    }
+
+    // Check if token is near expiry and refresh proactively
+    await this.checkAndRefreshToken();
+
+    try {
+      const response = await window.gapi.client.drive.files.get({
+        fileId: folderId,
+        fields: 'id,name,parents',
+      });
+
+      return response.result;
+    } catch (error: any) {
+      console.error('Error getting folder:', error);
+      if (error?.result?.error?.code === 401) {
+        this.signOut(); // Force sign out on auth error
+        throw new Error('Authentication expired. Please sign in again.');
+      }
+      throw new Error(`Failed to get folder: ${error?.result?.error?.message || 'Unknown error'}`);
+    }
+  }
+
   async createGoogleDoc(title: string, content: string, folderId?: string): Promise<DriveFile> {
     await this.initializationPromise;
 

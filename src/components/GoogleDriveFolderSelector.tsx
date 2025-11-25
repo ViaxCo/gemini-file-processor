@@ -16,6 +16,7 @@ interface GoogleDriveFolderSelectorProps {
   loadMoreFolders: () => Promise<void>;
   selectFolder: (folder: DriveFolder | null) => void;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
+  getFolder: (folderId: string) => Promise<DriveFolder>;
   isAuthenticated: boolean;
 
   // Own props
@@ -32,6 +33,7 @@ export function GoogleDriveFolderSelector({
   loadMoreFolders,
   selectFolder,
   createFolder,
+  getFolder,
   isAuthenticated,
   onFolderSelect,
 }: GoogleDriveFolderSelectorProps): React.ReactElement {
@@ -39,6 +41,8 @@ export function GoogleDriveFolderSelector({
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [breadcrumb, setBreadcrumb] = useState<Array<{ id: string; name: string }>>([]);
+  const [isBuildingBreadcrumb, setIsBuildingBreadcrumb] = useState(false);
+  const lastNavigatedFolderIdRef = useRef<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,6 +98,37 @@ export function GoogleDriveFolderSelector({
     }
   }, [hasMoreFolders, isLoadingMoreFolders, loadMoreFolders]);
 
+  // Build breadcrumb path from folder to root
+  const buildBreadcrumbPath = useCallback(
+    async (folder: DriveFolder): Promise<Array<{ id: string; name: string }>> => {
+      const path: Array<{ id: string; name: string }> = [];
+      let currentFolder = folder;
+      const maxDepth = 10; // Prevent infinite loops
+      let depth = 0;
+
+      try {
+        while (currentFolder.parents && currentFolder.parents.length > 0 && depth < maxDepth) {
+          const parentId = currentFolder.parents[0];
+          if (!parentId || parentId === 'root') break;
+
+          const parentFolder = await getFolder(parentId);
+          path.unshift({ id: parentFolder.id, name: parentFolder.name });
+          currentFolder = parentFolder;
+          depth++;
+        }
+      } catch (error) {
+        console.error('Error building breadcrumb path:', error);
+        // Return what we have so far, or a minimal path
+        if (path.length === 0 && folder.parents && folder.parents[0]) {
+          path.push({ id: folder.parents[0], name: 'Parent Folder' });
+        }
+      }
+
+      return path;
+    },
+    [getFolder],
+  );
+
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (container) {
@@ -110,6 +145,58 @@ export function GoogleDriveFolderSelector({
       return () => clearTimeout(timer);
     }
   }, [showCreateFolder]);
+
+  // Initialize breadcrumb and navigation when selectedFolder changes
+  useEffect(() => {
+    const initializeNavigation = async () => {
+      if (isBuildingBreadcrumb || !selectedFolder) return; // Prevent multiple concurrent builds
+
+      // Only navigate if we haven't already navigated for this folder
+      if (lastNavigatedFolderIdRef.current === selectedFolder.id) {
+        return;
+      }
+
+      setIsBuildingBreadcrumb(true);
+      lastNavigatedFolderIdRef.current = selectedFolder.id;
+
+      try {
+        if (selectedFolder.parents && selectedFolder.parents.length > 0) {
+          const parentId = selectedFolder.parents[0];
+          if (parentId) {
+            // Navigate to parent directory
+            await loadFolders(parentId);
+
+            // Build the breadcrumb path
+            const breadcrumbPath = await buildBreadcrumbPath(selectedFolder);
+            setBreadcrumb(breadcrumbPath);
+          }
+        } else {
+          // Selected folder is in root, ensure we're showing root folders
+          await loadFolders();
+          setBreadcrumb([]);
+        }
+      } catch (error) {
+        console.error('Error initializing navigation:', error);
+        // Fallback navigation
+        if (selectedFolder.parents && selectedFolder.parents[0]) {
+          loadFolders(selectedFolder.parents[0]);
+          setBreadcrumb([{ id: selectedFolder.parents[0], name: 'Parent Folder' }]);
+        }
+      } finally {
+        setIsBuildingBreadcrumb(false);
+      }
+    };
+
+    // Only run if we have a selectedFolder and haven't navigated for it yet
+    if (selectedFolder && lastNavigatedFolderIdRef.current !== selectedFolder.id) {
+      initializeNavigation();
+    } else if (!selectedFolder) {
+      // Reset state if no selected folder
+      setBreadcrumb([]);
+      setIsBuildingBreadcrumb(false);
+      lastNavigatedFolderIdRef.current = null;
+    }
+  }, [selectedFolder, loadFolders, buildBreadcrumbPath, isBuildingBreadcrumb]);
 
   return (
     <Card className="max-w-full space-y-2 overflow-hidden p-3 sm:p-4">

@@ -26,6 +26,7 @@ export interface UseGoogleDriveReturn {
   loadMoreFolders: () => Promise<void>;
   selectFolder: (folder: DriveFolder | null) => void;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
+  getFolder: (folderId: string) => Promise<DriveFolder>;
 
   // File operations
   uploadToGoogleDocs: (
@@ -131,10 +132,10 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
 
   // Automatically load folders when authentication state changes to true
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && folders.length === 0) {
       loadFolders();
     }
-  }, [isAuthenticated, loadFolders]);
+  }, [isAuthenticated, loadFolders, folders.length]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -286,6 +287,23 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     [driveService, selectedFolder],
   );
 
+  const getFolder = useCallback(
+    async (folderId: string): Promise<DriveFolder> => {
+      if (!driveService) {
+        throw new Error('Google Drive service not available');
+      }
+
+      setError(null);
+      try {
+        return await driveService.getFolder(folderId);
+      } catch (err: any) {
+        setError(err.message || 'Failed to get folder');
+        throw err;
+      }
+    },
+    [driveService],
+  );
+
   return {
     isAuthenticated,
     isAuthenticating,
@@ -301,6 +319,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     loadMoreFolders,
     selectFolder,
     createFolder,
+    getFolder,
     uploadToGoogleDocs,
     uploadStatuses,
     resetUploadStatuses,

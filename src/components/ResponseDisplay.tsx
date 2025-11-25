@@ -42,6 +42,7 @@ interface ResponseDisplayProps {
   driveLoadMoreFolders?: () => Promise<void>;
   driveSelectFolder?: (folder: any | null) => void;
   driveCreateFolder?: (name: string, parentId?: string) => Promise<any>;
+  driveGetFolder?: (folderId: string) => Promise<any>;
   // Retry
   hasError?: boolean;
   onRetry?: () => void;
@@ -65,6 +66,7 @@ export const ResponseDisplay = ({
   driveLoadMoreFolders,
   driveSelectFolder,
   driveCreateFolder,
+  driveGetFolder,
   hasError = false,
   onRetry,
 }: ResponseDisplayProps) => {
@@ -337,6 +339,9 @@ export const ResponseDisplay = ({
         loadMoreFolders={driveLoadMoreFolders || (async () => {})}
         selectFolder={driveSelectFolder || (() => {})}
         createFolder={driveCreateFolder || (async (name: string) => ({ id: null, name }))}
+        getFolder={
+          driveGetFolder || (async (folderId: string) => ({ id: folderId, name: 'Unknown' }))
+        }
         onAssign={(folderId, folderName) => {
           setAssignedFolder({ id: folderId, name: folderName });
         }}
