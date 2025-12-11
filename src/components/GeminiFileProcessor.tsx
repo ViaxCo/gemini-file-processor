@@ -100,8 +100,8 @@ export function GeminiFileProcessor() {
                 Gemini File Processor
               </h1>
               <p className="text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-                Upload any number of .txt files. Processing runs in queued batches of 10 every 90
-                seconds with real-time updates.
+                Upload up to 20 .txt files at once. Processing is rate-limited to 5 RPM (Flash) or
+                10 RPM (Flash Lite).
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

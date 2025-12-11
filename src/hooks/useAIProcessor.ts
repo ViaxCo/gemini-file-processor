@@ -59,8 +59,8 @@ export const useAIProcessor = () => {
 
   // Model-specific rate limits for Phase 1
   const RATE_LIMITS = {
-    'gemini-2.5-flash': { limit: 9, interval: 60000 }, // 10 RPM
-    'gemini-2.5-flash-lite': { limit: 15, interval: 60000 }, // 15 RPM
+    'gemini-2.5-flash': { limit: 4, interval: 60000 }, // 5 RPM
+    'gemini-2.5-flash-lite': { limit: 10, interval: 60000 }, // 10 RPM
   };
 
   // Abort helpers

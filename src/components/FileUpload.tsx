@@ -35,6 +35,8 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
     addFiles(droppedFiles);
   };
 
+  const MAX_FILES = 20; // Limit to 20 files due to daily API quota
+
   const addFiles = (newFiles: File[]): void => {
     const textFiles = newFiles.filter((file) => file.type === 'text/plain');
 
@@ -67,6 +69,25 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       return;
     }
 
+    // Check if adding these files would exceed the maximum limit
+    const totalFiles = files.length + uniqueFiles.length;
+    if (totalFiles > MAX_FILES) {
+      const allowedCount = MAX_FILES - files.length;
+      if (allowedCount <= 0) {
+        toast.error('Maximum file limit reached', {
+          description: `You can only upload up to ${MAX_FILES} files at once due to daily API quota limits.`,
+        });
+        return;
+      }
+      // Only add files up to the limit
+      const filesToAdd = uniqueFiles.slice(0, allowedCount);
+      onFilesChange([...files, ...filesToAdd]);
+      toast.warning(`Only ${allowedCount} file${allowedCount > 1 ? 's' : ''} added`, {
+        description: `Maximum limit of ${MAX_FILES} files reached. ${uniqueFiles.length - allowedCount} file(s) were not added.`,
+      });
+      return;
+    }
+
     onFilesChange([...files, ...uniqueFiles]);
     toast.success(
       `${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`,
@@ -94,11 +115,12 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
             {files.length} file{files.length === 1 ? '' : 's'} selected
           </Badge>
         </div>
-        {files.length > 10 && (
+        {files.length > 5 && (
           <Alert variant="default" className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Large batch detected. Files are processed in batches of 10 every 90 seconds.
+              Large batch detected. Files are rate-limited to 5 per minute (Flash) or 10 per minute
+              (Flash Lite).
             </AlertDescription>
           </Alert>
         )}
