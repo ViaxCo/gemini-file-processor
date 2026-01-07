@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { GeminiModel } from '../components/ModelSelector';
+import { AIProvider, getModel } from '../config/providerConfig';
 import { processFileWithAI } from '../services/aiService';
 import { makeFileKey, responseStore } from '../services/responseStore';
 import { scheduleIdleWork } from '../utils/performance';
@@ -57,11 +57,8 @@ export const useAIProcessor = () => {
   const cleanupIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestTimestampsRef = useRef<number[]>([]); // timestamps of requests for token bucket algorithm
 
-  // Model-specific rate limits for Phase 1
-  const RATE_LIMITS = {
-    'gemini-2.5-flash': { limit: 4, interval: 60000 }, // 5 RPM
-    'gemini-2.5-flash-lite': { limit: 10, interval: 60000 }, // 10 RPM
-  };
+  // Default rate limit fallback
+  const DEFAULT_RATE_LIMIT = { limit: 10, interval: 60000 };
 
   // Abort helpers
   const abortFilesByIndices = (indices: number[]): void => {
@@ -154,7 +151,9 @@ export const useAIProcessor = () => {
   const processFiles = async (
     files: File[],
     instruction: string,
-    model: GeminiModel,
+    provider: AIProvider,
+    model: string,
+    apiKey: string,
   ): Promise<void> => {
     if (!files.length || !instruction.trim()) {
       alert('Please select files and provide instructions');
@@ -179,13 +178,15 @@ export const useAIProcessor = () => {
     const processingMode: 'single' | 'batch' = files.length === 1 ? 'single' : 'batch';
 
     // Start processing
-    await processQueue(instruction, model, processingMode);
+    await processQueue(instruction, provider, model, apiKey, processingMode);
   };
 
   const retryFile = async (
     fileIndex: number,
     instruction: string,
-    model: GeminiModel,
+    provider: AIProvider,
+    model: string,
+    apiKey: string,
   ): Promise<void> => {
     if (fileIndex < 0 || fileIndex >= fileResults.length) return;
 
@@ -219,10 +220,15 @@ export const useAIProcessor = () => {
     // Show processing state immediately when retrying
     setIsProcessing(true);
     addToQueue([fileToRetry.file], fileIndex);
-    await processQueue(instruction, model, 'single');
+    await processQueue(instruction, provider, model, apiKey, 'single');
   };
 
-  const retryAllFailed = async (instruction: string, model: GeminiModel): Promise<void> => {
+  const retryAllFailed = async (
+    instruction: string,
+    provider: AIProvider,
+    model: string,
+    apiKey: string,
+  ): Promise<void> => {
     // First, identify failed files from current state
     const failedIndices = fileResults
       .map((result, index) => ({ result, index }))
@@ -250,7 +256,13 @@ export const useAIProcessor = () => {
     // Show processing state immediately when retrying all failed
     setIsProcessing(true);
     addToQueue(failedFiles);
-    await processQueue(instruction, model, failedFiles.length === 1 ? 'single' : 'batch');
+    await processQueue(
+      instruction,
+      provider,
+      model,
+      apiKey,
+      failedFiles.length === 1 ? 'single' : 'batch',
+    );
   };
 
   const clearResults = (): void => {
@@ -292,7 +304,9 @@ export const useAIProcessor = () => {
 
   const processQueue = async (
     instruction: string,
-    model: GeminiModel,
+    provider: AIProvider,
+    model: string,
+    apiKey: string,
     mode: 'single' | 'batch',
   ): Promise<void> => {
     if (processingRef.current) return;
@@ -300,8 +314,9 @@ export const useAIProcessor = () => {
     setIsProcessing(true);
     abortRef.current = false;
 
-    // Get model-specific rate limits
-    const { limit, interval } = RATE_LIMITS[model] || RATE_LIMITS['gemini-2.5-flash'];
+    // Get model-specific rate limits from provider config
+    const modelConfig = getModel(provider, model);
+    const { limit, interval } = modelConfig?.rateLimit || DEFAULT_RATE_LIMIT;
 
     try {
       // Update UI to show queued files as pending
@@ -339,7 +354,9 @@ export const useAIProcessor = () => {
           await processFileWithAI(
             file,
             instruction,
+            provider,
             model,
+            apiKey,
             (chunk: string) => {
               if (streamToUI) {
                 responseBuffer += chunk;
@@ -412,7 +429,7 @@ export const useAIProcessor = () => {
                 addToQueue([file], index, retryCount, lowConfidenceRetryCount + 1);
                 // Restart processing if it's not already running
                 if (!processingRef.current) {
-                  void processQueue(instruction, model, mode);
+                  void processQueue(instruction, provider, model, apiKey, mode);
                 }
               }, backoffDelay);
               return; // Don't mark as completed yet
@@ -519,7 +536,7 @@ export const useAIProcessor = () => {
               addToQueue([file], index, retryCount + 1, lowConfidenceRetryCount);
               // Restart processing if it's not already running
               if (!processingRef.current) {
-                void processQueue(instruction, model, mode);
+                void processQueue(instruction, provider, model, apiKey, mode);
               }
             }, backoffDelay);
           } else {

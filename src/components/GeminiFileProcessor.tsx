@@ -4,19 +4,27 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { FileUpload } from '@/components/FileUpload';
 import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
 import { InstructionsPanel } from '@/components/InstructionsPanel';
-import { ModelSelector } from '@/components/ModelSelector';
 import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay';
+import { ProviderSelector } from '@/components/ProviderSelector';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toaster } from '@/components/ui/sonner';
 import { useAIProcessor } from '@/hooks/useAIProcessor';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
-import { useModelSelector } from '@/hooks/useModelSelector';
+import { useProviderSelector } from '@/hooks/useProviderSelector';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
-export function GeminiFileProcessor() {
+export function AIFileProcessor() {
   const [files, setFiles] = useState<File[]>([]);
-  const { selectedModel, setSelectedModel } = useModelSelector();
+  const {
+    selectedProvider,
+    selectedModel,
+    apiKey,
+    setSelectedProvider,
+    setSelectedModel,
+    setApiKey,
+  } = useProviderSelector();
   const {
     fileResults,
     isProcessing,
@@ -38,8 +46,14 @@ export function GeminiFileProcessor() {
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return;
+    if (!apiKey) {
+      toast.error('API Key Required', {
+        description: 'Please enter your API key before processing files.',
+      });
+      return;
+    }
     markInstructionAsProcessed(instruction);
-    await processFiles(files, instruction, selectedModel);
+    await processFiles(files, instruction, selectedProvider, selectedModel, apiKey);
   };
 
   const handleClearAll = (): void => {
@@ -61,11 +75,18 @@ export function GeminiFileProcessor() {
     const instructionToUse = getLastProcessedInstruction() || instruction.trim();
 
     if (!instructionToUse) {
-      alert('Please provide instructions before retrying');
+      toast.error('Please provide instructions before retrying');
       return;
     }
 
-    await retryFile(index, instructionToUse, selectedModel);
+    if (!apiKey) {
+      toast.error('API Key Required', {
+        description: 'Please enter your API key before retrying.',
+      });
+      return;
+    }
+
+    await retryFile(index, instructionToUse, selectedProvider, selectedModel, apiKey);
   };
 
   const handleRetryAllFailed = async () => {
@@ -79,16 +100,21 @@ export function GeminiFileProcessor() {
     const instructionToUse = getLastProcessedInstruction() || instruction.trim();
 
     if (!instructionToUse) {
-      alert('Please provide instructions before retrying');
+      toast.error('Please provide instructions before retrying');
       return;
     }
 
-    await retryAllFailed(instructionToUse, selectedModel);
+    if (!apiKey) {
+      toast.error('API Key Required', {
+        description: 'Please enter your API key before retrying.',
+      });
+      return;
+    }
+
+    await retryAllFailed(instructionToUse, selectedProvider, selectedModel, apiKey);
   };
 
-  const canProcess = files.length > 0;
-
-  // Single-file response view removed; unified multi-file view is used for all cases
+  const canProcess = files.length > 0 && !!apiKey;
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,30 +123,26 @@ export function GeminiFileProcessor() {
           <div className="flex flex-col gap-4">
             <div className="flex-1">
               <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
-                Gemini File Processor
+                AI File Processor
               </h1>
               <p className="text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-                Upload up to 20 .txt files at once. Processing is rate-limited to 5 RPM (Flash) or
-                10 RPM (Flash Lite).
+                Upload up to 20 .txt files at once. Select your AI provider and model to process
+                files.
               </p>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <ProviderSelector
+                selectedProvider={selectedProvider}
+                selectedModel={selectedModel}
+                onProviderChange={setSelectedProvider}
+                onModelChange={setSelectedModel}
+                onApiKeyChange={setApiKey}
+                apiKey={apiKey}
+              />
+              <div className="flex flex-row flex-wrap items-center gap-3">
                 <div className="w-full sm:w-auto">
                   <GoogleDriveAuth {...googleDrive} variant="toolbar" />
                 </div>
-              </div>
-              <div className="flex flex-row flex-wrap items-center gap-3">
-                {/* <QuotaMonitor
-                  projectNumber={process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER}
-                  model={selectedModel}
-                  isModelLoaded={isModelLoaded}
-                  variant="toolbar"
-                  className=""
-                  showRefreshButton={true}
-                  autoRefresh={true}
-                /> */}
                 <ThemeToggle />
               </div>
             </div>
@@ -176,3 +198,6 @@ export function GeminiFileProcessor() {
     </div>
   );
 }
+
+// Export with old name for backwards compatibility during transition
+export { AIFileProcessor as GeminiFileProcessor };
