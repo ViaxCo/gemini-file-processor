@@ -74,7 +74,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
   const [useRegex, setUseRegex] = useState<boolean>(true);
   const [replacePlusWithSpace, setReplacePlusWithSpace] = useState<boolean>(true);
   const [removeTxtExtension, setRemoveTxtExtension] = useState<boolean>(true);
-  const [formatTrackTitles, setFormatTrackTitles] = useState<boolean>(false);
+  const [formatTrackTitles, setFormatTrackTitles] = useState<boolean>(true);
 
   useEffect(() => {
     if (!open) {
@@ -84,7 +84,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
       setUseRegex(true);
       setReplacePlusWithSpace(true);
       setRemoveTxtExtension(true);
-      setFormatTrackTitles(false);
+      setFormatTrackTitles(true);
     }
   }, [open]);
 
