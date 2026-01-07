@@ -28,7 +28,9 @@ Format the text with:
 - Proper capitalization
 - Original paragraph structure
 - Clear scripture demarcation
-- Smart quotes`;
+- Smart quotes
+
+Don't add any text before or after the source text in your response.`;
 
 const STORAGE_KEYS = {
   CUSTOM_INSTRUCTIONS: 'customInstructions',
