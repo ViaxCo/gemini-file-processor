@@ -1,4 +1,3 @@
-import React from 'react';
 import { AlertTriangle, RefreshCw, Info, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -202,9 +201,8 @@ export function QuotaMonitor({
             <div className="relative">
               <Progress value={data.usagePercentage} className="h-2" />
               <div
-                className={`absolute inset-y-0 left-0 h-2 rounded-full transition-all ${
-                  isAtLimit ? 'bg-destructive' : isNearLimit ? 'bg-orange-500' : 'bg-primary'
-                }`}
+                className={`absolute inset-y-0 left-0 h-2 rounded-full transition-all ${isAtLimit ? 'bg-destructive' : isNearLimit ? 'bg-orange-500' : 'bg-primary'
+                  }`}
                 style={{ width: `${Math.min(data.usagePercentage, 100)}%` }}
               />
             </div>
