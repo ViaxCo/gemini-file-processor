@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Set custom dist directory to maintain build output location
-  distDir: 'dist',
-  
   // Enable React 19 features and optimizations
   reactStrictMode: true,
   
