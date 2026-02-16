@@ -1,9 +1,15 @@
-import { useInstructions } from '../hooks/useInstructions';
+import {
+  DEFAULT_BOOK_PROMPT,
+  DEFAULT_TRANSCRIPT_PROMPT,
+  useInstructions,
+} from '../hooks/useInstructions';
 import { InstructionsModal } from './InstructionsModal';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { ProcessingProfile } from '@/hooks/useAIProcessor';
 import { Loader2, Zap, Check } from 'lucide-react';
 
 interface InstructionsPanelProps {
@@ -12,6 +18,8 @@ interface InstructionsPanelProps {
   isProcessing: boolean;
   canProcess: boolean;
   fileCount?: number;
+  processingProfile: ProcessingProfile;
+  onProcessingProfileChange: (profile: ProcessingProfile) => void;
 }
 
 export const InstructionsPanel = ({
@@ -20,6 +28,8 @@ export const InstructionsPanel = ({
   isProcessing,
   canProcess,
   fileCount = 0,
+  processingProfile,
+  onProcessingProfileChange,
 }: InstructionsPanelProps) => {
   const {
     instruction,
@@ -55,12 +65,32 @@ export const InstructionsPanel = ({
 
   const validation = validateInstruction(instruction);
   const isInstructionValid = validation.isValid;
+  const handleProcessingProfileToggle = (checked: boolean) => {
+    const nextProfile = checked ? 'book' : 'transcript';
+    onProcessingProfileChange(nextProfile);
+    setInstruction(nextProfile === 'book' ? DEFAULT_BOOK_PROMPT : DEFAULT_TRANSCRIPT_PROMPT);
+  };
 
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle>Custom Instructions</CardTitle>
+          <div className="flex items-center justify-between rounded-md border px-3 py-2">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Book Style Mode</p>
+              <p className="text-xs text-muted-foreground">
+                {processingProfile === 'book'
+                  ? 'No similarity scoring or low-confidence retries'
+                  : 'Similarity scoring and low-confidence retries enabled'}
+              </p>
+            </div>
+            <Switch
+              checked={processingProfile === 'book'}
+              onCheckedChange={handleProcessingProfileToggle}
+              aria-label="Toggle book style mode"
+            />
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               onClick={() => setShowInstructionsModal(true)}

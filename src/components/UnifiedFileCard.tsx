@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { FileResult } from '@/hooks/useAIProcessor';
+import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
 import { confidenceColorClass, getConfidenceScore } from '@/utils/confidenceScore';
 import { copyToClipboard, downloadAsMarkdown } from '@/utils/fileUtils';
 import {
@@ -40,6 +40,7 @@ export interface UnifiedFileCardProps {
   uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
   destinationFolderName?: string | null;
   canUpload?: boolean;
+  processingProfile: ProcessingProfile;
 }
 
 export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
@@ -58,6 +59,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     uploadStatus,
     destinationFolderName,
     canUpload = true,
+    processingProfile,
   } = props;
 
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
@@ -68,6 +70,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     score: number;
     level: 'high' | 'medium' | 'low';
   } | null>(null);
+  const [lengthRatio, setLengthRatio] = useState<number | null>(null);
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
   const [lastResponseLength, setLastResponseLength] = useState<number>(0);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
@@ -81,6 +84,10 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   useEffect(() => {
     let cancelled = false;
     const compute = async () => {
+      if (processingProfile === 'book') {
+        setConfidence(null);
+        return;
+      }
       if (!result.isCompleted || !result.response) {
         setConfidence(null);
         return;
@@ -99,7 +106,32 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     return () => {
       cancelled = true;
     };
-  }, [result.isCompleted, result.response, result.file]);
+  }, [result.isCompleted, result.response, result.file, processingProfile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const computeLengthRatio = async () => {
+      if (processingProfile !== 'book' || !result.isCompleted || !result.response) {
+        setLengthRatio(null);
+        return;
+      }
+      try {
+        const original = await result.file.text();
+        if (cancelled) return;
+        if (!original.length) {
+          setLengthRatio(null);
+          return;
+        }
+        setLengthRatio(result.response.length / original.length);
+      } catch {
+        if (!cancelled) setLengthRatio(null);
+      }
+    };
+    void computeLengthRatio();
+    return () => {
+      cancelled = true;
+    };
+  }, [result.isCompleted, result.response, result.file, processingProfile]);
 
   const getStatusIcon = () => {
     if (result.error) return <AlertCircle className="h-4 w-4 text-destructive" />;
@@ -263,6 +295,12 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                     Confidence {confidence.level} ({Math.round(confidence.score * 100)}%)
                   </span>
                 )}
+                {processingProfile === 'book' &&
+                  lengthRatio !== null &&
+                  result.isCompleted &&
+                  !result.error && (
+                    <Badge variant="secondary">Length: {lengthRatio.toFixed(2)}x</Badge>
+                  )}
                 {result.previousConfidence && !result.isCompleted && !result.error && (
                   <span
                     className={`text-xs ${confidenceColorClass(result.previousConfidence.level)}`}

@@ -12,11 +12,14 @@ import { useAIProcessor } from '@/hooks/useAIProcessor';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useProviderSelector } from '@/hooks/useProviderSelector';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 export function AIFileProcessor() {
+  const PROCESSING_PROFILE_KEY = 'ai-file-processor-processing-profile';
   const [files, setFiles] = useState<File[]>([]);
+  const [processingProfile, setProcessingProfile] = useState<'transcript' | 'book'>('transcript');
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
   const {
     selectedProvider,
     selectedModel,
@@ -53,7 +56,14 @@ export function AIFileProcessor() {
       return;
     }
     markInstructionAsProcessed(instruction);
-    await processFiles(files, instruction, selectedProvider, selectedModel, apiKey);
+    await processFiles(
+      files,
+      instruction,
+      selectedProvider,
+      selectedModel,
+      apiKey,
+      processingProfile,
+    );
   };
 
   const handleClearAll = (): void => {
@@ -86,7 +96,14 @@ export function AIFileProcessor() {
       return;
     }
 
-    await retryFile(index, instructionToUse, selectedProvider, selectedModel, apiKey);
+    await retryFile(
+      index,
+      instructionToUse,
+      selectedProvider,
+      selectedModel,
+      apiKey,
+      processingProfile,
+    );
   };
 
   const handleRetryAllFailed = async () => {
@@ -111,10 +128,38 @@ export function AIFileProcessor() {
       return;
     }
 
-    await retryAllFailed(instructionToUse, selectedProvider, selectedModel, apiKey);
+    await retryAllFailed(
+      instructionToUse,
+      selectedProvider,
+      selectedModel,
+      apiKey,
+      processingProfile,
+    );
   };
 
   const canProcess = files.length > 0 && !!apiKey;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(PROCESSING_PROFILE_KEY);
+      setProcessingProfile(stored === 'book' ? 'book' : 'transcript');
+    } catch (error) {
+      console.error('Error loading processing profile:', error);
+      setProcessingProfile('transcript');
+    } finally {
+      setIsProfileLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isProfileLoaded || typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(PROCESSING_PROFILE_KEY, processingProfile);
+    } catch (error) {
+      console.error('Error saving processing profile:', error);
+    }
+  }, [processingProfile, isProfileLoaded]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -159,6 +204,8 @@ export function AIFileProcessor() {
                 isProcessing={isProcessing}
                 canProcess={canProcess}
                 fileCount={files.length}
+                processingProfile={processingProfile}
+                onProcessingProfileChange={setProcessingProfile}
               />
             </div>
           </ErrorBoundary>
@@ -167,6 +214,7 @@ export function AIFileProcessor() {
             <div className="lg:col-span-3">
               <MultiFileResponseDisplay
                 fileResults={fileResults}
+                processingProfile={processingProfile}
                 onRetryFile={handleRetryFile}
                 onRetryAllFailed={handleRetryAllFailed}
                 onAbortAll={abortAll}

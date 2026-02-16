@@ -4,17 +4,19 @@ import { processFileWithAI } from '../services/aiService';
 import { makeFileKey, responseStore } from '../services/responseStore';
 import { scheduleIdleWork } from '../utils/performance';
 
+export type ProcessingProfile = 'transcript' | 'book';
+
 export interface FileResult {
   file: File;
   response: string;
   isProcessing: boolean;
   isCompleted: boolean;
+  processingProfile?: ProcessingProfile;
   error?: string;
   // New queue status for Phase 1
   queueStatus?: 'pending' | 'processing' | 'completed' | 'failed';
   // Retry tracking for Phase 1
   retryCount?: number;
-  lowConfidenceRetryCount?: number;
   // Store previous confidence score for retries
   previousConfidence?: {
     score: number;
@@ -154,6 +156,7 @@ export const useAIProcessor = () => {
     provider: AIProvider,
     model: string,
     apiKey: string,
+    profile: ProcessingProfile = 'transcript',
   ): Promise<void> => {
     if (!files.length || !instruction.trim()) {
       alert('Please select files and provide instructions');
@@ -167,6 +170,7 @@ export const useAIProcessor = () => {
       response: '',
       isProcessing: false,
       isCompleted: false,
+      processingProfile: profile,
       queueStatus: 'pending',
     }));
     setFileResults(initialResults);
@@ -178,7 +182,7 @@ export const useAIProcessor = () => {
     const processingMode: 'single' | 'batch' = files.length === 1 ? 'single' : 'batch';
 
     // Start processing
-    await processQueue(instruction, provider, model, apiKey, processingMode);
+    await processQueue(instruction, provider, model, apiKey, processingMode, profile);
   };
 
   const retryFile = async (
@@ -187,6 +191,7 @@ export const useAIProcessor = () => {
     provider: AIProvider,
     model: string,
     apiKey: string,
+    profile: ProcessingProfile = 'transcript',
   ): Promise<void> => {
     if (fileIndex < 0 || fileIndex >= fileResults.length) return;
 
@@ -220,7 +225,7 @@ export const useAIProcessor = () => {
     // Show processing state immediately when retrying
     setIsProcessing(true);
     addToQueue([fileToRetry.file], fileIndex);
-    await processQueue(instruction, provider, model, apiKey, 'single');
+    await processQueue(instruction, provider, model, apiKey, 'single', profile);
   };
 
   const retryAllFailed = async (
@@ -228,6 +233,7 @@ export const useAIProcessor = () => {
     provider: AIProvider,
     model: string,
     apiKey: string,
+    profile: ProcessingProfile = 'transcript',
   ): Promise<void> => {
     // First, identify failed files from current state
     const failedIndices = fileResults
@@ -262,6 +268,7 @@ export const useAIProcessor = () => {
       model,
       apiKey,
       failedFiles.length === 1 ? 'single' : 'batch',
+      profile,
     );
   };
 
@@ -308,6 +315,7 @@ export const useAIProcessor = () => {
     model: string,
     apiKey: string,
     mode: 'single' | 'batch',
+    profile: ProcessingProfile = 'transcript',
   ): Promise<void> => {
     if (processingRef.current) return;
     processingRef.current = true;
@@ -387,14 +395,12 @@ export const useAIProcessor = () => {
             finalResponse = responseBuffer;
           }
 
-          // Check confidence for successful responses (only for batch processing)
-          if (mode === 'batch') {
+          if (mode === 'batch' && profile === 'transcript') {
             const { getConfidenceScore } = await import('../utils/confidenceScore');
             const originalContent = await file.text();
             const confidenceResult = getConfidenceScore(originalContent, finalResponse);
             const { level, score } = confidenceResult;
 
-            // If low confidence and we haven't exceeded retry limit, re-queue
             if (level === 'low' && lowConfidenceRetryCount < 3) {
               console.log(
                 `Low confidence for file ${file.name}, retrying... (${lowConfidenceRetryCount + 1}/3)`,
@@ -411,31 +417,29 @@ export const useAIProcessor = () => {
                           score,
                           level,
                         },
-                        isRetryingDueToError: false, // Clear error retry flag since this is confidence-based retry
-                        retryCount: (result.retryCount || 0) + 1, // Update retry count for display
+                        isRetryingDueToError: false,
+                        retryCount: (result.retryCount || 0) + 1,
                       }
                     : result,
                 ),
               );
 
-              // Clear the response from the store since we're done with it
               if (!streamToUI) {
                 responseStore.clearResponse(key);
               }
 
-              // Add exponential backoff delay before re-queuing
               const backoffDelay = Math.pow(2, lowConfidenceRetryCount) * 1000;
               setTimeout(() => {
                 addToQueue([file], index, retryCount, lowConfidenceRetryCount + 1);
-                // Restart processing if it's not already running
                 if (!processingRef.current) {
-                  void processQueue(instruction, provider, model, apiKey, mode);
+                  void processQueue(instruction, provider, model, apiKey, mode, profile);
                 }
               }, backoffDelay);
-              return; // Don't mark as completed yet
+              return;
             }
+          }
 
-            // If we get here, the confidence was high enough or we've exceeded retry limit
+          if (mode === 'batch') {
             // Clear the response from the store since we're done with it
             if (!streamToUI) {
               responseStore.clearResponse(key);
@@ -456,6 +460,7 @@ export const useAIProcessor = () => {
                     ...result,
                     isProcessing: false,
                     isCompleted: true,
+                    processingProfile: profile,
                     queueStatus: 'completed',
                     previousConfidence: undefined, // Clear previous confidence when processing succeeds
                     isRetryingDueToError: undefined, // Clear retry flags when processing succeeds
@@ -536,7 +541,7 @@ export const useAIProcessor = () => {
               addToQueue([file], index, retryCount + 1, lowConfidenceRetryCount);
               // Restart processing if it's not already running
               if (!processingRef.current) {
-                void processQueue(instruction, provider, model, apiKey, mode);
+                void processQueue(instruction, provider, model, apiKey, mode, profile);
               }
             }, backoffDelay);
           } else {

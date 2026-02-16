@@ -12,7 +12,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Toggle } from '@/components/ui/toggle';
-import { FileResult } from '@/hooks/useAIProcessor';
+import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
 import { copyToClipboard, downloadAsMarkdown } from '@/utils/fileUtils';
 import { generateVerificationSnippet } from '@/utils/verificationSnippet';
 import { Copy, Download, Loader2, RotateCcw, UploadCloud, X } from 'lucide-react';
@@ -31,6 +31,7 @@ interface ViewResponseModalProps {
   canUpload?: boolean;
   uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
   destinationFolderName?: string | null;
+  processingProfile: ProcessingProfile;
 }
 
 export function ViewResponseModal({
@@ -43,6 +44,7 @@ export function ViewResponseModal({
   canUpload = true,
   uploadStatus,
   destinationFolderName,
+  processingProfile,
 }: ViewResponseModalProps) {
   const [showMarkdown, setShowMarkdown] = useState(true);
   const [originalText, setOriginalText] = useState<string>('');
@@ -53,7 +55,7 @@ export function ViewResponseModal({
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      if (!open || !result?.file) return;
+      if (!open || !result?.file || processingProfile === 'book') return;
       try {
         const text = await result.file.text();
         if (!cancelled) setOriginalText(text);
@@ -65,7 +67,7 @@ export function ViewResponseModal({
     return () => {
       cancelled = true;
     };
-  }, [open, result?.file]);
+  }, [open, result?.file, processingProfile]);
 
   // Auto-scroll to bottom on open
   useEffect(() => {
@@ -79,9 +81,10 @@ export function ViewResponseModal({
   }, [open, result?.response]);
 
   const verification = useMemo(() => {
+    if (processingProfile === 'book') return null;
     if (!originalText || !result?.response) return null;
     return generateVerificationSnippet(originalText, result.response);
-  }, [originalText, result?.response]);
+  }, [originalText, result?.response, processingProfile]);
 
   const prettyTitle = useMemo(() => {
     const raw = displayName || result?.file?.name || 'Response';
@@ -143,61 +146,63 @@ export function ViewResponseModal({
           </div>
         </DialogHeader>
         <div className="min-w-0 px-4 pb-[env(safe-area-inset-bottom)] sm:px-6 sm:pb-8">
-          {/* Verification snippet */}
-          <div className="min-w-0 rounded-md border bg-muted/30 p-3 sm:p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-xs font-medium text-foreground sm:text-sm">
-                Verification Snippet
-              </div>
-              {verification ? (
-                <div className="text-[11px] text-muted-foreground sm:text-xs">
-                  Similarity: {Math.round(verification.similarity * 100)}%
-                </div>
-              ) : null}
-            </div>
-            {verification ? (
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="min-w-0 rounded-md bg-background p-2">
-                  <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground sm:text-xs">
-                    <span>Original (tail)</span>
-                    <button
-                      className="rounded px-1.5 py-0.5 text-[10px] text-foreground/70 hover:bg-muted"
-                      onClick={() => copyToClipboard(verification.originalSnippet)}
-                    >
-                      Copy
-                    </button>
+          {processingProfile === 'transcript' && (
+            <>
+              <div className="min-w-0 rounded-md border bg-muted/30 p-3 sm:p-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="text-xs font-medium text-foreground sm:text-sm">
+                    Verification Snippet
                   </div>
-                  <ScrollArea className="h-28 sm:h-36">
-                    <pre className="text-xs break-words whitespace-pre-wrap text-foreground sm:text-sm">
-                      {verification.originalSnippet}
-                    </pre>
-                  </ScrollArea>
+                  {verification ? (
+                    <div className="text-[11px] text-muted-foreground sm:text-xs">
+                      Similarity: {Math.round(verification.similarity * 100)}%
+                    </div>
+                  ) : null}
                 </div>
-                <div className="min-w-0 rounded-md bg-background p-2">
-                  <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground sm:text-xs">
-                    <span>Processed (tail)</span>
-                    <button
-                      className="rounded px-1.5 py-0.5 text-[10px] text-foreground/70 hover:bg-muted"
-                      onClick={() => copyToClipboard(verification.processedSnippet)}
-                    >
-                      Copy
-                    </button>
+                {verification ? (
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="min-w-0 rounded-md bg-background p-2">
+                      <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground sm:text-xs">
+                        <span>Original (tail)</span>
+                        <button
+                          className="rounded px-1.5 py-0.5 text-[10px] text-foreground/70 hover:bg-muted"
+                          onClick={() => copyToClipboard(verification.originalSnippet)}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <ScrollArea className="h-28 sm:h-36">
+                        <pre className="text-xs break-words whitespace-pre-wrap text-foreground sm:text-sm">
+                          {verification.originalSnippet}
+                        </pre>
+                      </ScrollArea>
+                    </div>
+                    <div className="min-w-0 rounded-md bg-background p-2">
+                      <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground sm:text-xs">
+                        <span>Processed (tail)</span>
+                        <button
+                          className="rounded px-1.5 py-0.5 text-[10px] text-foreground/70 hover:bg-muted"
+                          onClick={() => copyToClipboard(verification.processedSnippet)}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <ScrollArea className="h-28 sm:h-36">
+                        <pre className="text-xs break-words whitespace-pre-wrap text-foreground sm:text-sm">
+                          {verification.processedSnippet}
+                        </pre>
+                      </ScrollArea>
+                    </div>
                   </div>
-                  <ScrollArea className="h-28 sm:h-36">
-                    <pre className="text-xs break-words whitespace-pre-wrap text-foreground sm:text-sm">
-                      {verification.processedSnippet}
-                    </pre>
-                  </ScrollArea>
-                </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing verification…
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing verification…
-              </div>
-            )}
-          </div>
-
-          <Separator className="my-3" />
+              <Separator className="my-3" />
+            </>
+          )}
 
           {/* Actions */}
           <div className="mb-2 flex min-w-0 flex-col-reverse items-stretch justify-between gap-2 sm:flex-row sm:items-center">

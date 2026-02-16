@@ -13,11 +13,12 @@ import { getConfidenceScore } from '@/utils/confidenceScore';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { FileResult } from '../hooks/useAIProcessor';
+import { FileResult, ProcessingProfile } from '../hooks/useAIProcessor';
 import { downloadAsMarkdown } from '../utils/fileUtils';
 
 interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
+  processingProfile: ProcessingProfile;
   onRetryFile?: (index: number) => void;
   onRetryAllFailed?: () => void;
   onAbortFile?: (index: number) => void;
@@ -54,6 +55,7 @@ interface MultiFileResponseDisplayProps {
 
 export const MultiFileResponseDisplay = ({
   fileResults,
+  processingProfile,
   onRetryFile,
   onRetryAllFailed,
   onAbortFile,
@@ -100,7 +102,9 @@ export const MultiFileResponseDisplay = ({
       const indices: number[] = [];
       await Promise.all(
         fileResults.map(async (r, i) => {
-          if (!r || !r.isCompleted || !!r.error || !r.response) return;
+          if (!r || !r.isCompleted || !!r.error || !r.response || r.processingProfile === 'book') {
+            return;
+          }
           try {
             const original = await r.file.text();
             if (cancelled) return;
@@ -186,6 +190,7 @@ export const MultiFileResponseDisplay = ({
       return count;
     }, 0);
   }, [selected, fileResults, uploadStatuses, lowConfidenceSet]);
+  const viewedResult = viewIndex != null ? (fileResults[viewIndex] ?? null) : null;
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -606,6 +611,7 @@ export const MultiFileResponseDisplay = ({
             <>
               {orderedIndices.map((orderedIndex) => {
                 const result = fileResults[orderedIndex]!;
+                const resultProfile = result.processingProfile ?? processingProfile;
                 return (
                   <UnifiedFileCard
                     key={`${result.file.name}-${orderedIndex}`}
@@ -640,6 +646,7 @@ export const MultiFileResponseDisplay = ({
                       setViewIndex(orderedIndex);
                       setIsViewOpen(true);
                     }}
+                    processingProfile={resultProfile}
                   />
                 );
               })}
@@ -650,7 +657,7 @@ export const MultiFileResponseDisplay = ({
                   setIsViewOpen(open);
                   if (!open) setViewIndex(null);
                 }}
-                result={viewIndex != null ? (fileResults[viewIndex] ?? null) : null}
+                result={viewedResult}
                 displayName={
                   viewIndex != null
                     ? displayNames[viewIndex] || fileResults[viewIndex]?.file.name
@@ -675,6 +682,7 @@ export const MultiFileResponseDisplay = ({
                     ? (assignedFolders[viewIndex]?.name ?? selectedFolderName ?? undefined)
                     : undefined
                 }
+                processingProfile={viewedResult?.processingProfile ?? processingProfile}
               />
             </>
           )}

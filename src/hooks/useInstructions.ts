@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Phase 5.1: Default transcript processing prompt
-const DEFAULT_TRANSCRIPT_PROMPT = `Edit the source, correcting all typographical, grammatical, and spelling errors while maintaining the original style and emphasis.
+export const DEFAULT_TRANSCRIPT_PROMPT = `Edit the source, correcting all typographical, grammatical, and spelling errors while maintaining the original style and emphasis.
 
 Ensure all biblical references:
 - Use exact KJV wording.
@@ -31,6 +31,24 @@ Format the text with:
 - Smart quotes
 
 Don't add any text before or after the source text in your response.`;
+
+export const DEFAULT_BOOK_PROMPT = `Edit the source, correcting all typographical, grammatical, and spelling errors while transforming the spoken style into polished written prose suitable for a book.
+
+Convert conversational elements into literary form:
+- Transform spoken delivery into narrative exposition
+- Convert direct addresses ("you see", "listen", "now watch") into reflective statements
+- Reframe rhetorical questions as declarative insights where appropriate
+- Adapt call-and-response elements into emphatic statements
+- Maintain all teaching content while removing verbal artifacts of oral delivery
+
+Ensure all biblical references:
+- Use exact KJV wording
+- Are explicitly quoted in full including those referenced in passive
+- Formatted in isolation with verse numbers, with the referere that flows naturally for reading
+- Clear scripture demarcation
+- Smart quotes
+
+The result should read as a cohesive written work that retains every substantive point from the original while adopting the tone and flow of authored text rather than transcribed speech.`;
 
 const STORAGE_KEYS = {
   CUSTOM_INSTRUCTIONS: 'customInstructions',
