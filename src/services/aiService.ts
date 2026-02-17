@@ -2,6 +2,7 @@
 // Uses direct fetch calls to provider APIs with streaming
 
 import { AIProvider, getProvider } from '../config/providerConfig';
+import { extractTextFromFile } from '../utils/fileUtils';
 
 export interface ProcessOptions {
   signal?: AbortSignal;
@@ -20,7 +21,7 @@ export const processFileWithAI = async (
   onChunk: (chunk: string) => void,
   options?: ProcessOptions,
 ): Promise<void> => {
-  const fileContent = await file.text();
+  const fileContent = await extractTextFromFile(file);
   const prompt = `${instruction}\n\nFile content:\n${fileContent}`;
 
   if (provider === 'gemini') {

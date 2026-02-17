@@ -16,7 +16,7 @@ export interface BulkRenameRules {
   replacement: string;
   useRegex: boolean;
   replacePlusWithSpace: boolean;
-  removeTxtExtension: boolean;
+  removeInputExtension: boolean;
   formatTrackTitles: boolean;
 }
 
@@ -52,8 +52,8 @@ function applyRulesToName(name: string, rules: BulkRenameRules): string {
     }
   }
 
-  if (rules.removeTxtExtension) {
-    next = next.replace(/\.txt$/i, '');
+  if (rules.removeInputExtension) {
+    next = next.replace(/\.(txt|docx)$/i, '');
   }
 
   if (rules.formatTrackTitles) {
@@ -73,7 +73,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
   const [replacement, setReplacement] = useState<string>('');
   const [useRegex, setUseRegex] = useState<boolean>(true);
   const [replacePlusWithSpace, setReplacePlusWithSpace] = useState<boolean>(true);
-  const [removeTxtExtension, setRemoveTxtExtension] = useState<boolean>(true);
+  const [removeInputExtension, setRemoveInputExtension] = useState<boolean>(true);
   const [formatTrackTitles, setFormatTrackTitles] = useState<boolean>(true);
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
       setReplacement('');
       setUseRegex(true);
       setReplacePlusWithSpace(true);
-      setRemoveTxtExtension(true);
+      setRemoveInputExtension(true);
       setFormatTrackTitles(true);
     }
   }, [open]);
@@ -93,7 +93,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
     replacement,
     useRegex,
     replacePlusWithSpace,
-    removeTxtExtension,
+    removeInputExtension,
     formatTrackTitles,
   };
 
@@ -109,7 +109,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
     rules.replacement,
     rules.useRegex,
     rules.replacePlusWithSpace,
-    rules.removeTxtExtension,
+    rules.removeInputExtension,
     rules.formatTrackTitles,
   ]);
 
@@ -176,10 +176,10 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-primary"
-                    checked={removeTxtExtension}
-                    onChange={(e) => setRemoveTxtExtension(e.target.checked)}
+                    checked={removeInputExtension}
+                    onChange={(e) => setRemoveInputExtension(e.target.checked)}
                   />
-                  Remove .txt extension
+                  Remove .txt/.docx extension
                 </label>
                 <label className="inline-flex items-center gap-2 text-xs">
                   <input

@@ -1,10 +1,10 @@
 # Gemini File Processor
 
-A modern React application that processes large batches of .txt files using Google's Gemini AI with a queued, throttled workflow, and integrated Google Drive upload functionality.
+A modern React application that processes large batches of `.txt` and `.docx` files using Google's Gemini AI with a queued, throttled workflow, and integrated Google Drive upload functionality.
 
 ## Features
 
-- **Queue-Based Processing**: Upload any number of .txt files; processing runs in queued batches of 10 every 90 seconds
+- **Queue-Based Processing**: Upload any number of `.txt` or `.docx` files; processing runs in queued batches of 10 every 90 seconds
 - **Real-time Streaming**: See AI responses stream in real-time as they're generated
 - **Google Drive Integration**: Save processed content directly to Google Drive as formatted Google Docs
 - **API Quota Monitoring**: Real-time visual tracking of Gemini API usage with model-specific limits
@@ -71,7 +71,7 @@ A modern React application that processes large batches of .txt files using Goog
 
 ### Basic File Processing
 
-1. **Upload Files**: Select any number of .txt files (only .txt is supported)
+1. **Upload or Paste**: Select `.txt`/`.docx` files or paste text to create a `.txt` input
 2. **Add Instructions**: Enter custom instructions for how you want the AI to process your files
 3. **Process**: Click "Process Files" to start queued processing (batches of 10 every 90 seconds)
 4. **View Results**: Watch as responses stream in real-time for each file

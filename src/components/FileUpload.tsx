@@ -2,9 +2,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { isSupportedInputFile } from '@/utils/fileUtils';
 import { AlertTriangle, CheckCircle, Upload, X } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 interface FileUploadProps {
@@ -14,6 +18,9 @@ interface FileUploadProps {
 }
 
 export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadProps) => {
+  const [pastedName, setPastedName] = useState<string>('');
+  const [pastedText, setPastedText] = useState<string>('');
+
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.currentTarget.style.borderColor = 'hsl(var(--primary))';
@@ -37,19 +44,19 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
 
   const MAX_FILES = 20; // Limit to 20 files due to daily API quota
 
-  const addFiles = (newFiles: File[]): void => {
-    const textFiles = newFiles.filter((file) => file.type === 'text/plain');
+  const addFiles = (newFiles: File[]): boolean => {
+    const supportedFiles = newFiles.filter((file) => isSupportedInputFile(file));
 
-    if (textFiles.length !== newFiles.length) {
+    if (supportedFiles.length !== newFiles.length) {
       toast.error('Invalid file type', {
-        description: 'Please upload only text files (.txt)',
+        description: 'Please upload only .txt or .docx files',
       });
-      return;
+      return false;
     }
 
     // Check for duplicates (same name and size)
     const duplicates: string[] = [];
-    const uniqueFiles = textFiles.filter((newFile) => {
+    const uniqueFiles = supportedFiles.filter((newFile) => {
       const isDuplicate = files.some(
         (existingFile) => existingFile.name === newFile.name && existingFile.size === newFile.size,
       );
@@ -66,7 +73,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
     }
 
     if (uniqueFiles.length === 0) {
-      return;
+      return false;
     }
 
     // Check if adding these files would exceed the maximum limit
@@ -77,7 +84,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
         toast.error('Maximum file limit reached', {
           description: `You can only upload up to ${MAX_FILES} files at once due to daily API quota limits.`,
         });
-        return;
+        return false;
       }
       // Only add files up to the limit
       const filesToAdd = uniqueFiles.slice(0, allowedCount);
@@ -85,13 +92,14 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       toast.warning(`Only ${allowedCount} file${allowedCount > 1 ? 's' : ''} added`, {
         description: `Maximum limit of ${MAX_FILES} files reached. ${uniqueFiles.length - allowedCount} file(s) were not added.`,
       });
-      return;
+      return filesToAdd.length > 0;
     }
 
     onFilesChange([...files, ...uniqueFiles]);
     toast.success(
       `${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`,
     );
+    return true;
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -106,11 +114,33 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
     onFilesChange(newFiles);
   };
 
+  const toPastedFileName = (): string => {
+    const raw = pastedName.trim();
+    const baseName = raw ? raw.replace(/\.[^.]+$/, '') : `pasted-text-${Date.now()}`;
+    return `${baseName || `pasted-text-${Date.now()}`}.txt`;
+  };
+
+  const handleAddPastedText = (): void => {
+    const content = pastedText.trim();
+    if (!content) {
+      toast.error('Paste text first', {
+        description: 'Add some text before creating a file.',
+      });
+      return;
+    }
+
+    const file = new File([pastedText], toPastedFileName(), { type: 'text/plain' });
+    const added = addFiles([file]);
+    if (added) {
+      setPastedText('');
+    }
+  };
+
   return (
     <Card className="w-full max-w-full overflow-hidden">
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle>Upload Text Files</CardTitle>
+          <CardTitle>Upload or Paste Files</CardTitle>
           <Badge variant={files.length > 0 ? 'secondary' : 'outline'}>
             {files.length} file{files.length === 1 ? '' : 's'} selected
           </Badge>
@@ -190,7 +220,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
             <div className="space-y-2">
               <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground sm:mb-4 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
               <p className="text-sm font-medium text-foreground sm:text-base lg:text-lg">
-                Drag & drop your text files here
+                Drag & drop your .txt or .docx files here
               </p>
               <p className="text-sm text-muted-foreground">or</p>
             </div>
@@ -199,7 +229,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
           <input
             type="file"
             onChange={handleFileSelect}
-            accept=".txt"
+            accept=".txt,.docx"
             multiple
             className="hidden"
             id="file-input"
@@ -225,6 +255,25 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
                 Clear Files
               </Button>
             )}
+          </div>
+
+          <div className="mt-4 space-y-3 rounded-md border bg-background p-3 text-left sm:mt-6">
+            <p className="text-sm font-medium">Or paste text</p>
+            <Input
+              value={pastedName}
+              onChange={(e) => setPastedName(e.target.value)}
+              placeholder="Optional filename (without extension)"
+              className="text-sm"
+            />
+            <Textarea
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              placeholder="Paste text content here..."
+              className="min-h-28 text-sm"
+            />
+            <Button onClick={handleAddPastedText} size="sm" className="w-full sm:w-auto">
+              Add Pasted Text
+            </Button>
           </div>
         </div>
       </CardContent>

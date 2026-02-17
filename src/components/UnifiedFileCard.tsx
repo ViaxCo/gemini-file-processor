@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
 import { confidenceColorClass, getConfidenceScore } from '@/utils/confidenceScore';
-import { copyToClipboard, downloadAsMarkdown } from '@/utils/fileUtils';
+import { copyToClipboard, downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
 import {
   AlertCircle,
   CheckCircle,
@@ -41,6 +41,7 @@ export interface UnifiedFileCardProps {
   destinationFolderName?: string | null;
   canUpload?: boolean;
   processingProfile: ProcessingProfile;
+  downloadFormat?: 'markdown' | 'docx';
 }
 
 export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
@@ -60,6 +61,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     destinationFolderName,
     canUpload = true,
     processingProfile,
+    downloadFormat = 'markdown',
   } = props;
 
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
@@ -93,7 +95,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
         return;
       }
       try {
-        const original = await result.file.text();
+        const original = await extractTextFromFile(result.file);
         if (cancelled) return;
         const { score, level } = getConfidenceScore(original, result.response);
         setConfidence({ score, level });
@@ -116,7 +118,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
         return;
       }
       try {
-        const original = await result.file.text();
+        const original = await extractTextFromFile(result.file);
         if (cancelled) return;
         if (!original.length) {
           setLengthRatio(null);
@@ -149,7 +151,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
 
   const handleDownload = () => {
     const base = displayName.replace(/\.[^.]+$/, '') || result.file.name.replace(/\.[^.]+$/, '');
-    downloadAsMarkdown(result.response, `${base}_processed.md`);
+    downloadProcessedFile(result.response, `${base}_processed`, downloadFormat);
     toast.success('File downloaded');
   };
 
@@ -350,7 +352,9 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                         <Download className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Download as markdown file</TooltipContent>
+                    <TooltipContent>
+                      Download as {downloadFormat === 'docx' ? 'Word (.docx)' : 'Markdown (.md)'}
+                    </TooltipContent>
                   </Tooltip>
                   {onRetry && (result.isCompleted || result.error) && (
                     <Tooltip>

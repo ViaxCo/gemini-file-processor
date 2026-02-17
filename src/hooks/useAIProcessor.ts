@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AIProvider, getModel } from '../config/providerConfig';
 import { processFileWithAI } from '../services/aiService';
 import { makeFileKey, responseStore } from '../services/responseStore';
+import { extractTextFromFile } from '../utils/fileUtils';
 import { scheduleIdleWork } from '../utils/performance';
 
 export type ProcessingProfile = 'transcript' | 'book';
@@ -397,7 +398,7 @@ export const useAIProcessor = () => {
 
           if (mode === 'batch' && profile === 'transcript') {
             const { getConfidenceScore } = await import('../utils/confidenceScore');
-            const originalContent = await file.text();
+            const originalContent = await extractTextFromFile(file);
             const confidenceResult = getConfidenceScore(originalContent, finalResponse);
             const { level, score } = confidenceResult;
 

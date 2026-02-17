@@ -171,8 +171,8 @@ export function AIFileProcessor() {
                 AI File Processor
               </h1>
               <p className="text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-                Upload up to 20 .txt files at once. Select your AI provider and model to process
-                files.
+                Upload up to 20 `.txt` or `.docx` files at once. Select your AI provider and model
+                to process files.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

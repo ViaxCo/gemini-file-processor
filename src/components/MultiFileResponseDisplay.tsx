@@ -5,16 +5,23 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UnifiedFileCard } from '@/components/UnifiedFileCard';
 import { ViewResponseModal } from '@/components/ViewResponseModal';
 import { BulkRenameModal } from '@/components/BulkRenameModal';
 import { getConfidenceScore } from '@/utils/confidenceScore';
+import { downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { FileResult, ProcessingProfile } from '../hooks/useAIProcessor';
-import { downloadAsMarkdown } from '../utils/fileUtils';
 
 interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
@@ -83,6 +90,7 @@ export const MultiFileResponseDisplay = ({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [displayNames, setDisplayNames] = useState<Record<number, string>>({});
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
+  const [downloadFormat, setDownloadFormat] = useState<'markdown' | 'docx'>('markdown');
   const [isUploadingAll, setIsUploadingAll] = useState<boolean>(false);
   const [isUploadingSelected, setIsUploadingSelected] = useState<boolean>(false);
   const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
@@ -106,7 +114,7 @@ export const MultiFileResponseDisplay = ({
             return;
           }
           try {
-            const original = await r.file.text();
+            const original = await extractTextFromFile(r.file);
             if (cancelled) return;
             const { level } = getConfidenceScore(original, r.response);
             if (level === 'low') indices.push(i);
@@ -200,6 +208,12 @@ export const MultiFileResponseDisplay = ({
     }
   };
 
+  const handleDownloadFormatChange = (value: string) => {
+    if (value === 'markdown' || value === 'docx') {
+      setDownloadFormat(value);
+    }
+  };
+
   const handleRetrySelected = () => {
     if (!onRetryFile) return;
     const count = selected.size;
@@ -212,17 +226,25 @@ export const MultiFileResponseDisplay = ({
   const handleDownloadSelected = () => {
     const indices = [...selected];
     if (indices.length === 0) return;
+
     let count = 0;
-    indices.forEach((i) => {
+    for (const i of indices) {
       const r = fileResults[i];
-      if (r && r.isCompleted && !r.error && r.response) {
-        const name = displayNames[i] || r.file.name.replace(/\.[^.]+$/, '');
-        downloadAsMarkdown(r.response, name);
-        count++;
+      if (!r || !r.isCompleted || r.error || !r.response) {
+        continue;
       }
-    });
+
+      const name = displayNames[i] || r.file.name.replace(/\.[^.]+$/, '');
+      downloadProcessedFile(r.response, name, downloadFormat);
+      count++;
+    }
+
     if (count > 0) {
-      toast.success(`Downloaded ${count} file${count > 1 ? 's' : ''}`);
+      toast.success(
+        `Downloaded ${count} file${count > 1 ? 's' : ''} as ${
+          downloadFormat === 'docx' ? '.docx' : '.md'
+        }`,
+      );
     }
   };
 
@@ -230,11 +252,17 @@ export const MultiFileResponseDisplay = ({
     if (completedResults.length === 0) return;
 
     completedResults.forEach((result) => {
-      downloadAsMarkdown(result.response, result.file.name.replace('.txt', ''));
+      downloadProcessedFile(
+        result.response,
+        result.file.name.replace(/\.[^.]+$/, ''),
+        downloadFormat,
+      );
     });
 
     toast.success(
-      `Downloaded ${completedResults.length} file${completedResults.length > 1 ? 's' : ''} successfully`,
+      `Downloaded ${completedResults.length} file${completedResults.length > 1 ? 's' : ''} as ${
+        downloadFormat === 'docx' ? '.docx' : '.md'
+      }`,
     );
     setDownloadAllFeedback('Downloaded all files!');
     setTimeout(() => setDownloadAllFeedback(''), 3000);
@@ -410,6 +438,15 @@ export const MultiFileResponseDisplay = ({
       <CardHeader className="flex flex-row flex-wrap items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg sm:text-xl">AI Responses</CardTitle>
         <div className="flex items-center gap-3">
+          <Select value={downloadFormat} onValueChange={handleDownloadFormatChange}>
+            <SelectTrigger className="w-[146px]" size="sm">
+              <SelectValue placeholder="Download format" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="markdown">Markdown (.md)</SelectItem>
+              <SelectItem value="docx">Word (.docx)</SelectItem>
+            </SelectContent>
+          </Select>
           {allCompleted && completedResults.length > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -429,7 +466,9 @@ export const MultiFileResponseDisplay = ({
                   </span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Download all completed files as markdown</TooltipContent>
+              <TooltipContent>
+                Download all completed files as {downloadFormat === 'docx' ? 'Word' : 'markdown'}
+              </TooltipContent>
             </Tooltip>
           )}
           {uploadToGoogleDocs && uploadEligible.length > 0 && (
@@ -647,6 +686,7 @@ export const MultiFileResponseDisplay = ({
                       setIsViewOpen(true);
                     }}
                     processingProfile={resultProfile}
+                    downloadFormat={downloadFormat}
                   />
                 );
               })}
@@ -683,6 +723,8 @@ export const MultiFileResponseDisplay = ({
                     : undefined
                 }
                 processingProfile={viewedResult?.processingProfile ?? processingProfile}
+                downloadFormat={downloadFormat}
+                onDownloadFormatChange={handleDownloadFormatChange}
               />
             </>
           )}

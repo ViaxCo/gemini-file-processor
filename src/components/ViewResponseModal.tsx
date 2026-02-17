@@ -10,10 +10,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Toggle } from '@/components/ui/toggle';
 import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
-import { copyToClipboard, downloadAsMarkdown } from '@/utils/fileUtils';
+import { copyToClipboard, downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
 import { generateVerificationSnippet } from '@/utils/verificationSnippet';
 import { Copy, Download, Loader2, RotateCcw, UploadCloud, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -32,6 +39,8 @@ interface ViewResponseModalProps {
   uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
   destinationFolderName?: string | null;
   processingProfile: ProcessingProfile;
+  downloadFormat: 'markdown' | 'docx';
+  onDownloadFormatChange: (format: string) => void;
 }
 
 export function ViewResponseModal({
@@ -45,6 +54,8 @@ export function ViewResponseModal({
   uploadStatus,
   destinationFolderName,
   processingProfile,
+  downloadFormat,
+  onDownloadFormatChange,
 }: ViewResponseModalProps) {
   const [showMarkdown, setShowMarkdown] = useState(true);
   const [originalText, setOriginalText] = useState<string>('');
@@ -57,7 +68,7 @@ export function ViewResponseModal({
     const load = async () => {
       if (!open || !result?.file || processingProfile === 'book') return;
       try {
-        const text = await result.file.text();
+        const text = await extractTextFromFile(result.file);
         if (!cancelled) setOriginalText(text);
       } catch {
         if (!cancelled) setOriginalText('');
@@ -108,7 +119,7 @@ export function ViewResponseModal({
     const base =
       (displayName || result.file.name).replace(/\.[^.]+$/, '') ||
       result.file.name.replace(/\.[^.]+$/, '');
-    downloadAsMarkdown(result.response, `${base}_processed.md`);
+    downloadProcessedFile(result.response, `${base}_processed`, downloadFormat);
     toast.success('File downloaded');
   };
 
@@ -225,6 +236,15 @@ export function ViewResponseModal({
               >
                 <Download className="mr-1 h-3.5 w-3.5" /> Download
               </Button>
+              <Select value={downloadFormat} onValueChange={onDownloadFormatChange}>
+                <SelectTrigger className="h-8 w-[148px]" size="sm">
+                  <SelectValue placeholder="Download format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="markdown">Markdown (.md)</SelectItem>
+                  <SelectItem value="docx">Word (.docx)</SelectItem>
+                </SelectContent>
+              </Select>
               {onRetry && (result?.isCompleted || !!result?.error) && (
                 <Button
                   variant="outline"

@@ -1,5 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toggle } from '@/components/ui/toggle';
 import {
@@ -14,7 +21,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Streamdown } from 'streamdown';
-import { copyToClipboard, downloadAsMarkdown } from '../utils/fileUtils';
+import { copyToClipboard, downloadProcessedFile } from '../utils/fileUtils';
 import { AssignFolderModal } from '@/components/AssignFolderModal';
 
 interface ResponseDisplayProps {
@@ -72,6 +79,7 @@ export const ResponseDisplay = ({
 }: ResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [copyFeedback, setCopyFeedback] = useState<string>('');
+  const [downloadFormat, setDownloadFormat] = useState<'markdown' | 'docx'>('markdown');
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
   const [lastResponseLength, setLastResponseLength] = useState<number>(0);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
@@ -122,9 +130,15 @@ export const ResponseDisplay = ({
   };
 
   const handleDownloadResponse = (): void => {
-    const fileName = file ? file.name.replace(/\.txt$/, '') : 'response.md';
-    downloadAsMarkdown(response, fileName);
+    const fileName = file ? file.name.replace(/\.[^.]+$/, '') : 'response';
+    downloadProcessedFile(response, fileName, downloadFormat);
     toast.success('File downloaded successfully');
+  };
+
+  const handleDownloadFormatChange = (value: string) => {
+    if (value === 'markdown' || value === 'docx') {
+      setDownloadFormat(value);
+    }
   };
 
   const canUpload = Boolean(
@@ -245,6 +259,15 @@ export const ResponseDisplay = ({
               <Download className="h-4 w-4" />
               Download
             </Button>
+            <Select value={downloadFormat} onValueChange={handleDownloadFormatChange}>
+              <SelectTrigger className="h-8 w-[148px]" size="sm">
+                <SelectValue placeholder="Download format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="markdown">Markdown (.md)</SelectItem>
+                <SelectItem value="docx">Word (.docx)</SelectItem>
+              </SelectContent>
+            </Select>
             {onRetry && (
               <Button
                 onClick={onRetry}

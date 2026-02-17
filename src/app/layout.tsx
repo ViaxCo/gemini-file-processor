@@ -5,7 +5,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Gemini File Processor',
   description:
-    'Upload any number of .txt files. Processing runs in queued batches of 10 every 90 seconds with real-time updates.',
+    'Upload any number of .txt or .docx files. Processing runs in queued batches of 10 every 90 seconds with real-time updates.',
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
