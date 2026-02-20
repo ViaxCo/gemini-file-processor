@@ -23,8 +23,8 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
-    e.currentTarget.style.borderColor = 'hsl(var(--primary))';
-    e.currentTarget.style.backgroundColor = 'hsl(var(--accent) / 0.5)';
+    e.currentTarget.style.borderColor = 'var(--primary)';
+    e.currentTarget.style.backgroundColor = 'var(--accent)';
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
@@ -137,7 +137,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
   };
 
   return (
-    <Card className="w-full max-w-full overflow-hidden">
+    <Card className="w-full max-w-full overflow-hidden border-primary/20">
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>Upload or Paste Files</CardTitle>
@@ -157,10 +157,10 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       </CardHeader>
       <CardContent className="w-full max-w-full overflow-hidden">
         <div
-          className={`w-full max-w-full overflow-hidden rounded-lg border-2 border-dashed p-4 text-center transition-all duration-300 sm:p-6 lg:p-8 ${
+          className={`w-full max-w-full overflow-hidden rounded-2xl border-2 border-dashed p-4 text-center transition-all duration-300 sm:p-6 lg:p-8 ${
             files.length > 0
-              ? 'border-primary bg-primary/10'
-              : 'border-border hover:border-primary hover:bg-accent/50'
+              ? 'border-primary/70 bg-primary/12'
+              : 'border-border/80 bg-background/65 hover:border-primary/70 hover:bg-accent/45'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -186,7 +186,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
                 {files.map((file, index) => (
                   <div
                     key={index}
-                    className="flex w-full min-w-0 items-center justify-between rounded-md border bg-background p-2"
+                    className="flex w-full min-w-0 items-center justify-between rounded-lg border bg-background/90 p-2"
                   >
                     <div className="min-w-0 flex-1 pr-2 text-left">
                       <p
@@ -257,7 +257,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
             )}
           </div>
 
-          <div className="mt-4 space-y-3 rounded-md border bg-background p-3 text-left sm:mt-6">
+          <div className="mt-4 space-y-3 rounded-xl border border-border/80 bg-background/90 p-3 text-left sm:mt-6">
             <p className="text-sm font-medium">Or paste text</p>
             <Input
               value={pastedName}

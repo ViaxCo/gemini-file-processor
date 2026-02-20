@@ -5,15 +5,32 @@ import { FileUpload } from '@/components/FileUpload';
 import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
 import { InstructionsPanel } from '@/components/InstructionsPanel';
 import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay';
-import { ProviderSelector } from '@/components/ProviderSelector';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { Badge } from '@/components/ui/badge';
 import { Toaster } from '@/components/ui/sonner';
 import { useAIProcessor } from '@/hooks/useAIProcessor';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useProviderSelector } from '@/hooks/useProviderSelector';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+
+const ProviderSelector = dynamic(
+  () => import('@/components/ProviderSelector').then((mod) => mod.ProviderSelector),
+  {
+    ssr: false,
+    loading: () => <div className="h-32 rounded-xl border border-border/70 bg-background/40" />,
+  },
+);
+
+const ThemeToggle = dynamic(
+  () => import('@/components/ThemeToggle').then((mod) => mod.ThemeToggle),
+  {
+    ssr: false,
+    loading: () => <div className="h-9 w-9 rounded-md border border-border/70 bg-background/40" />,
+  },
+);
 
 export function AIFileProcessor() {
   const PROCESSING_PROFILE_KEY = 'ai-file-processor-processing-profile';
@@ -138,6 +155,9 @@ export function AIFileProcessor() {
   };
 
   const canProcess = files.length > 0 && !!apiKey;
+  const completedCount = fileResults.filter((result) => result.isCompleted && !result.error).length;
+  const processingCount = fileResults.filter((result) => result.isProcessing).length;
+  const errorCount = fileResults.filter((result) => result.error).length;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -162,20 +182,40 @@ export function AIFileProcessor() {
   }, [processingProfile, isProfileLoaded]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl p-4">
-        <div className="mb-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex-1">
-              <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
-                AI File Processor
-              </h1>
-              <p className="text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-                Upload up to 20 `.txt` or `.docx` files at once. Select your AI provider and model
-                to process files.
-              </p>
+    <div className="min-h-screen">
+      <div className="mx-auto w-full max-w-7xl px-4 pt-5 pb-8 sm:px-6 sm:pt-7 lg:px-8 lg:pt-10">
+        <div className="mb-6 rounded-3xl border border-border/70 bg-card/78 p-4 shadow-xl backdrop-blur-md sm:p-6">
+          <div className="grid gap-5 xl:grid-cols-[1fr_auto]">
+            <div className="space-y-4">
+              <Badge variant="outline" className="w-fit border-primary/40 bg-primary/10">
+                Batch-ready AI workspace
+              </Badge>
+              <div className="space-y-2">
+                <h1 className="text-3xl leading-tight font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                  AI File Processor
+                </h1>
+                <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                  Upload up to 20 `.txt` or `.docx` files. Process in queued batches with live
+                  progress, retries, and optional Google Docs export.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary" className="gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {completedCount} complete
+                </Badge>
+                <Badge variant="outline" className="gap-1.5">
+                  <Loader2 className={`h-3.5 w-3.5 ${processingCount > 0 ? 'animate-spin' : ''}`} />
+                  {processingCount} active
+                </Badge>
+                <Badge variant={errorCount > 0 ? 'destructive' : 'outline'} className="gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {errorCount} errors
+                </Badge>
+                <Badge variant="outline">{files.length}/20 queued</Badge>
+              </div>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-3 rounded-2xl border border-border/70 bg-background/65 p-3 sm:p-4 xl:min-w-[360px]">
               <ProviderSelector
                 selectedProvider={selectedProvider}
                 selectedModel={selectedModel}
@@ -184,19 +224,19 @@ export function AIFileProcessor() {
                 onApiKeyChange={setApiKey}
                 apiKey={apiKey}
               />
-              <div className="flex flex-row flex-wrap items-center gap-3">
-                <div className="w-full sm:w-auto">
-                  <GoogleDriveAuth {...googleDrive} variant="toolbar" />
+              <div className="flex flex-wrap items-center gap-2">
+                <GoogleDriveAuth {...googleDrive} variant="toolbar" />
+                <div className="ml-auto">
+                  <ThemeToggle />
                 </div>
-                <ThemeToggle />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-5">
+        <div className="grid gap-5 lg:grid-cols-5">
           <ErrorBoundary>
-            <div className="space-y-6 lg:col-span-2">
+            <div className="space-y-5 lg:col-span-2">
               <FileUpload files={files} onFilesChange={setFiles} onClearFiles={handleClearFiles} />
               <InstructionsPanel
                 onProcess={handleProcess}

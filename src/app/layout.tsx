@@ -1,6 +1,25 @@
 import type { Metadata } from 'next';
+import { Baloo_2, JetBrains_Mono, Nunito } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
+
+const nunito = Nunito({
+  subsets: ['latin'],
+  variable: '--font-nunito',
+  display: 'swap',
+});
+
+const baloo = Baloo_2({
+  subsets: ['latin'],
+  variable: '--font-baloo',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Gemini File Processor',
@@ -18,7 +37,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${nunito.variable} ${baloo.variable} ${jetbrainsMono.variable} antialiased`}
+    >
       <body>
         <ThemeProvider
           attribute="class"

@@ -414,7 +414,7 @@ export const MultiFileResponseDisplay = ({
 
   if (fileResults.length === 0) {
     return (
-      <Card>
+      <Card className="border-border/70">
         <CardHeader>
           <CardTitle>AI Responses</CardTitle>
         </CardHeader>
@@ -434,7 +434,7 @@ export const MultiFileResponseDisplay = ({
   }
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-border/70">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg sm:text-xl">AI Responses</CardTitle>
         <div className="flex items-center gap-3">
@@ -514,7 +514,7 @@ export const MultiFileResponseDisplay = ({
       </CardHeader>
       <CardContent>
         <div className="max-h-189 space-y-4 overflow-y-auto pr-2 lg:overflow-y-auto">
-          <div className="sticky top-0 z-20 space-y-3 border-b bg-card/95 pt-1 pb-3 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+          <div className="sticky top-0 z-20 space-y-3 border-b border-border/70 bg-card/92 pt-1 pb-3 backdrop-blur-md supports-[backdrop-filter]:bg-card/72">
             <div className="flex flex-col justify-between gap-2 text-sm sm:flex-row sm:items-center">
               <span className="text-muted-foreground">
                 Processing Results ({fileResults.length} file{fileResults.length !== 1 ? 's' : ''})

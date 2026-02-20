@@ -51,7 +51,7 @@ export function GoogleDriveAuth({
 
   if (variant === 'toolbar') {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         {isAuthenticated ? (
           <span className="inline-flex items-center gap-1 text-xs text-primary">
             <Cloud className="h-3.5 w-3.5" />
@@ -64,12 +64,18 @@ export function GoogleDriveAuth({
           </span>
         )}
         {isAuthenticated ? (
-          <Button variant="outline" size="sm" onClick={handleLogout} disabled={isAuthenticating}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2.5"
+            onClick={handleLogout}
+            disabled={isAuthenticating}
+          >
             {isAuthenticating && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
             Disconnect
           </Button>
         ) : (
-          <Button size="sm" onClick={handleAuth} disabled={isAuthenticating}>
+          <Button size="sm" className="h-8 px-2.5" onClick={handleAuth} disabled={isAuthenticating}>
             {isAuthenticating && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
             Connect
           </Button>

@@ -122,11 +122,9 @@ export const ProviderSelector = ({
       : provider?.models.map((m) => ({ id: m.id, name: m.name })) || [];
 
   return (
-    <div className="flex w-full flex-col gap-3">
-      {/* Provider and Model Row */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        {/* Provider Selector */}
-        <div className="flex w-full items-center gap-2 sm:w-auto">
+    <div className="flex w-full min-w-0 flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="min-w-0 space-y-1.5">
           <div className="flex items-center gap-1.5">
             <Brain className="h-3.5 w-3.5 text-muted-foreground sm:h-4 sm:w-4" />
             <span className="text-xs font-medium whitespace-nowrap text-muted-foreground sm:text-sm">
@@ -134,7 +132,7 @@ export const ProviderSelector = ({
             </span>
           </div>
           <Select value={selectedProvider} onValueChange={handleProviderChange}>
-            <SelectTrigger className="w-full min-w-[140px] sm:w-auto" size="sm">
+            <SelectTrigger className="w-full min-w-0" size="sm">
               <SelectValue placeholder="Select provider">{provider?.name}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -147,17 +145,26 @@ export const ProviderSelector = ({
           </Select>
         </div>
 
-        {/* Model Selector */}
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          <span className="text-xs font-medium whitespace-nowrap text-muted-foreground sm:text-sm">
-            Model
-          </span>
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium whitespace-nowrap text-muted-foreground sm:text-sm">
+              Model
+            </span>
+            {fetchedModels.length > 0 && (
+              <span className="text-xs whitespace-nowrap text-muted-foreground">
+                {fetchedModels.length} models
+              </span>
+            )}
+            {modelFetchError && (
+              <span className="text-xs whitespace-nowrap text-destructive">{modelFetchError}</span>
+            )}
+          </div>
           <Select
             value={selectedModel}
             onValueChange={onModelChange}
             disabled={isLoadingModels || displayModels.length === 0}
           >
-            <SelectTrigger className="w-full min-w-[200px] sm:w-auto" size="sm">
+            <SelectTrigger className="w-full min-w-0" size="sm">
               {isLoadingModels ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -177,99 +184,100 @@ export const ProviderSelector = ({
               ))}
             </SelectContent>
           </Select>
-          {fetchedModels.length > 0 && (
-            <span className="text-xs whitespace-nowrap text-muted-foreground">
-              {fetchedModels.length} models
-            </span>
-          )}
-          {modelFetchError && (
-            <span className="text-xs whitespace-nowrap text-destructive">{modelFetchError}</span>
-          )}
         </div>
       </div>
 
-      {/* API Key Row */}
-      <div className="flex w-full items-center gap-2">
-        <div className="flex flex-shrink-0 items-center gap-1.5">
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5">
           <Key className="h-3.5 w-3.5 text-muted-foreground sm:h-4 sm:w-4" />
           <span className="text-xs font-medium whitespace-nowrap text-muted-foreground sm:text-sm">
             API Key
           </span>
         </div>
 
-        {isEditing || !apiKey ? (
-          <>
-            <div className="relative flex-1">
-              <Input
-                type={showApiKey ? 'text' : 'password'}
-                value={tempApiKey}
-                onChange={(e) => setTempApiKey(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={provider?.apiKeyPlaceholder || 'Enter API key'}
-                className="h-8 pr-10 text-sm"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute top-0 right-0 h-8 w-8 p-0"
-                onClick={() => setShowApiKey(!showApiKey)}
-              >
-                {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </Button>
-            </div>
-            <Button
-              size="sm"
-              variant="default"
-              className="h-8 px-3"
-              onClick={handleSaveApiKey}
-              disabled={!tempApiKey.trim()}
-            >
-              <Check className="h-3.5 w-3.5" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <div className="flex flex-1 items-center gap-2">
-              <span className="text-sm text-muted-foreground">••••••••{apiKey.slice(-4)}</span>
-              <span className="text-xs font-medium text-green-600 dark:text-green-400">Saved</span>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-2"
-              onClick={() => setIsEditing(true)}
-            >
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0 text-destructive"
-              onClick={handleClearApiKey}
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </>
-        )}
-
-        {provider?.apiKeyUrl && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <a
-                href={provider.apiKeyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-shrink-0"
-              >
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                  <ExternalLink className="h-3.5 w-3.5" />
+        <div className="flex flex-wrap items-center gap-2">
+          {isEditing || !apiKey ? (
+            <>
+              <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={tempApiKey}
+                  onChange={(e) => setTempApiKey(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={provider?.apiKeyPlaceholder || 'Enter API key'}
+                  className="h-8 pr-10 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-0 right-0 h-8 w-8 p-0"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                >
+                  {showApiKey ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
                 </Button>
-              </a>
-            </TooltipTrigger>
-            <TooltipContent>Get API Key</TooltipContent>
-          </Tooltip>
-        )}
+              </div>
+              <Button
+                size="sm"
+                variant="default"
+                className="h-8 px-3"
+                onClick={handleSaveApiKey}
+                disabled={!tempApiKey.trim()}
+              >
+                <Check className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="truncate text-sm text-muted-foreground">
+                  ••••••••{apiKey.slice(-4)}
+                </span>
+                <span className="text-xs font-medium whitespace-nowrap text-green-600 dark:text-green-400">
+                  Saved
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 text-destructive"
+                onClick={handleClearApiKey}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+
+          {provider?.apiKeyUrl && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={provider.apiKeyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0"
+                >
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>Get API Key</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
     </div>
   );
