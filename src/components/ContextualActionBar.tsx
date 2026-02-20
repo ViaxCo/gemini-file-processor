@@ -1,6 +1,12 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ContextualActionBarProps {
   selectedCount: number;
@@ -8,7 +14,7 @@ interface ContextualActionBarProps {
   onUploadSelected?: () => void;
   onRetrySelected?: () => void;
   onAbortSelected?: () => void;
-  onDownloadSelected?: () => void;
+  onDownloadSelected?: (format: 'markdown' | 'docx') => void;
   onBulkRename?: () => void;
   isDriveAuthenticated?: boolean;
   isUploadingSelected?: boolean;
@@ -108,9 +114,21 @@ export function ContextualActionBar({
           </Button>
         )}
         {onDownloadSelected && (
-          <Button variant="default" size="sm" onClick={onDownloadSelected}>
-            Download Selected
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="default" size="sm">
+                Download Selected
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onDownloadSelected('markdown')}>
+                Markdown (.md)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDownloadSelected('docx')}>
+                Word (.docx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>

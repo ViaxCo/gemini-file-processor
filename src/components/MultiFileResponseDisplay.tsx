@@ -4,14 +4,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UnifiedFileCard } from '@/components/UnifiedFileCard';
 import { ViewResponseModal } from '@/components/ViewResponseModal';
@@ -90,7 +89,6 @@ export const MultiFileResponseDisplay = ({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [displayNames, setDisplayNames] = useState<Record<number, string>>({});
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
-  const [downloadFormat, setDownloadFormat] = useState<'markdown' | 'docx'>('markdown');
   const [isUploadingAll, setIsUploadingAll] = useState<boolean>(false);
   const [isUploadingSelected, setIsUploadingSelected] = useState<boolean>(false);
   const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
@@ -208,12 +206,6 @@ export const MultiFileResponseDisplay = ({
     }
   };
 
-  const handleDownloadFormatChange = (value: string) => {
-    if (value === 'markdown' || value === 'docx') {
-      setDownloadFormat(value);
-    }
-  };
-
   const handleRetrySelected = () => {
     if (!onRetryFile) return;
     const count = selected.size;
@@ -223,7 +215,7 @@ export const MultiFileResponseDisplay = ({
     [...selected].forEach((i) => onRetryFile(i));
   };
 
-  const handleDownloadSelected = () => {
+  const handleDownloadSelected = (format: 'markdown' | 'docx') => {
     const indices = [...selected];
     if (indices.length === 0) return;
 
@@ -235,33 +227,27 @@ export const MultiFileResponseDisplay = ({
       }
 
       const name = displayNames[i] || r.file.name.replace(/\.[^.]+$/, '');
-      downloadProcessedFile(r.response, name, downloadFormat);
+      downloadProcessedFile(r.response, name, format);
       count++;
     }
 
     if (count > 0) {
       toast.success(
-        `Downloaded ${count} file${count > 1 ? 's' : ''} as ${
-          downloadFormat === 'docx' ? '.docx' : '.md'
-        }`,
+        `Downloaded ${count} file${count > 1 ? 's' : ''} as ${format === 'docx' ? '.docx' : '.md'}`,
       );
     }
   };
 
-  const handleDownloadAll = (): void => {
+  const handleDownloadAll = (format: 'markdown' | 'docx'): void => {
     if (completedResults.length === 0) return;
 
     completedResults.forEach((result) => {
-      downloadProcessedFile(
-        result.response,
-        result.file.name.replace(/\.[^.]+$/, ''),
-        downloadFormat,
-      );
+      downloadProcessedFile(result.response, result.file.name.replace(/\.[^.]+$/, ''), format);
     });
 
     toast.success(
       `Downloaded ${completedResults.length} file${completedResults.length > 1 ? 's' : ''} as ${
-        downloadFormat === 'docx' ? '.docx' : '.md'
+        format === 'docx' ? '.docx' : '.md'
       }`,
     );
     setDownloadAllFeedback('Downloaded all files!');
@@ -438,38 +424,40 @@ export const MultiFileResponseDisplay = ({
       <CardHeader className="flex flex-row flex-wrap items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg sm:text-xl">AI Responses</CardTitle>
         <div className="flex items-center gap-3">
-          <Select value={downloadFormat} onValueChange={handleDownloadFormatChange}>
-            <SelectTrigger className="w-[146px]" size="sm">
-              <SelectValue placeholder="Download format" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="markdown">Markdown (.md)</SelectItem>
-              <SelectItem value="docx">Word (.docx)</SelectItem>
-            </SelectContent>
-          </Select>
           {allCompleted && completedResults.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={handleDownloadAll}
-                  variant="default"
-                  size="sm"
-                  className="flex-shrink-0 text-xs sm:text-sm"
-                  disabled={isAnyProcessing}
-                >
-                  <DownloadCloud className="h-4 w-4" />
-                  <span className="hidden whitespace-nowrap sm:inline">
-                    {downloadAllFeedback || 'Download All'}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-shrink-0 text-xs sm:text-sm"
+                        disabled={isAnyProcessing}
+                      >
+                        <DownloadCloud className="h-4 w-4" />
+                        <span className="hidden whitespace-nowrap sm:inline">
+                          {downloadAllFeedback || 'Download All'}
+                        </span>
+                        <span className="whitespace-nowrap sm:hidden">
+                          {downloadAllFeedback || 'Download'}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
                   </span>
-                  <span className="whitespace-nowrap sm:hidden">
-                    {downloadAllFeedback || 'Download'}
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Download all completed files as {downloadFormat === 'docx' ? 'Word' : 'markdown'}
-              </TooltipContent>
-            </Tooltip>
+                </TooltipTrigger>
+                <TooltipContent>Download all completed files</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleDownloadAll('markdown')}>
+                  Markdown (.md)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDownloadAll('docx')}>
+                  Word (.docx)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           {uploadToGoogleDocs && uploadEligible.length > 0 && (
             <Tooltip>
@@ -574,7 +562,7 @@ export const MultiFileResponseDisplay = ({
               </div>
             )}
             {errorCount > 0 && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="items-center">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <span>
@@ -686,7 +674,6 @@ export const MultiFileResponseDisplay = ({
                       setIsViewOpen(true);
                     }}
                     processingProfile={resultProfile}
-                    downloadFormat={downloadFormat}
                   />
                 );
               })}
@@ -723,8 +710,6 @@ export const MultiFileResponseDisplay = ({
                     : undefined
                 }
                 processingProfile={viewedResult?.processingProfile ?? processingProfile}
-                downloadFormat={downloadFormat}
-                onDownloadFormatChange={handleDownloadFormatChange}
               />
             </>
           )}

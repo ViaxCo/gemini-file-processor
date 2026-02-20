@@ -3,6 +3,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
@@ -41,7 +47,6 @@ export interface UnifiedFileCardProps {
   destinationFolderName?: string | null;
   canUpload?: boolean;
   processingProfile: ProcessingProfile;
-  downloadFormat?: 'markdown' | 'docx';
 }
 
 export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
@@ -61,7 +66,6 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     destinationFolderName,
     canUpload = true,
     processingProfile,
-    downloadFormat = 'markdown',
   } = props;
 
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
@@ -149,9 +153,9 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     setTimeout(() => setCopyFeedback(''), 2000);
   };
 
-  const handleDownload = () => {
+  const handleDownload = (format: 'markdown' | 'docx') => {
     const base = displayName.replace(/\.[^.]+$/, '') || result.file.name.replace(/\.[^.]+$/, '');
-    downloadProcessedFile(result.response, `${base}_processed`, downloadFormat);
+    downloadProcessedFile(result.response, `${base}_processed`, format);
     toast.success('File downloaded');
   };
 
@@ -339,23 +343,34 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                     </TooltipTrigger>
                     <TooltipContent>{copyFeedback || 'Copy response to clipboard'}</TooltipContent>
                   </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={handleDownload}
-                        variant="ghost"
-                        size="sm"
-                        disabled={!result.response || result.isProcessing}
-                        className="h-7 w-7 p-0 hover:bg-muted/50"
-                        aria-label="Download response"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Download as {downloadFormat === 'docx' ? 'Word (.docx)' : 'Markdown (.md)'}
-                    </TooltipContent>
-                  </Tooltip>
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={!result.response || result.isProcessing}
+                              className="h-7 w-7 p-0 hover:bg-muted/50"
+                              aria-label="Download response"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Download response</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => handleDownload('markdown')}>
+                        Markdown (.md)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownload('docx')}>
+                        Word (.docx)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {onRetry && (result.isCompleted || result.error) && (
                     <Tooltip>
                       <TooltipTrigger asChild>

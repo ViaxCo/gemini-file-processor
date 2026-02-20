@@ -11,12 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { Toggle } from '@/components/ui/toggle';
 import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
@@ -39,8 +38,6 @@ interface ViewResponseModalProps {
   uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
   destinationFolderName?: string | null;
   processingProfile: ProcessingProfile;
-  downloadFormat: 'markdown' | 'docx';
-  onDownloadFormatChange: (format: string) => void;
 }
 
 export function ViewResponseModal({
@@ -54,8 +51,6 @@ export function ViewResponseModal({
   uploadStatus,
   destinationFolderName,
   processingProfile,
-  downloadFormat,
-  onDownloadFormatChange,
 }: ViewResponseModalProps) {
   const [showMarkdown, setShowMarkdown] = useState(true);
   const [originalText, setOriginalText] = useState<string>('');
@@ -114,12 +109,12 @@ export function ViewResponseModal({
     setTimeout(() => setCopyFeedback(''), 2000);
   };
 
-  const handleDownload = () => {
+  const handleDownload = (format: 'markdown' | 'docx') => {
     if (!result) return;
     const base =
       (displayName || result.file.name).replace(/\.[^.]+$/, '') ||
       result.file.name.replace(/\.[^.]+$/, '');
-    downloadProcessedFile(result.response, `${base}_processed`, downloadFormat);
+    downloadProcessedFile(result.response, `${base}_processed`, format);
     toast.success('File downloaded');
   };
 
@@ -227,24 +222,26 @@ export function ViewResponseModal({
               >
                 <Copy className="mr-1 h-3.5 w-3.5" /> {copyFeedback || 'Copy'}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownload}
-                disabled={!result?.response}
-                className="text-xs sm:text-sm"
-              >
-                <Download className="mr-1 h-3.5 w-3.5" /> Download
-              </Button>
-              <Select value={downloadFormat} onValueChange={onDownloadFormatChange}>
-                <SelectTrigger className="h-8 w-[148px]" size="sm">
-                  <SelectValue placeholder="Download format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="markdown">Markdown (.md)</SelectItem>
-                  <SelectItem value="docx">Word (.docx)</SelectItem>
-                </SelectContent>
-              </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!result?.response}
+                    className="text-xs sm:text-sm"
+                  >
+                    <Download className="mr-1 h-3.5 w-3.5" /> Download
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => handleDownload('markdown')}>
+                    Markdown (.md)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload('docx')}>
+                    Word (.docx)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               {onRetry && (result?.isCompleted || !!result?.error) && (
                 <Button
                   variant="outline"
