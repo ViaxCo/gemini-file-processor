@@ -109,13 +109,17 @@ export function ViewResponseModal({
     setTimeout(() => setCopyFeedback(''), 2000);
   };
 
-  const handleDownload = (format: 'markdown' | 'docx') => {
+  const handleDownload = async (format: 'markdown' | 'docx') => {
     if (!result) return;
     const base =
       (displayName || result.file.name).replace(/\.[^.]+$/, '') ||
       result.file.name.replace(/\.[^.]+$/, '');
-    downloadProcessedFile(result.response, `${base}_processed`, format);
-    toast.success('File downloaded');
+    try {
+      await downloadProcessedFile(result.response, `${base}_processed`, format);
+      toast.success('File downloaded');
+    } catch {
+      toast.error('Download failed');
+    }
   };
 
   const folderLabel = destinationFolderName ?? 'Root (My Drive)';

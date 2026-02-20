@@ -215,11 +215,12 @@ export const MultiFileResponseDisplay = ({
     [...selected].forEach((i) => onRetryFile(i));
   };
 
-  const handleDownloadSelected = (format: 'markdown' | 'docx') => {
+  const handleDownloadSelected = async (format: 'markdown' | 'docx') => {
     const indices = [...selected];
     if (indices.length === 0) return;
 
-    let count = 0;
+    let successCount = 0;
+    let failedCount = 0;
     for (const i of indices) {
       const r = fileResults[i];
       if (!r || !r.isCompleted || r.error || !r.response) {
@@ -227,31 +228,60 @@ export const MultiFileResponseDisplay = ({
       }
 
       const name = displayNames[i] || r.file.name.replace(/\.[^.]+$/, '');
-      downloadProcessedFile(r.response, name, format);
-      count++;
+      try {
+        await downloadProcessedFile(r.response, name, format);
+        successCount++;
+      } catch {
+        failedCount++;
+      }
     }
 
-    if (count > 0) {
+    if (successCount > 0) {
       toast.success(
-        `Downloaded ${count} file${count > 1 ? 's' : ''} as ${format === 'docx' ? '.docx' : '.md'}`,
+        `Downloaded ${successCount} file${successCount > 1 ? 's' : ''} as ${format === 'docx' ? '.docx' : '.md'}`,
       );
+    }
+
+    if (failedCount > 0) {
+      toast.error(`Failed to download ${failedCount} file${failedCount > 1 ? 's' : ''}`);
     }
   };
 
-  const handleDownloadAll = (format: 'markdown' | 'docx'): void => {
+  const handleDownloadAll = async (format: 'markdown' | 'docx'): Promise<void> => {
     if (completedResults.length === 0) return;
 
-    completedResults.forEach((result) => {
-      downloadProcessedFile(result.response, result.file.name.replace(/\.[^.]+$/, ''), format);
-    });
+    let successCount = 0;
+    let failedCount = 0;
+    for (const result of completedResults) {
+      try {
+        await downloadProcessedFile(
+          result.response,
+          result.file.name.replace(/\.[^.]+$/, ''),
+          format,
+        );
+        successCount++;
+      } catch {
+        failedCount++;
+      }
+    }
 
-    toast.success(
-      `Downloaded ${completedResults.length} file${completedResults.length > 1 ? 's' : ''} as ${
-        format === 'docx' ? '.docx' : '.md'
-      }`,
-    );
-    setDownloadAllFeedback('Downloaded all files!');
-    setTimeout(() => setDownloadAllFeedback(''), 3000);
+    if (successCount > 0) {
+      toast.success(
+        `Downloaded ${successCount} file${successCount > 1 ? 's' : ''} as ${
+          format === 'docx' ? '.docx' : '.md'
+        }`,
+      );
+      setDownloadAllFeedback(
+        failedCount === 0
+          ? 'Downloaded all files!'
+          : `Downloaded ${successCount} of ${completedResults.length} files`,
+      );
+      setTimeout(() => setDownloadAllFeedback(''), 3000);
+    }
+
+    if (failedCount > 0) {
+      toast.error(`Failed to download ${failedCount} file${failedCount > 1 ? 's' : ''}`);
+    }
   };
 
   const handleUploadSingle = async (index: number): Promise<void> => {

@@ -153,10 +153,14 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     setTimeout(() => setCopyFeedback(''), 2000);
   };
 
-  const handleDownload = (format: 'markdown' | 'docx') => {
+  const handleDownload = async (format: 'markdown' | 'docx') => {
     const base = displayName.replace(/\.[^.]+$/, '') || result.file.name.replace(/\.[^.]+$/, '');
-    downloadProcessedFile(result.response, `${base}_processed`, format);
-    toast.success('File downloaded');
+    try {
+      await downloadProcessedFile(result.response, `${base}_processed`, format);
+      toast.success('File downloaded');
+    } catch {
+      toast.error('Download failed');
+    }
   };
 
   const handleToggleExpand = () => {

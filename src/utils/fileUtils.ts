@@ -62,8 +62,8 @@ export const downloadAsMarkdown = (content: string, filename?: string): void => 
   triggerDownload(blob, toDownloadFileName(filename, 'md'));
 };
 
-export const downloadAsDocx = (content: string, filename?: string): void => {
-  const blob = createDocxBlob(content);
+export const downloadAsDocx = async (content: string, filename?: string): Promise<void> => {
+  const blob = await createDocxBlob(content);
   triggerDownload(blob, toDownloadFileName(filename, 'docx'));
 };
 
@@ -71,11 +71,11 @@ export const downloadProcessedFile = (
   content: string,
   filename: string | undefined,
   format: 'markdown' | 'docx',
-) => {
+): Promise<void> => {
   if (format === 'docx') {
-    downloadAsDocx(content, filename);
-    return;
+    return downloadAsDocx(content, filename);
   }
 
   downloadAsMarkdown(content, filename);
+  return Promise.resolve();
 };

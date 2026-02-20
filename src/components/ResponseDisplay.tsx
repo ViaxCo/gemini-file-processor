@@ -129,10 +129,14 @@ export const ResponseDisplay = ({
     setTimeout(() => setCopyFeedback(''), 2000);
   };
 
-  const handleDownloadResponse = (): void => {
+  const handleDownloadResponse = async (): Promise<void> => {
     const fileName = file ? file.name.replace(/\.[^.]+$/, '') : 'response';
-    downloadProcessedFile(response, fileName, downloadFormat);
-    toast.success('File downloaded successfully');
+    try {
+      await downloadProcessedFile(response, fileName, downloadFormat);
+      toast.success('File downloaded successfully');
+    } catch {
+      toast.error('Download failed');
+    }
   };
 
   const handleDownloadFormatChange = (value: string) => {
