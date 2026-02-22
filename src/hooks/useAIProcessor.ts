@@ -235,12 +235,18 @@ export const useAIProcessor = () => {
     model: string,
     apiKey: string,
     profile: ProcessingProfile = 'transcript',
+    targetIndices?: number[],
   ): Promise<void> => {
-    // First, identify failed files from current state
-    const failedIndices = fileResults
-      .map((result, index) => ({ result, index }))
-      .filter(({ result }) => result.error)
-      .map(({ index }) => index);
+    // First, identify failed files from current state. When targetIndices is provided,
+    // only retry those indices (used to preserve per-file processing profiles).
+    const sourceIndices =
+      targetIndices ??
+      fileResults
+        .map((result, index) => ({ result, index }))
+        .filter(({ result }) => result.error)
+        .map(({ index }) => index);
+
+    const failedIndices = sourceIndices.filter((index) => !!fileResults[index]?.error);
 
     if (failedIndices.length === 0) return;
 

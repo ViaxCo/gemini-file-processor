@@ -113,21 +113,17 @@ export function AIFileProcessor() {
       return;
     }
 
-    await retryFile(
-      index,
-      instructionToUse,
-      selectedProvider,
-      selectedModel,
-      apiKey,
-      processingProfile,
-    );
+    const retryProfile = fileToRetry?.processingProfile ?? processingProfile;
+    await retryFile(index, instructionToUse, selectedProvider, selectedModel, apiKey, retryProfile);
   };
 
   const handleRetryAllFailed = async () => {
-    fileResults.forEach((result) => {
-      if (result.error) {
-        googleDrive.clearUploadStatus(result.file.name);
-      }
+    const failedEntries = fileResults
+      .map((result, index) => ({ result, index }))
+      .filter(({ result }) => !!result.error);
+
+    failedEntries.forEach(({ result }) => {
+      googleDrive.clearUploadStatus(result.file.name);
     });
 
     // Use the last processed instruction, or fall back to current instruction
@@ -145,13 +141,37 @@ export function AIFileProcessor() {
       return;
     }
 
-    await retryAllFailed(
-      instructionToUse,
-      selectedProvider,
-      selectedModel,
-      apiKey,
-      processingProfile,
-    );
+    const groupedFailedIndices = {
+      transcript: [] as number[],
+      book: [] as number[],
+    };
+
+    failedEntries.forEach(({ result, index }) => {
+      const profile = result.processingProfile ?? processingProfile;
+      groupedFailedIndices[profile].push(index);
+    });
+
+    if (groupedFailedIndices.transcript.length > 0) {
+      await retryAllFailed(
+        instructionToUse,
+        selectedProvider,
+        selectedModel,
+        apiKey,
+        'transcript',
+        groupedFailedIndices.transcript,
+      );
+    }
+
+    if (groupedFailedIndices.book.length > 0) {
+      await retryAllFailed(
+        instructionToUse,
+        selectedProvider,
+        selectedModel,
+        apiKey,
+        'book',
+        groupedFailedIndices.book,
+      );
+    }
   };
 
   const canProcess = files.length > 0 && !!apiKey;
