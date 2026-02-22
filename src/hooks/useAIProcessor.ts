@@ -48,6 +48,7 @@ export const useAIProcessor = () => {
     file: File;
     index: number; // position in fileResults
     key: string;
+    profile: ProcessingProfile;
     status: 'pending' | 'processing' | 'completed' | 'failed';
     retryCount?: number;
     lowConfidenceRetryCount?: number;
@@ -177,7 +178,7 @@ export const useAIProcessor = () => {
     setFileResults(initialResults);
 
     // Seed queue
-    addToQueue(files);
+    addToQueue(files, undefined, 0, 0, profile);
 
     // Determine processing mode
     const processingMode: 'single' | 'batch' = files.length === 1 ? 'single' : 'batch';
@@ -225,7 +226,7 @@ export const useAIProcessor = () => {
 
     // Show processing state immediately when retrying
     setIsProcessing(true);
-    addToQueue([fileToRetry.file], fileIndex);
+    addToQueue([fileToRetry.file], fileIndex, 0, 0, profile);
     await processQueue(instruction, provider, model, apiKey, 'single', profile);
   };
 
@@ -268,7 +269,7 @@ export const useAIProcessor = () => {
     const failedFiles = failedIndices.map((i) => fileResults[i]!.file);
     // Show processing state immediately when retrying all failed
     setIsProcessing(true);
-    addToQueue(failedFiles);
+    addToQueue(failedFiles, undefined, 0, 0, profile);
     await processQueue(
       instruction,
       provider,
@@ -291,6 +292,7 @@ export const useAIProcessor = () => {
     overrideIndex?: number,
     retryCount = 0,
     lowConfidenceRetryCount = 0,
+    profile: ProcessingProfile = 'transcript',
   ): void => {
     const items: QueueItem[] = files.map((file, idx) => {
       // Try to map to the correct fileResults index. Fallback to local idx.
@@ -300,6 +302,7 @@ export const useAIProcessor = () => {
         file,
         index,
         key: makeFileKey(file),
+        profile,
         status: 'pending',
         retryCount,
         lowConfidenceRetryCount,
@@ -343,13 +346,21 @@ export const useAIProcessor = () => {
       );
 
       const processItem = async (item: QueueItem) => {
-        const { file, index, key, retryCount = 0, lowConfidenceRetryCount = 0 } = item;
+        const {
+          file,
+          index,
+          key,
+          profile: itemProfile = profile,
+          retryCount = 0,
+          lowConfidenceRetryCount = 0,
+        } = item;
         const streamToUI = mode === 'single';
         if (!streamToUI) {
           responseStore.addResponse(key, '');
         }
         try {
           let responseBuffer = '';
+          let fullResponse = '';
           let lastUpdateTime = Date.now();
           const flushBufferToUI = () => {
             if (responseBuffer) {
@@ -375,6 +386,7 @@ export const useAIProcessor = () => {
             (chunk: string) => {
               if (streamToUI) {
                 responseBuffer += chunk;
+                fullResponse += chunk;
                 const now = Date.now();
                 if (now - lastUpdateTime >= 100 || responseBuffer.length >= 500) {
                   flushBufferToUI();
@@ -399,10 +411,10 @@ export const useAIProcessor = () => {
             );
             // Don't clear the response yet, we need it for confidence checking
           } else {
-            finalResponse = responseBuffer;
+            finalResponse = fullResponse;
           }
 
-          if (mode === 'batch' && profile === 'transcript') {
+          if (itemProfile === 'transcript') {
             const { getConfidenceScore } = await import('../utils/confidenceScore');
             const originalContent = await extractTextFromFile(file);
             const confidenceResult = getConfidenceScore(originalContent, finalResponse);
@@ -417,6 +429,7 @@ export const useAIProcessor = () => {
                   i === index
                     ? {
                         ...result,
+                        response: '',
                         isProcessing: false,
                         isCompleted: false,
                         queueStatus: 'pending',
@@ -437,9 +450,9 @@ export const useAIProcessor = () => {
 
               const backoffDelay = Math.pow(2, lowConfidenceRetryCount) * 1000;
               setTimeout(() => {
-                addToQueue([file], index, retryCount, lowConfidenceRetryCount + 1);
+                addToQueue([file], index, retryCount, lowConfidenceRetryCount + 1, itemProfile);
                 if (!processingRef.current) {
-                  void processQueue(instruction, provider, model, apiKey, mode, profile);
+                  void processQueue(instruction, provider, model, apiKey, mode, itemProfile);
                 }
               }, backoffDelay);
               return;
@@ -467,7 +480,7 @@ export const useAIProcessor = () => {
                     ...result,
                     isProcessing: false,
                     isCompleted: true,
-                    processingProfile: profile,
+                    processingProfile: itemProfile,
                     queueStatus: 'completed',
                     previousConfidence: undefined, // Clear previous confidence when processing succeeds
                     isRetryingDueToError: undefined, // Clear retry flags when processing succeeds
@@ -545,10 +558,10 @@ export const useAIProcessor = () => {
             // Add exponential backoff delay before re-queuing
             const backoffDelay = Math.pow(2, retryCount) * 1000;
             setTimeout(() => {
-              addToQueue([file], index, retryCount + 1, lowConfidenceRetryCount);
+              addToQueue([file], index, retryCount + 1, lowConfidenceRetryCount, itemProfile);
               // Restart processing if it's not already running
               if (!processingRef.current) {
-                void processQueue(instruction, provider, model, apiKey, mode, profile);
+                void processQueue(instruction, provider, model, apiKey, mode, itemProfile);
               }
             }, backoffDelay);
           } else {
