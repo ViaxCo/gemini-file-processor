@@ -36,6 +36,9 @@
   --sidebar-accent-foreground: oklch(0.24 0.03 259);
   --sidebar-border: oklch(0.89 0.018 83.5);
   --sidebar-ring: oklch(0.63 0.158 49.5);
+  --font-nunito: 'Avenir Next';
+  --font-baloo: 'Trebuchet MS';
+  --font-jetbrains-mono: 'SF Mono';
   --font-sans: var(--font-nunito), 'Avenir Next', sans-serif;
   --font-serif: var(--font-baloo), 'Trebuchet MS', sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
@@ -85,6 +88,9 @@
   --sidebar-accent-foreground: oklch(0.93 0.016 89);
   --sidebar-border: oklch(0.35 0.015 258);
   --sidebar-ring: oklch(0.74 0.142 69);
+  --font-nunito: 'Avenir Next';
+  --font-baloo: 'Trebuchet MS';
+  --font-jetbrains-mono: 'SF Mono';
   --font-sans: var(--font-nunito), 'Avenir Next', sans-serif;
   --font-serif: var(--font-baloo), 'Trebuchet MS', sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
