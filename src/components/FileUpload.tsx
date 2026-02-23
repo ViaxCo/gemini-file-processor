@@ -269,7 +269,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
               placeholder="Paste text content here..."
-              className="min-h-28 text-sm"
+              className="[field-sizing:fixed] h-32 max-h-32 min-h-32 resize-none overflow-y-auto text-sm sm:h-40 sm:max-h-40 sm:min-h-40"
             />
             <Button onClick={handleAddPastedText} size="sm" className="w-full sm:w-auto">
               Add Pasted Text
