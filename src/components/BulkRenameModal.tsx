@@ -53,7 +53,7 @@ function applyRulesToName(name: string, rules: BulkRenameRules): string {
   }
 
   if (rules.removeInputExtension) {
-    next = next.replace(/\.(txt|docx)$/i, '');
+    next = next.replace(/\.(txt|md|docx)$/i, '');
   }
 
   if (rules.formatTrackTitles) {
@@ -179,7 +179,7 @@ export function BulkRenameModal({ open, onOpenChange, items, onApply }: BulkRena
                     checked={removeInputExtension}
                     onChange={(e) => setRemoveInputExtension(e.target.checked)}
                   />
-                  Remove .txt/.docx extension
+                  Remove .txt/.md/.docx extension
                 </label>
                 <label className="inline-flex items-center gap-2 text-xs">
                   <input

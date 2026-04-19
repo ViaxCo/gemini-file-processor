@@ -215,8 +215,8 @@ export function AIFileProcessor() {
                   AI File Processor
                 </h1>
                 <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  Upload up to 20 `.txt` or `.docx` files. Process in queued batches with live
-                  progress, retries, and optional Google Docs export.
+                  Upload up to 20 `.txt`, `.md`, or `.docx` files. Process in queued batches with
+                  live progress, retries, and optional Google Docs export.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

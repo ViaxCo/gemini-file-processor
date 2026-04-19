@@ -49,7 +49,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
 
     if (supportedFiles.length !== newFiles.length) {
       toast.error('Invalid file type', {
-        description: 'Please upload only .txt or .docx files',
+        description: 'Please upload only .txt, .md, or .docx files',
       });
       return false;
     }
@@ -220,7 +220,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
             <div className="space-y-2">
               <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground sm:mb-4 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
               <p className="text-sm font-medium text-foreground sm:text-base lg:text-lg">
-                Drag & drop your .txt or .docx files here
+                Drag & drop your .txt, .md, or .docx files here
               </p>
               <p className="text-sm text-muted-foreground">or</p>
             </div>
@@ -229,7 +229,7 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
           <input
             type="file"
             onChange={handleFileSelect}
-            accept=".txt,.docx"
+            accept=".txt,.md,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             multiple
             className="hidden"
             id="file-input"

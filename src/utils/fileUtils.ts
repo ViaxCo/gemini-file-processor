@@ -1,10 +1,13 @@
 import { createDocxBlob, extractTextFromDocx } from './docxUtils';
 
 const TEXT_PLAIN_MIME = 'text/plain';
+const MARKDOWN_MIME = 'text/markdown';
+const LEGACY_MARKDOWN_MIME = 'text/x-markdown';
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const KNOWN_DOWNLOAD_BASE_EXT_RE = /\.(txt|md|docx)$/i;
 
 const TXT_EXT_RE = /\.txt$/i;
+const MD_EXT_RE = /\.md$/i;
 const DOCX_EXT_RE = /\.docx$/i;
 
 const makeTimestampedBaseName = () =>
@@ -38,7 +41,11 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
 };
 
 export const isTextInputFile = (file: File) =>
-  file.type === TEXT_PLAIN_MIME || TXT_EXT_RE.test(file.name);
+  file.type === TEXT_PLAIN_MIME ||
+  file.type === MARKDOWN_MIME ||
+  file.type === LEGACY_MARKDOWN_MIME ||
+  TXT_EXT_RE.test(file.name) ||
+  MD_EXT_RE.test(file.name);
 
 export const isDocxInputFile = (file: File) =>
   file.type === DOCX_MIME || DOCX_EXT_RE.test(file.name);
@@ -54,7 +61,7 @@ export const extractTextFromFile = async (file: File) => {
     return file.text();
   }
 
-  throw new Error('Unsupported file type. Use .txt or .docx files.');
+  throw new Error('Unsupported file type. Use .txt, .md, or .docx files.');
 };
 
 export const downloadAsMarkdown = (content: string, filename?: string): void => {
