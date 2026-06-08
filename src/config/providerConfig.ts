@@ -27,6 +27,11 @@ export const PROVIDERS: ProviderConfig[] = [
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     models: [
       {
+        id: 'gemini-3.5-flash',
+        name: 'Gemini 3.5 Flash',
+        rateLimit: { limit: 5, interval: 60000 },
+      },
+      {
         id: 'gemini-2.5-flash',
         name: 'Gemini 2.5 Flash',
         rateLimit: { limit: 5, interval: 60000 },

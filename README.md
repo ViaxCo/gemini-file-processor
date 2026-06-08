@@ -13,7 +13,7 @@ A modern React application that processes large batches of `.txt`, `.md`, and `.
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Next.js
-- **AI**: Google Gemini 2.5 Flash via AI SDK (`@ai-sdk/google`)
+- **AI**: Google Gemini 3.5 Flash via AI SDK (`@ai-sdk/google`)
 - **UI**: Tailwind CSS v4 + shadcn/ui components + Radix UI primitives
 - **Styling**: Modern CSS with Tailwind CSS v4
 - **Build**: Next.js with path aliases and optimized builds
