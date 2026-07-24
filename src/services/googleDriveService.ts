@@ -198,9 +198,9 @@ export class GoogleDriveService {
     }
   }
 
-  private storeToken(response: any): void {
+  private storeToken(response: any): boolean {
     const storage = this.getTokenStorage();
-    if (!storage) return;
+    if (!storage) return false;
 
     try {
       const expiresIn = Number(response.expires_in);
@@ -211,8 +211,10 @@ export class GoogleDriveService {
         scope: response.scope,
       };
       storage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token));
+      return true;
     } catch (error) {
       console.error('Failed to store Google Drive token:', error);
+      return false;
     }
   }
 
@@ -325,8 +327,7 @@ export class GoogleDriveService {
       return;
     }
 
-    this.storeToken(response);
-    this.finishAccessTokenRequest(true);
+    this.finishAccessTokenRequest(this.storeToken(response));
   }
 
   private finishAccessTokenRequest(success: boolean): void {
