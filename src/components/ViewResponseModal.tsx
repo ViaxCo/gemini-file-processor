@@ -19,12 +19,22 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Toggle } from '@/components/ui/toggle';
 import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
+import type { UploadStatus } from '@/hooks/useGoogleDrive';
 import { copyToClipboard, downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
 import { generateVerificationSnippet } from '@/utils/verificationSnippet';
-import { Copy, Download, Loader2, RotateCcw, UploadCloud, X } from 'lucide-react';
+import { Copy, Download, Loader2, RotateCcw, Trash2, UploadCloud, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Streamdown } from 'streamdown';
+
+const UPLOAD_LABELS: Record<UploadStatus, string> = {
+  idle: 'Upload',
+  uploading: 'Uploading…',
+  verifying: 'Verifying…',
+  completed: 'Uploaded',
+  error: 'Retry upload',
+  unknown: 'Check upload',
+};
 
 interface ViewResponseModalProps {
   open: boolean;
@@ -34,8 +44,10 @@ interface ViewResponseModalProps {
   // Optional actions and info from parent
   onRetry?: () => void;
   onUpload?: () => void;
+  onDiscardUpload?: () => void;
   canUpload?: boolean;
-  uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
+  uploadDisabled?: boolean;
+  uploadStatus?: UploadStatus;
   destinationFolderName?: string | null;
   processingProfile: ProcessingProfile;
 }
@@ -47,7 +59,9 @@ export function ViewResponseModal({
   displayName,
   onRetry,
   onUpload,
+  onDiscardUpload,
   canUpload = true,
+  uploadDisabled = false,
   uploadStatus,
   destinationFolderName,
   processingProfile,
@@ -123,6 +137,8 @@ export function ViewResponseModal({
   };
 
   const folderLabel = destinationFolderName ?? 'Root (My Drive)';
+  const isUploadPending = uploadStatus === 'uploading' || uploadStatus === 'verifying';
+  const uploadLabel = UPLOAD_LABELS[uploadStatus || 'idle'];
 
   const handleRetryClick = () => {
     // Trigger the retry action, then close the modal immediately
@@ -261,15 +277,31 @@ export function ViewResponseModal({
                   variant="outline"
                   size="sm"
                   onClick={handleUploadClick}
-                  disabled={!result?.response || uploadStatus === 'uploading'}
+                  disabled={
+                    !result?.response ||
+                    uploadDisabled ||
+                    isUploadPending ||
+                    uploadStatus === 'completed'
+                  }
                   className="text-xs sm:text-sm"
                 >
-                  {uploadStatus === 'uploading' ? (
+                  {isUploadPending ? (
                     <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <UploadCloud className="mr-1 h-3.5 w-3.5" />
                   )}
-                  {uploadStatus === 'uploading' ? 'Uploading…' : 'Upload'}
+                  {uploadLabel}
+                </Button>
+              )}
+              {onDiscardUpload && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDiscardUpload}
+                  disabled={uploadDisabled}
+                  className="text-xs text-destructive hover:text-destructive sm:text-sm"
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Discard upload status
                 </Button>
               )}
               <Badge variant="outline" className="ml-1">

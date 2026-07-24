@@ -1,15 +1,23 @@
+import { makeFileKey } from '@/services/responseStore';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { GoogleDriveAuthenticationError, GoogleDriveService } from '../services/googleDriveService';
-import type {
-  DriveFile,
-  DriveFolder,
-  GoogleDriveConfig,
-  TokenExpiryInfo,
+import {
+  GoogleDriveAuthenticationError,
+  GoogleDriveService,
+  GoogleDriveUnknownUploadError,
 } from '../services/googleDriveService';
+import type { DriveFile, DriveFolder, TokenExpiryInfo } from '../services/googleDriveService';
 
 export type { DriveFile, DriveFolder, TokenExpiryInfo };
 export type DriveDestination = { id: string | null; name: string };
 export type DrivePreparationStatus = 'preparing' | 'ready' | 'error';
+export type UploadStatus = 'idle' | 'uploading' | 'verifying' | 'completed' | 'error' | 'unknown';
+export type DriveUploadRequest = {
+  uploadKey: string;
+  title: string;
+  content: string;
+  folderId?: string | null;
+};
+export type DriveUploadResult = { uploadKey: string; file: DriveFile };
 export type FolderLoadOptions = { clearExisting?: boolean };
 export const MY_DRIVE_ROOT: DriveDestination = { id: null, name: 'Root (My Drive)' };
 
@@ -18,6 +26,8 @@ export interface UseGoogleDriveReturn {
   preparationStatus: DrivePreparationStatus;
   isAuthenticated: boolean;
   isAuthenticating: boolean;
+  isUploadSessionActive: boolean;
+  isUploadBlockingProcessing: boolean;
   prepareDrive: () => void;
   connect: () => void;
   refresh: () => void;
@@ -35,36 +45,33 @@ export interface UseGoogleDriveReturn {
 
   // File operations
   uploadToGoogleDocs: (
-    fileId: string,
-    title: string,
-    content: string,
-    folderId?: string | null,
-  ) => Promise<DriveFile>;
-  uploadStatuses: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
-  resetUploadStatuses: () => void;
-  clearUploadStatus: (fileId: string) => void;
+    uploads: DriveUploadRequest[],
+  ) => Promise<PromiseSettledResult<DriveUploadResult>[]>;
+  uploadStatuses: Record<string, UploadStatus>;
+  resetUploadStatuses: () => boolean;
+  clearUploadStatus: (uploadKey: string) => boolean;
+  discardUnknownUpload: (uploadKey: string) => boolean;
 
   // Error handling
   error: string | null;
 }
 
-const GOOGLE_DRIVE_CONFIG: GoogleDriveConfig = {
-  clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-  apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '',
-};
+const GOOGLE_DRIVE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+
+export const makeUploadKey = (batchId: number, index: number, file: File): string =>
+  `${batchId}::${index}::${makeFileKey(file)}`;
 
 export function useGoogleDrive(): UseGoogleDriveReturn {
   const [driveService, setDriveService] = useState<GoogleDriveService | null>(null);
   const [preparationStatus, setPreparationStatus] = useState<DrivePreparationStatus>('preparing');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isUploadSessionActive, setIsUploadSessionActive] = useState(false);
   const [folders, setFolders] = useState<DriveFolder[]>([]);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
   const [isLoadingMoreFolders, setIsLoadingMoreFolders] = useState(false);
   const [hasMoreFolders, setHasMoreFolders] = useState(false);
-  const [uploadStatuses, setUploadStatuses] = useState<
-    Record<string, 'idle' | 'uploading' | 'completed' | 'error'>
-  >({});
+  const [uploadStatuses, setUploadStatuses] = useState<Record<string, UploadStatus>>({});
   const [error, setError] = useState<string | null>(null);
   const [tokenExpiryInfo, setTokenExpiryInfo] = useState<TokenExpiryInfo>({
     isNearExpiry: false,
@@ -73,11 +80,15 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   const currentFolderPageRef = useRef<{ parentId?: string; pageToken?: string }>({});
   const isLoadingFoldersRef = useRef(false);
   const isLoadingMoreRef = useRef(false);
+  const uploadOperationKeysRef = useRef<Record<string, string>>({});
+  const unknownUploadKeysRef = useRef(new Set<string>());
+  const uploadSessionRef = useRef(false);
+  const folderFileIdsRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const service = new GoogleDriveService(GOOGLE_DRIVE_CONFIG);
+    const service = new GoogleDriveService(GOOGLE_DRIVE_CLIENT_ID);
     setDriveService(service);
     setTokenExpiryInfo(service.getTokenExpiryInfo());
   }, []);
@@ -117,6 +128,22 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
 
     return () => clearInterval(interval);
   }, [driveService, preparationStatus]);
+
+  // Confirm restored credentials without coupling authentication to folder loading.
+  useEffect(() => {
+    if (!driveService || preparationStatus !== 'ready' || !isAuthenticated) return;
+
+    let cancelled = false;
+    driveService.validateSession().catch((err) => {
+      if (cancelled || !(err instanceof GoogleDriveAuthenticationError)) return;
+      setIsAuthenticated(false);
+      setError('Google Drive session expired. Reconnect to continue.');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [driveService, preparationStatus, isAuthenticated]);
 
   const loadFolders = useCallback(
     async (parentId?: string, options?: FolderLoadOptions) => {
@@ -170,11 +197,6 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     },
     [driveService],
   );
-
-  // Load My Drive once preparation and authentication are complete.
-  useEffect(() => {
-    if (preparationStatus === 'ready' && isAuthenticated) loadFolders();
-  }, [preparationStatus, isAuthenticated, loadFolders]);
 
   const requestAuthentication = useCallback(
     (action: 'connect' | 'refresh') => {
@@ -278,9 +300,16 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
         throw new Error('Google Drive service not available');
       }
 
+      const operationKey = JSON.stringify([parentId || 'root', name]);
       setError(null);
       try {
-        const newFolder = await driveService.createFolder(name, parentId);
+        const newFolder = await driveService.createFolder(name, parentId, {
+          fileId: folderFileIdsRef.current[operationKey],
+          onFileIdReserved: (fileId) => {
+            folderFileIdsRef.current[operationKey] = fileId;
+          },
+        });
+        delete folderFileIdsRef.current[operationKey];
         if (currentFolderPageRef.current.parentId === parentId) await loadFolders(parentId);
         return newFolder;
       } catch (err) {
@@ -292,28 +321,45 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     [driveService, loadFolders],
   );
 
-  const resetUploadStatuses = useCallback(() => {
+  const resetUploadStatuses = useCallback((): boolean => {
+    if (uploadSessionRef.current || unknownUploadKeysRef.current.size > 0) return false;
+
+    uploadOperationKeysRef.current = {};
     setUploadStatuses({});
+    return true;
   }, []);
 
-  const clearUploadStatus = useCallback((fileId: string) => {
+  const clearUploadStatus = useCallback((uploadKey: string): boolean => {
+    if (uploadSessionRef.current || unknownUploadKeysRef.current.has(uploadKey)) return false;
+
+    delete uploadOperationKeysRef.current[uploadKey];
     setUploadStatuses((prev) => {
       const newStatuses = { ...prev };
-      delete newStatuses[fileId];
+      delete newStatuses[uploadKey];
       return newStatuses;
     });
+    return true;
+  }, []);
+
+  const discardUnknownUpload = useCallback((uploadKey: string): boolean => {
+    if (uploadSessionRef.current || !unknownUploadKeysRef.current.has(uploadKey)) return false;
+
+    delete uploadOperationKeysRef.current[uploadKey];
+    unknownUploadKeysRef.current.delete(uploadKey);
+    setUploadStatuses((prev) => {
+      const newStatuses = { ...prev };
+      delete newStatuses[uploadKey];
+      return newStatuses;
+    });
+    if (unknownUploadKeysRef.current.size === 0) setError(null);
+    return true;
   }, []);
 
   const uploadToGoogleDocs = useCallback(
-    async (
-      fileId: string,
-      title: string,
-      content: string,
-      folderId?: string | null,
-    ): Promise<DriveFile> => {
-      if (!driveService) {
-        throw new Error('Google Drive service not available');
-      }
+    async (uploads: DriveUploadRequest[]): Promise<PromiseSettledResult<DriveUploadResult>[]> => {
+      if (uploads.length === 0) return [];
+      if (!driveService) throw new Error('Google Drive service not available');
+      if (uploadSessionRef.current) throw new Error('Another upload is already in progress');
       if (!driveService.hasValidSession()) {
         const authError = new Error('Google Drive session expired. Reconnect to continue.');
         setIsAuthenticated(false);
@@ -321,31 +367,77 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
         throw authError;
       }
 
-      setUploadStatuses((prev) => ({ ...prev, [fileId]: 'uploading' }));
+      uploadSessionRef.current = true;
+      setIsUploadSessionActive(true);
       setError(null);
       try {
-        // Add timeout to prevent hanging uploads
-        const uploadPromise = driveService.createGoogleDoc(title, content, folderId ?? undefined);
-        const timeoutPromise = new Promise<never>(
-          (_, reject) => setTimeout(() => reject(new Error('Upload timeout')), 30000), // 30 second timeout
+        return await Promise.allSettled(
+          uploads.map(async ({ uploadKey, title, content, folderId }) => {
+            const operationKey = uploadOperationKeysRef.current[uploadKey];
+            const wasUnknown = unknownUploadKeysRef.current.has(uploadKey);
+            setUploadStatuses((prev) => ({
+              ...prev,
+              [uploadKey]: operationKey ? 'verifying' : 'uploading',
+            }));
+
+            try {
+              const file = await driveService.createGoogleDoc(
+                title,
+                content,
+                folderId ?? undefined,
+                {
+                  operationKey,
+                  reconcileOnly: wasUnknown,
+                  onOperationKeyCreated: (createdOperationKey) => {
+                    uploadOperationKeysRef.current[uploadKey] = createdOperationKey;
+                  },
+                  onPhaseChange: (status) => {
+                    setUploadStatuses((prev) => ({ ...prev, [uploadKey]: status }));
+                  },
+                },
+              );
+              delete uploadOperationKeysRef.current[uploadKey];
+              unknownUploadKeysRef.current.delete(uploadKey);
+              setUploadStatuses((prev) => ({ ...prev, [uploadKey]: 'completed' }));
+              return { uploadKey, file };
+            } catch (err) {
+              const message =
+                err instanceof Error ? err.message : 'Failed to upload to Google Docs';
+              const isUnknown =
+                err instanceof GoogleDriveUnknownUploadError ||
+                (wasUnknown && err instanceof GoogleDriveAuthenticationError);
+              if (isUnknown) unknownUploadKeysRef.current.add(uploadKey);
+              else {
+                delete uploadOperationKeysRef.current[uploadKey];
+                unknownUploadKeysRef.current.delete(uploadKey);
+              }
+              setError(message);
+              setUploadStatuses((prev) => ({
+                ...prev,
+                [uploadKey]: isUnknown ? 'unknown' : 'error',
+              }));
+              if (!driveService.hasValidSession()) setIsAuthenticated(false);
+              throw err;
+            }
+          }),
         );
-        const file = await Promise.race([uploadPromise, timeoutPromise]);
-        setUploadStatuses((prev) => ({ ...prev, [fileId]: 'completed' }));
-        return file;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to upload to Google Docs');
-        setUploadStatuses((prev) => ({ ...prev, [fileId]: 'error' }));
-        if (err instanceof GoogleDriveAuthenticationError) setIsAuthenticated(false);
-        throw err;
+      } finally {
+        uploadSessionRef.current = false;
+        setIsUploadSessionActive(false);
       }
     },
     [driveService],
   );
 
+  const isUploadBlockingProcessing =
+    isUploadSessionActive || Object.values(uploadStatuses).includes('unknown');
+
   return {
     preparationStatus,
     isAuthenticated,
     isAuthenticating,
+    isUploadSessionActive,
+    isUploadBlockingProcessing,
     prepareDrive,
     connect,
     refresh,
@@ -362,6 +454,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
     uploadStatuses,
     resetUploadStatuses,
     clearUploadStatus,
+    discardUnknownUpload,
     error,
   };
 }

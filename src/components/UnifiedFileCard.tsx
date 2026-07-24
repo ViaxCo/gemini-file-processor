@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
+import type { UploadStatus } from '@/hooks/useGoogleDrive';
 import { confidenceColorClass, getConfidenceScore } from '@/utils/confidenceScore';
 import { copyToClipboard, downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
 import {
@@ -23,6 +24,7 @@ import {
   Loader2,
   PencilLine,
   RotateCcw,
+  Trash2,
   Undo2,
   UploadCloud,
 } from 'lucide-react';
@@ -42,12 +44,23 @@ export interface UnifiedFileCardProps {
   onRetry?: () => void;
   onAbort?: () => void;
   onUpload?: () => void;
+  onDiscardUpload?: () => void;
   onViewResponse?: () => void; // optional external handler; defaults to local expand
-  uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
+  uploadStatus?: UploadStatus;
   destinationFolderName?: string | null;
   canUpload?: boolean;
+  uploadDisabled?: boolean;
   processingProfile: ProcessingProfile;
 }
+
+const UPLOAD_LABELS: Record<UploadStatus, string> = {
+  idle: 'Upload to Google Docs',
+  uploading: 'Uploading…',
+  verifying: 'Verifying upload…',
+  completed: 'Uploaded',
+  error: 'Retry upload',
+  unknown: 'Check upload status',
+};
 
 export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   const {
@@ -61,10 +74,12 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     onRetry,
     onAbort,
     onUpload,
+    onDiscardUpload,
     onViewResponse,
     uploadStatus,
     destinationFolderName,
     canUpload = true,
+    uploadDisabled = false,
     processingProfile,
   } = props;
 
@@ -204,6 +219,8 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   );
 
   // Note: Inline scroll handling removed in favor of modal view
+  const isUploadPending = uploadStatus === 'uploading' || uploadStatus === 'verifying';
+  const uploadLabel = UPLOAD_LABELS[uploadStatus || 'idle'];
 
   return (
     <Card className="w-full gap-0">
@@ -300,6 +317,9 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                   </Badge>
                 )}
                 <Badge variant="outline">{destinationFolderName || 'Root (My Drive)'}</Badge>
+                {uploadStatus === 'unknown' && (
+                  <Badge variant="destructive">Upload unconfirmed</Badge>
+                )}
                 {confidence && result.isCompleted && !result.error && (
                   <span className={`text-xs ${confidenceColorClass(confidence.level)}`}>
                     Confidence {confidence.level} ({Math.round(confidence.score * 100)}%)
@@ -423,19 +443,36 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                           variant="ghost"
                           size="sm"
                           className="h-7 w-7 p-0 hover:bg-muted/50"
-                          aria-label="Upload to Google Drive"
-                          disabled={uploadStatus === 'uploading'}
+                          aria-label={uploadLabel}
+                          disabled={
+                            uploadDisabled || isUploadPending || uploadStatus === 'completed'
+                          }
                         >
-                          {uploadStatus === 'uploading' ? (
+                          {isUploadPending ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
                             <UploadCloud className="h-3.5 w-3.5" />
                           )}
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>
-                        {uploadStatus === 'uploading' ? 'Uploading…' : 'Upload to Google Docs'}
-                      </TooltipContent>
+                      <TooltipContent>{uploadLabel}</TooltipContent>
+                    </Tooltip>
+                  )}
+                  {onDiscardUpload && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={onDiscardUpload}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          aria-label="Discard unconfirmed upload"
+                          disabled={uploadDisabled}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Discard unconfirmed upload</TooltipContent>
                     </Tooltip>
                   )}
                   <Tooltip>

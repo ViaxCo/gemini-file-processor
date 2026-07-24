@@ -53,7 +53,6 @@ A modern React application that processes large batches of `.txt`, `.md`, and `.
    MY_GEMINI_API_KEY=your_gemini_api_key_here
    # Optional: For Google Drive integration
    NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
-   NEXT_PUBLIC_GOOGLE_API_KEY=your_google_api_key_here
    # Optional: For API quota monitoring
    NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER=your_project_number_here
    GOOGLE_SERVICE_ACCOUNT_KEY='{"type":"service_account",...}'
@@ -110,9 +109,8 @@ The application follows a component-based architecture with:
 - **src/app/page.tsx**: Main component managing file state and UI layout
 - **FileUpload**: Handles file selection and validation
 - **InstructionsPanel**: Input for processing instructions and controls
-- **ResponseDisplay**: Single file response viewer
 - **MultiFileResponseDisplay**: Multi-file response viewer with queue/batch status
-- **GoogleDriveUpload**: Optional Google Drive integration component
+- **useGoogleDrive**: Google Drive authentication, folders, and document uploads
 
 ### Key Features
 
@@ -132,7 +130,6 @@ Required:
 Optional (for Google Drive integration):
 
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` - OAuth 2.0 Client ID
-- `NEXT_PUBLIC_GOOGLE_API_KEY` - Google API key with Drive/Docs access
 
 Optional (for API quota monitoring):
 

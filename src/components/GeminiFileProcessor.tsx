@@ -8,7 +8,7 @@ import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay'
 import { Badge } from '@/components/ui/badge';
 import { Toaster } from '@/components/ui/sonner';
 import { useAIProcessor } from '@/hooks/useAIProcessor';
-import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { makeUploadKey, useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useProviderSelector } from '@/hooks/useProviderSelector';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
@@ -73,8 +73,11 @@ export function AIFileProcessor() {
       });
       return;
     }
+    if (!googleDrive.resetUploadStatuses()) {
+      toast.error('Finish or verify the current Drive upload before processing new files.');
+      return;
+    }
     markInstructionAsProcessed(instruction);
-    googleDrive.resetUploadStatuses();
     await processFiles(
       files,
       instruction,
@@ -85,10 +88,14 @@ export function AIFileProcessor() {
     );
   };
 
-  const handleClearAll = (): void => {
+  const handleClearAll = (): boolean => {
+    if (!googleDrive.resetUploadStatuses()) {
+      toast.error('Finish or verify the current Drive upload before clearing this batch.');
+      return false;
+    }
     setFiles([]);
-    googleDrive.resetUploadStatuses();
     clearResults();
+    return true;
   };
 
   const handleClearFiles = (): void => {
@@ -96,9 +103,17 @@ export function AIFileProcessor() {
   };
 
   const handleRetryFile = async (index: number) => {
+    if (googleDrive.isUploadBlockingProcessing) {
+      toast.error('Finish or verify the Drive upload before reprocessing files.');
+      return;
+    }
     const fileToRetry = fileResults[index];
-    if (fileToRetry) {
-      googleDrive.clearUploadStatus(fileToRetry.file.name);
+    if (
+      fileToRetry &&
+      !googleDrive.clearUploadStatus(makeUploadKey(processingBatchId, index, fileToRetry.file))
+    ) {
+      toast.error('Finish or verify the Drive upload before reprocessing this file.');
+      return;
     }
 
     // Use the last processed instruction, or fall back to current instruction
@@ -121,12 +136,16 @@ export function AIFileProcessor() {
   };
 
   const handleRetryAllFailed = async () => {
+    if (googleDrive.isUploadBlockingProcessing) {
+      toast.error('Finish or verify the Drive upload before reprocessing files.');
+      return;
+    }
     const failedEntries = fileResults
       .map((result, index) => ({ result, index }))
       .filter(({ result }) => !!result.error);
 
-    failedEntries.forEach(({ result }) => {
-      googleDrive.clearUploadStatus(result.file.name);
+    failedEntries.forEach(({ result, index }) => {
+      googleDrive.clearUploadStatus(makeUploadKey(processingBatchId, index, result.file));
     });
 
     // Use the last processed instruction, or fall back to current instruction
@@ -177,7 +196,7 @@ export function AIFileProcessor() {
     }
   };
 
-  const canProcess = files.length > 0 && !!apiKey;
+  const canProcess = files.length > 0 && !!apiKey && !googleDrive.isUploadBlockingProcessing;
   const completedCount = fileResults.filter((result) => result.isCompleted && !result.error).length;
   const processingCount = fileResults.filter((result) => result.isProcessing).length;
   const errorCount = fileResults.filter((result) => result.error).length;
@@ -265,6 +284,7 @@ export function AIFileProcessor() {
                 onProcess={handleProcess}
                 onClearAll={handleClearAll}
                 isProcessing={isProcessing}
+                isDriveUploadBlocking={googleDrive.isUploadBlockingProcessing}
                 canProcess={canProcess}
                 fileCount={files.length}
                 processingProfile={processingProfile}
@@ -278,6 +298,7 @@ export function AIFileProcessor() {
               <MultiFileResponseDisplay
                 key={processingBatchId}
                 fileResults={fileResults}
+                processingBatchId={processingBatchId}
                 processingProfile={processingProfile}
                 onRetryFile={handleRetryFile}
                 onRetryAllFailed={handleRetryAllFailed}
@@ -289,6 +310,8 @@ export function AIFileProcessor() {
                 throttleSecondsRemaining={throttleSecondsRemaining}
                 uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
                 isDriveAuthenticated={googleDrive.isAuthenticated}
+                isUploadSessionActive={googleDrive.isUploadSessionActive}
+                discardUnknownUpload={googleDrive.discardUnknownUpload}
                 driveFolders={googleDrive.folders}
                 driveIsLoadingFolders={googleDrive.isLoadingFolders}
                 driveIsLoadingMoreFolders={googleDrive.isLoadingMoreFolders}

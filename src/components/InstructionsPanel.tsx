@@ -14,8 +14,9 @@ import { Loader2, Zap, Check } from 'lucide-react';
 
 interface InstructionsPanelProps {
   onProcess: (instruction: string) => void;
-  onClearAll: () => void;
+  onClearAll: () => boolean;
   isProcessing: boolean;
+  isDriveUploadBlocking: boolean;
   canProcess: boolean;
   fileCount?: number;
   processingProfile: ProcessingProfile;
@@ -26,6 +27,7 @@ export const InstructionsPanel = ({
   onProcess,
   onClearAll,
   isProcessing,
+  isDriveUploadBlocking,
   canProcess,
   fileCount = 0,
   processingProfile,
@@ -50,8 +52,7 @@ export const InstructionsPanel = ({
   };
 
   const handleClearAll = (): void => {
-    setInstruction('');
-    onClearAll();
+    if (onClearAll()) setInstruction('');
   };
 
   const handleProcess = (): void => {
@@ -177,6 +178,7 @@ export const InstructionsPanel = ({
             <Button
               onClick={handleClearAll}
               variant="secondary"
+              disabled={isDriveUploadBlocking}
               size="default"
               className="text-sm sm:text-base"
             >

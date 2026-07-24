@@ -25,20 +25,12 @@ This guide will help you set up Google Drive integration and API quota monitorin
 
 1. In the Google Cloud Console, navigate to "APIs & Services" > "Library"
 2. Search for and enable the following APIs:
-   - **Google Drive API** (for file uploads)
-   - **Google Docs API** (for document creation)
+   - **Google Drive API** (for folders and Google Doc uploads)
    - **Service Usage API** (for quota monitoring)
    - **Cloud Monitoring API** (for usage tracking)
    - **Generative Language API** (for Gemini AI access)
 
 ### 3. Create Credentials
-
-#### Create an API Key
-
-1. Go to "APIs & Services" > "Credentials"
-2. Click "Create Credentials" > "API key"
-3. Copy the generated API key
-4. (Optional) Restrict the API key to only the Drive and Docs APIs for security
 
 #### Create OAuth 2.0 Client ID
 
@@ -83,7 +75,6 @@ This guide will help you set up Google Drive integration and API quota monitorin
    ```env
    # Google Drive API Configuration
    NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
-   NEXT_PUBLIC_GOOGLE_API_KEY=your_google_api_key_here
    # Note: NEXT_PUBLIC_GOOGLE_REDIRECT_URI is no longer needed with Google Identity Services
 
    # Gemini API Key (existing)
@@ -99,7 +90,6 @@ This guide will help you set up Google Drive integration and API quota monitorin
 
    Replace:
    - `your_google_client_id_here` with your OAuth 2.0 Client ID
-   - `your_google_api_key_here` with your API key
    - `your_gemini_api_key_here` with your existing Gemini API key
    - `your_project_number_here` with your Google Cloud project number (for quota monitoring)
    - The `GOOGLE_SERVICE_ACCOUNT_KEY` with the entire JSON content of your service account key file
@@ -163,20 +153,19 @@ This guide will help you set up Google Drive integration and API quota monitorin
 
 **"Authentication failed" error:**
 
-- Ensure your Client ID and API key are correct
+- Ensure your Client ID is correct
 - Check that the APIs are enabled in Google Cloud Console
 - Verify the authorized JavaScript origins include your domain
 
 **"Failed to list folders" error:**
 
 - Make sure the Google Drive API is enabled
-- Check that your API key has the correct permissions
+- Check that the Google Drive API is enabled for the OAuth project
 - Ensure the user has granted the necessary OAuth scopes
 
 **"Failed to create Google Doc" error:**
 
-- Verify the Google Docs API is enabled
-- Check that your API key includes access to the Docs API
+- Verify the Google Drive API is enabled
 - Ensure the user has write permissions to the selected folder
 
 **"Failed to fetch quota information" error:**
@@ -192,16 +181,13 @@ For production deployment, remember to:
 
 1. Update the authorized JavaScript origins in Google Cloud Console to include your production domain
 2. The redirect URI is handled automatically by Google Identity Services, so no manual configuration needed
-3. Consider restricting your API key to specific referrers for security
-4. Use environment-specific API keys for production vs development
-5. Enable API key restrictions in Google Cloud Console for enhanced security
+3. Use environment-specific OAuth clients for production and development
 
 ## Security Best Practices
 
-1. **Restrict API Keys**: Limit your API key to only the necessary APIs and referrers
-2. **OAuth Scopes**: The app only requests minimal necessary scopes (drive.file and documents)
-3. **Environment Variables**: Never commit your `.env` file to version control
-4. **HTTPS**: Use HTTPS in production for secure OAuth flows
+1. **OAuth Scopes**: Review the Google Drive scope requested by the app before production use
+2. **Environment Variables**: Never commit your `.env` file to version control
+3. **HTTPS**: Use HTTPS in production for secure OAuth flows
 
 ## Need Help?
 

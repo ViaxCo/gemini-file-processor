@@ -1,0 +1,3 @@
+# Use Drive REST requests while retaining Google Identity Services
+
+Google Identity Services remains responsible for browser OAuth, while Google Drive operations use direct REST requests instead of the GAPI client. Standard fetch requests provide a smaller initialization path, consistent deadlines and errors, cancellation support, and a testable seam. Document Uploads carry a private `appProperties` operation marker because Google does not support pre-generated IDs for Google Workspace conversion uploads; folder creation uses pre-generated IDs, which Drive explicitly supports, so timed-out retries cannot create duplicate folders.

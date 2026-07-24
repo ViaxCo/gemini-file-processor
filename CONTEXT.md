@@ -23,3 +23,19 @@ _Avoid_: No folder, empty selection
 **Processing Batch**:
 The files and generated results created by one processing action. Selections, display names, upload statuses, and Destination Assignments belong only to that batch.
 _Avoid_: Current files, result list
+
+**Upload Session**:
+One user-initiated individual, selected, or all-files upload action. Upload controls do not start another Upload Session until the active one finishes.
+_Avoid_: Upload queue, upload batch
+
+**Document Upload**:
+The creation of one Google Doc from one processed file in a Processing Batch. A successful Document Upload is terminal for that file unless the user explicitly requests another copy.
+_Avoid_: Upload attempt, request
+
+**Upload Reconciliation**:
+Verification of a Document Upload using its private Google Drive operation marker after the create request does not return a definitive result. It happens automatically before the user is asked to intervene.
+_Avoid_: Automatic retry, status refresh
+
+**Unknown Upload Outcome**:
+A Document Upload whose final Google Drive result cannot be confirmed through Upload Reconciliation. It must not be treated as failed or retried as a new Document Upload unless the user explicitly discards the unresolved outcome and accepts the duplicate risk.
+_Avoid_: Failed upload, timed-out upload

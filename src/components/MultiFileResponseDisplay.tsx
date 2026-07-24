@@ -23,31 +23,34 @@ import { toast } from 'sonner';
 import { FileResult, ProcessingProfile } from '../hooks/useAIProcessor';
 import {
   DriveDestination,
-  DriveFile,
   DriveFolder,
+  DriveUploadRequest,
+  DriveUploadResult,
   FolderLoadOptions,
   MY_DRIVE_ROOT,
+  UploadStatus,
+  makeUploadKey,
 } from '../hooks/useGoogleDrive';
 
 interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
+  processingBatchId: number;
   processingProfile: ProcessingProfile;
   onRetryFile?: (index: number) => void;
   onRetryAllFailed?: () => void;
   onAbortFile?: (index: number) => void;
   onAbortSelected?: (indices: number[]) => void;
   onAbortAll?: () => void;
-  uploadStatuses?: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
+  uploadStatuses?: Record<string, UploadStatus>;
   isWaitingForNextBatch?: boolean;
   throttleSecondsRemaining?: number;
   // Google Drive integration for inline uploads
   uploadToGoogleDocs?: (
-    fileId: string,
-    title: string,
-    content: string,
-    folderId?: string | null,
-  ) => Promise<DriveFile>;
+    uploads: DriveUploadRequest[],
+  ) => Promise<PromiseSettledResult<DriveUploadResult>[]>;
   isDriveAuthenticated?: boolean;
+  isUploadSessionActive?: boolean;
+  discardUnknownUpload?: (uploadKey: string) => boolean;
 
   // Google Drive folder selection (for Assign Folder modal)
   driveFolders?: DriveFolder[];
@@ -62,8 +65,12 @@ interface MultiFileResponseDisplayProps {
 
 // Replaced FileItem with UnifiedFileCard per Phase 2
 
+const canStartUpload = (status?: UploadStatus) =>
+  !status || status === 'idle' || status === 'error';
+
 export const MultiFileResponseDisplay = ({
   fileResults,
+  processingBatchId,
   processingProfile,
   onRetryFile,
   onRetryAllFailed,
@@ -75,6 +82,8 @@ export const MultiFileResponseDisplay = ({
   throttleSecondsRemaining = 0,
   uploadToGoogleDocs,
   isDriveAuthenticated = false,
+  isUploadSessionActive = false,
+  discardUnknownUpload,
   driveFolders = [],
   driveIsLoadingFolders = false,
   driveIsLoadingMoreFolders = false,
@@ -88,8 +97,6 @@ export const MultiFileResponseDisplay = ({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [displayNames, setDisplayNames] = useState<Record<number, string>>({});
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
-  const [isUploadingAll, setIsUploadingAll] = useState<boolean>(false);
-  const [isUploadingSelected, setIsUploadingSelected] = useState<boolean>(false);
   const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
@@ -97,6 +104,10 @@ export const MultiFileResponseDisplay = ({
   const [assignedFolders, setAssignedFolders] = useState<Record<number, DriveDestination>>({});
   const [lowConfidenceIndices, setLowConfidenceIndices] = useState<number[]>([]);
   const lowConfidenceSet = useMemo(() => new Set(lowConfidenceIndices), [lowConfidenceIndices]);
+  const uploadKeys = useMemo(
+    () => fileResults.map((result, index) => makeUploadKey(processingBatchId, index, result.file)),
+    [processingBatchId, fileResults],
+  );
   const initialDestination = useMemo(() => {
     const destinations = [...selected].map((index) => assignedFolders[index] ?? MY_DRIVE_ROOT);
     const first = destinations[0];
@@ -141,24 +152,28 @@ export const MultiFileResponseDisplay = ({
     const notUploaded: number[] = [];
     const uploaded: number[] = [];
     for (const i of indices) {
-      const status = uploadStatuses[fileResults[i]!.file.name];
+      const status = uploadStatuses[uploadKeys[i]!];
       if (status === 'completed') uploaded.push(i);
       else notUploaded.push(i);
     }
     return [...notUploaded, ...uploaded];
-  }, [fileResults, uploadStatuses]);
+  }, [fileResults, uploadStatuses, uploadKeys]);
 
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
   );
-  const uploadEligible = fileResults.filter(
-    (r, i) =>
-      r.isCompleted &&
-      !r.error &&
-      r.response &&
-      (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed') &&
-      !lowConfidenceSet.has(i),
-  );
+  const uploadEligible = fileResults
+    .map((result, index) => ({ result, index }))
+    .filter(({ result, index }) => {
+      const status = uploadStatuses?.[uploadKeys[index]!];
+      return (
+        result.isCompleted &&
+        !result.error &&
+        result.response &&
+        canStartUpload(status) &&
+        !lowConfidenceSet.has(index)
+      );
+    });
   const allCompleted = fileResults.length > 0 && fileResults.every((result) => result.isCompleted);
   const isAnyProcessing = fileResults.some((result) => result.isProcessing);
   const pendingCount = fileResults.filter(
@@ -171,10 +186,10 @@ export const MultiFileResponseDisplay = ({
   const uploadedCount = useMemo(() => {
     if (!uploadStatuses) return 0;
     return fileResults.reduce(
-      (acc, r) => acc + (uploadStatuses[r.file.name] === 'completed' ? 1 : 0),
+      (acc, _result, index) => acc + (uploadStatuses[uploadKeys[index]!] === 'completed' ? 1 : 0),
       0,
     );
-  }, [fileResults, uploadStatuses]);
+  }, [fileResults, uploadStatuses, uploadKeys]);
   const progressPercentage =
     fileResults.length > 0 ? (completedCount / fileResults.length) * 100 : 0;
 
@@ -183,25 +198,13 @@ export const MultiFileResponseDisplay = ({
     [fileResults, selected],
   );
   const selectedCount = selected.size;
-  const uploadSelectedEligibleCount = useMemo(() => {
-    const indices = [...selected];
-    if (indices.length === 0) return 0;
-    return indices.reduce((count, i) => {
-      const r = fileResults[i];
-      if (
-        r &&
-        r.isCompleted &&
-        !r.error &&
-        r.response &&
-        (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed') &&
-        !lowConfidenceSet.has(i)
-      ) {
-        return count + 1;
-      }
-      return count;
-    }, 0);
-  }, [selected, fileResults, uploadStatuses, lowConfidenceSet]);
+  const hasUnknownUpload = Object.values(uploadStatuses || {}).includes('unknown');
+  const isDriveLifecycleBlockingProcessing = isUploadSessionActive || hasUnknownUpload;
+  const selectedUploadItems = uploadEligible.filter(({ index }) => selected.has(index));
+  const uploadSelectedEligibleCount = selectedUploadItems.length;
   const viewedResult = viewIndex != null ? (fileResults[viewIndex] ?? null) : null;
+  const viewedUploadStatus =
+    viewIndex != null ? uploadStatuses?.[uploadKeys[viewIndex]!] : undefined;
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -212,7 +215,7 @@ export const MultiFileResponseDisplay = ({
   };
 
   const handleRetrySelected = () => {
-    if (!onRetryFile) return;
+    if (!onRetryFile || isDriveLifecycleBlockingProcessing) return;
     const count = selected.size;
     if (count === 0) return;
     const message = `Retry processing for ${count} selected file${count > 1 ? 's' : ''}?`;
@@ -289,144 +292,104 @@ export const MultiFileResponseDisplay = ({
     }
   };
 
+  const uploadItems = async (
+    items: Array<{ result: FileResult; index: number }>,
+  ): Promise<PromiseSettledResult<number>[]> => {
+    if (!uploadToGoogleDocs) return [];
+
+    const results = await uploadToGoogleDocs(
+      items.map(({ result, index }) => ({
+        uploadKey: uploadKeys[index]!,
+        title: (displayNames[index] || result.file.name).replace(/\.[^.]+$/, ''),
+        content: result.response,
+        folderId: assignedFolders[index]?.id,
+      })),
+    );
+    return results.map((result, index) =>
+      result.status === 'fulfilled' ? { status: 'fulfilled', value: items[index]!.index } : result,
+    );
+  };
+
+  const finishBulkUpload = (
+    results: PromiseSettledResult<number>[],
+    successMessage: (count: number) => string,
+  ) => {
+    const succeeded = results
+      .filter((result): result is PromiseFulfilledResult<number> => result.status === 'fulfilled')
+      .map((result) => result.value);
+    const failed = results.length - succeeded.length;
+
+    if (succeeded.length > 0) {
+      setSelected((previous) => {
+        const next = new Set(previous);
+        for (const index of succeeded) next.delete(index);
+        return next;
+      });
+    }
+
+    if (failed === 0) toast.success(successMessage(succeeded.length));
+    else if (succeeded.length > 0) {
+      toast.warning(`${succeeded.length} uploaded; ${failed} need attention.`);
+    } else toast.error('No files were uploaded. Check their statuses and try again.');
+  };
+
+  const handleDiscardUnknownUpload = (index: number) => {
+    if (!discardUnknownUpload) return;
+    const fileName = fileResults[index]?.file.name || 'this file';
+    const confirmed = confirm(
+      `Drive could not confirm whether "${fileName}" was created. Discarding this status allows another upload and may create a duplicate. Continue?`,
+    );
+    if (!confirmed) return;
+
+    if (discardUnknownUpload(uploadKeys[index]!)) {
+      toast.warning('Unconfirmed upload discarded. A future upload may create a duplicate.');
+    }
+  };
+
   const handleUploadSingle = async (index: number): Promise<void> => {
-    if (!uploadToGoogleDocs) return;
-    const r = fileResults[index];
-    if (!r || !r.isCompleted || !r.response || r.error) return;
-    const baseName = (displayNames[index] || r.file.name).replace(/\.[^.]+$/, '');
+    if (!uploadToGoogleDocs || !isDriveAuthenticated) return;
+    const result = fileResults[index];
+    if (!result?.isCompleted || !result.response || result.error) return;
+
     try {
-      const folderIdForItem = assignedFolders[index]?.id;
-      await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
+      const [uploadResult] = await uploadItems([{ result, index }]);
+      if (!uploadResult || uploadResult.status === 'rejected') {
+        throw uploadResult?.reason || new Error('Upload failed');
+      }
       toast.success('Uploaded to Google Docs');
-      // Deselect if it was selected
-      setSelected((prev) => {
-        if (!prev.has(index)) return prev;
-        const next = new Set(prev);
+      setSelected((previous) => {
+        if (!previous.has(index)) return previous;
+        const next = new Set(previous);
         next.delete(index);
         return next;
       });
-    } catch (e) {
-      toast.error('Upload failed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Upload failed');
     }
   };
 
   const handleUploadSelected = async (): Promise<void> => {
-    if (!uploadToGoogleDocs || !isDriveAuthenticated) return;
-    const indices = [...selected];
-    if (indices.length === 0) return;
+    if (!uploadToGoogleDocs || !isDriveAuthenticated || selectedUploadItems.length === 0) return;
 
-    const eligible = indices
-      .map((i) => ({ r: fileResults[i], i }))
-      .filter(
-        ({ r }) =>
-          r &&
-          r.isCompleted &&
-          !r.error &&
-          r.response &&
-          (!uploadStatuses || uploadStatuses[r.file.name] !== 'completed'),
-      );
-    // Exclude low-confidence files from selected uploads
-    const eligibleFiltered = eligible.filter(({ i }) => !lowConfidenceSet.has(i));
-
-    if (eligibleFiltered.length === 0) return;
     try {
-      setIsUploadingSelected(true);
-      // Add overall timeout to prevent the operation from hanging indefinitely
-      const uploadOperation = Promise.allSettled(
-        eligibleFiltered.map(async ({ r, i }) => {
-          const baseName = (displayNames[i] || r!.file.name).replace(/\.[^.]+$/, '');
-          const folderIdForItem = assignedFolders[i]?.id;
-          await uploadToGoogleDocs(r!.file.name, baseName, r!.response, folderIdForItem);
-          return i;
-        }),
+      const results = await uploadItems(selectedUploadItems);
+      finishBulkUpload(
+        results,
+        (count) => `Uploaded ${count} selected file${count === 1 ? '' : 's'}`,
       );
-      const timeoutPromise = new Promise<never>(
-        (_, reject) => setTimeout(() => reject(new Error('Upload operation timeout')), 60000), // 60 second overall timeout
-      );
-      const results = await Promise.race([uploadOperation, timeoutPromise]);
-      const succeeded: number[] = results
-        .filter((res): res is PromiseFulfilledResult<number> => res.status === 'fulfilled')
-        .map((res) => res.value);
-      const failed = results.length - succeeded.length;
-      if (succeeded.length > 0) {
-        // Deselect successfully uploaded items
-        setSelected((prev) => {
-          const next = new Set(prev);
-          for (const idx of succeeded) next.delete(idx);
-          return next;
-        });
-      }
-      if (failed === 0) {
-        toast.success(
-          `Uploaded ${succeeded.length} selected file${succeeded.length > 1 ? 's' : ''}`,
-        );
-      } else if (succeeded.length > 0) {
-        toast.success(`Uploaded ${succeeded.length} selected; ${failed} failed. Check statuses.`);
-      } else {
-        toast.error('All selected uploads failed.');
-      }
-    } catch (e: any) {
-      if (e.message === 'Upload operation timeout') {
-        toast.error('Upload operation timed out. Please try again.');
-      } else {
-        toast.error('Some selected uploads failed.');
-      }
-    } finally {
-      setIsUploadingSelected(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Upload failed');
     }
   };
 
   const handleUploadAll = async (): Promise<void> => {
-    if (!uploadToGoogleDocs) return;
-    if (!isDriveAuthenticated) {
-      toast.error('Connect Google Drive to upload');
-      return;
-    }
-    const items = uploadEligible;
-    if (items.length === 0) return;
+    if (!uploadToGoogleDocs || !isDriveAuthenticated || uploadEligible.length === 0) return;
+
     try {
-      setIsUploadingAll(true);
-      // Add overall timeout to prevent the operation from hanging indefinitely
-      const uploadOperation = Promise.allSettled(
-        items.map(async (r) => {
-          const idx = fileResults.indexOf(r);
-          const baseName = (displayNames[idx] || r.file.name).replace(/\.[^.]+$/, '');
-          const folderIdForItem = assignedFolders[idx]?.id;
-          await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
-          return idx;
-        }),
-      );
-      const timeoutPromise = new Promise<never>(
-        (_, reject) => setTimeout(() => reject(new Error('Upload operation timeout')), 60000), // 60 second overall timeout
-      );
-      const results = await Promise.race([uploadOperation, timeoutPromise]);
-      const succeeded: number[] = results
-        .filter((res): res is PromiseFulfilledResult<number> => res.status === 'fulfilled')
-        .map((res) => res.value);
-      const failed = results.length - succeeded.length;
-      if (succeeded.length > 0) {
-        // Deselect successfully uploaded items if they were selected
-        setSelected((prev) => {
-          const next = new Set(prev);
-          for (const idx of succeeded) next.delete(idx);
-          return next;
-        });
-      }
-      if (failed === 0) {
-        toast.success(`Uploaded ${succeeded.length} file${succeeded.length > 1 ? 's' : ''}`);
-      } else if (succeeded.length > 0) {
-        toast.success(`Uploaded ${succeeded.length}; ${failed} failed. Check statuses.`);
-      } else {
-        toast.error('All uploads failed.');
-      }
-    } catch (e: any) {
-      if (e.message === 'Upload operation timeout') {
-        toast.error('Upload operation timed out. Please try again.');
-      } else {
-        toast.error('Some uploads failed. Check statuses.');
-      }
-    } finally {
-      setIsUploadingAll(false);
+      const results = await uploadItems(uploadEligible);
+      finishBulkUpload(results, (count) => `Uploaded ${count} file${count === 1 ? '' : 's'}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Upload failed');
     }
   };
 
@@ -499,30 +462,9 @@ export const MultiFileResponseDisplay = ({
                   variant="default"
                   size="sm"
                   className="flex-shrink-0 text-xs sm:text-sm"
-                  disabled={isAnyProcessing || !isDriveAuthenticated || isUploadingAll}
+                  disabled={isAnyProcessing || !isDriveAuthenticated || isUploadSessionActive}
                 >
-                  {isUploadingAll ? (
-                    <span className="inline-flex h-4 w-4 items-center justify-center">
-                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                        ></path>
-                      </svg>
-                    </span>
-                  ) : (
-                    <DownloadCloud className="h-4 w-4 rotate-180" />
-                  )}
+                  <DownloadCloud className="h-4 w-4 rotate-180" />
                   <span className="hidden whitespace-nowrap sm:inline">Upload All</span>
                   <span className="whitespace-nowrap sm:hidden">Upload</span>
                 </Button>
@@ -609,6 +551,7 @@ export const MultiFileResponseDisplay = ({
                           variant="outline"
                           size="sm"
                           className="ml-2 h-7 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+                          disabled={isDriveLifecycleBlockingProcessing}
                         >
                           <RotateCcw className="mr-1 h-3 w-3" />
                           <span className="hidden sm:inline">Retry All</span>
@@ -635,11 +578,12 @@ export const MultiFileResponseDisplay = ({
                         <Button
                           onClick={() => {
                             // Retry all low-confidence files without confirmation
-                            lowConfidenceIndices.forEach((i) => onRetryFile(i));
+                            lowConfidenceIndices.forEach((index) => onRetryFile(index));
                           }}
                           variant="outline"
                           size="sm"
                           className="ml-2"
+                          disabled={isDriveLifecycleBlockingProcessing}
                         >
                           <RotateCcw className="mr-1 h-3 w-3" />
                           <span className="hidden sm:inline">Retry Low Confidence</span>
@@ -671,6 +615,7 @@ export const MultiFileResponseDisplay = ({
               {orderedIndices.map((orderedIndex) => {
                 const result = fileResults[orderedIndex]!;
                 const resultProfile = result.processingProfile ?? processingProfile;
+                const uploadStatus = uploadStatuses?.[uploadKeys[orderedIndex]!];
                 return (
                   <UnifiedFileCard
                     key={`${result.file.name}-${orderedIndex}`}
@@ -691,16 +636,26 @@ export const MultiFileResponseDisplay = ({
                     }
                     showMarkdown={showMarkdown}
                     onToggleMarkdown={setShowMarkdown}
-                    onRetry={onRetryFile ? () => onRetryFile(orderedIndex) : undefined}
+                    onRetry={
+                      onRetryFile && !isDriveLifecycleBlockingProcessing
+                        ? () => onRetryFile(orderedIndex)
+                        : undefined
+                    }
                     onAbort={onAbortFile ? () => onAbortFile(orderedIndex) : undefined}
-                    uploadStatus={uploadStatuses?.[result.file.name]}
+                    uploadStatus={uploadStatus}
                     destinationFolderName={
                       assignedFolders[orderedIndex]?.name ?? MY_DRIVE_ROOT.name
                     }
                     onUpload={
                       uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined
                     }
+                    onDiscardUpload={
+                      uploadStatus === 'unknown' && discardUnknownUpload
+                        ? () => handleDiscardUnknownUpload(orderedIndex)
+                        : undefined
+                    }
                     canUpload={isDriveAuthenticated}
+                    uploadDisabled={isUploadSessionActive}
                     onViewResponse={() => {
                       setViewIndex(orderedIndex);
                       setIsViewOpen(true);
@@ -723,19 +678,23 @@ export const MultiFileResponseDisplay = ({
                     : undefined
                 }
                 onRetry={
-                  viewIndex != null && onRetryFile ? () => onRetryFile(viewIndex) : undefined
+                  viewIndex != null && onRetryFile && !isDriveLifecycleBlockingProcessing
+                    ? () => onRetryFile(viewIndex)
+                    : undefined
                 }
                 onUpload={
                   viewIndex != null && uploadToGoogleDocs
                     ? () => handleUploadSingle(viewIndex)
                     : undefined
                 }
-                canUpload={isDriveAuthenticated}
-                uploadStatus={
-                  viewIndex != null && fileResults[viewIndex]
-                    ? uploadStatuses?.[fileResults[viewIndex].file.name]
+                onDiscardUpload={
+                  viewIndex != null && viewedUploadStatus === 'unknown' && discardUnknownUpload
+                    ? () => handleDiscardUnknownUpload(viewIndex)
                     : undefined
                 }
+                canUpload={isDriveAuthenticated}
+                uploadDisabled={isUploadSessionActive}
+                uploadStatus={viewedUploadStatus}
                 destinationFolderName={
                   viewIndex != null
                     ? (assignedFolders[viewIndex]?.name ?? MY_DRIVE_ROOT.name)
@@ -753,11 +712,13 @@ export const MultiFileResponseDisplay = ({
               onUploadSelected={
                 uploadToGoogleDocs && isDriveAuthenticated ? handleUploadSelected : undefined
               }
-              onRetrySelected={onRetryFile ? handleRetrySelected : undefined}
+              onRetrySelected={
+                onRetryFile && !isDriveLifecycleBlockingProcessing ? handleRetrySelected : undefined
+              }
               onAbortSelected={onAbortSelected ? () => onAbortSelected([...selected]) : undefined}
               onDownloadSelected={handleDownloadSelected}
               isDriveAuthenticated={isDriveAuthenticated}
-              isUploadingSelected={isUploadingSelected}
+              isUploadSessionActive={isUploadSessionActive}
               allSelected={allSelected}
               onToggleSelectAll={(checked) => toggleSelectAll(checked)}
               uploadSelectedCount={uploadSelectedEligibleCount}

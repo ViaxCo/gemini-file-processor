@@ -17,7 +17,7 @@ interface ContextualActionBarProps {
   onDownloadSelected?: (format: 'markdown' | 'docx') => void;
   onBulkRename?: () => void;
   isDriveAuthenticated?: boolean;
-  isUploadingSelected?: boolean;
+  isUploadSessionActive?: boolean;
   allSelected?: boolean;
   onToggleSelectAll?: (checked: boolean) => void;
   uploadSelectedCount?: number;
@@ -32,7 +32,7 @@ export function ContextualActionBar({
   onDownloadSelected,
   onBulkRename,
   isDriveAuthenticated = false,
-  isUploadingSelected = false,
+  isUploadSessionActive = false,
   allSelected = false,
   onToggleSelectAll,
   uploadSelectedCount,
@@ -72,29 +72,9 @@ export function ContextualActionBar({
             size="sm"
             onClick={onUploadSelected}
             disabled={
-              !isDriveAuthenticated || isUploadingSelected || (uploadSelectedCount ?? 0) === 0
+              !isDriveAuthenticated || isUploadSessionActive || (uploadSelectedCount ?? 0) === 0
             }
           >
-            {isUploadingSelected ? (
-              <span className="mr-1 inline-flex h-4 w-4 items-center justify-center">
-                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  ></path>
-                </svg>
-              </span>
-            ) : null}
             {`Upload Selected${typeof uploadSelectedCount === 'number' ? ` (${uploadSelectedCount})` : ''}`}
           </Button>
         )}
