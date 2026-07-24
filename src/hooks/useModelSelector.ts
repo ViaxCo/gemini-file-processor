@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { GeminiModel } from '../components/ModelSelector';
 
 const MODEL_STORAGE_KEY = 'gemini-selected-model';
-const DEFAULT_MODEL: GeminiModel = 'gemini-3.5-flash';
+const DEFAULT_MODEL: GeminiModel = 'gemini-3.6-flash';
 
 export const useModelSelector = () => {
   const [selectedModel, setSelectedModel] = useState<GeminiModel>(DEFAULT_MODEL);

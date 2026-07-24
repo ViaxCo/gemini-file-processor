@@ -7,7 +7,7 @@ const STORAGE_KEY_MODEL = 'ai-file-processor-model';
 
 export const useProviderSelector = () => {
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>('gemini');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.5-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.6-flash');
   const [apiKey, setApiKey] = useState<string>('');
   const [isLoaded, setIsLoaded] = useState(false);
 
