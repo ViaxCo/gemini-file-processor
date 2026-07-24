@@ -1,32 +1,37 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { GoogleDriveAuthenticationError, GoogleDriveService } from '../services/googleDriveService';
+import type {
   DriveFile,
   DriveFolder,
   GoogleDriveConfig,
-  GoogleDriveService,
+  TokenExpiryInfo,
 } from '../services/googleDriveService';
 
-export type { DriveFile, DriveFolder };
+export type { DriveFile, DriveFolder, TokenExpiryInfo };
+export type DriveDestination = { id: string | null; name: string };
+export type DrivePreparationStatus = 'preparing' | 'ready' | 'error';
+export type FolderLoadOptions = { clearExisting?: boolean };
+export const MY_DRIVE_ROOT: DriveDestination = { id: null, name: 'Root (My Drive)' };
 
 export interface UseGoogleDriveReturn {
   // Authentication
+  preparationStatus: DrivePreparationStatus;
   isAuthenticated: boolean;
   isAuthenticating: boolean;
-  authenticate: () => void;
+  prepareDrive: () => void;
+  connect: () => void;
+  refresh: () => void;
   logout: () => Promise<void>;
-  tokenExpiryInfo: { isNearExpiry: boolean; expiresAt?: number; minutesUntilExpiry?: number };
+  tokenExpiryInfo: TokenExpiryInfo;
 
   // Folders
   folders: DriveFolder[];
-  selectedFolder: DriveFolder | null;
   isLoadingFolders: boolean;
   isLoadingMoreFolders: boolean;
   hasMoreFolders: boolean;
-  loadFolders: (parentId?: string) => Promise<void>;
+  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
   loadMoreFolders: () => Promise<void>;
-  selectFolder: (folder: DriveFolder | null) => void;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
-  getFolder: (folderId: string) => Promise<DriveFolder>;
 
   // File operations
   uploadToGoogleDocs: (
@@ -41,7 +46,6 @@ export interface UseGoogleDriveReturn {
 
   // Error handling
   error: string | null;
-  clearError: () => void;
 }
 
 const GOOGLE_DRIVE_CONFIG: GoogleDriveConfig = {
@@ -51,121 +55,161 @@ const GOOGLE_DRIVE_CONFIG: GoogleDriveConfig = {
 
 export function useGoogleDrive(): UseGoogleDriveReturn {
   const [driveService, setDriveService] = useState<GoogleDriveService | null>(null);
+  const [preparationStatus, setPreparationStatus] = useState<DrivePreparationStatus>('preparing');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [folders, setFolders] = useState<DriveFolder[]>([]);
-  const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
   const [isLoadingMoreFolders, setIsLoadingMoreFolders] = useState(false);
   const [hasMoreFolders, setHasMoreFolders] = useState(false);
-  const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
-  const [currentParentId, setCurrentParentId] = useState<string | undefined>(undefined);
   const [uploadStatuses, setUploadStatuses] = useState<
     Record<string, 'idle' | 'uploading' | 'completed' | 'error'>
   >({});
   const [error, setError] = useState<string | null>(null);
-  const [tokenExpiryInfo, setTokenExpiryInfo] = useState<{
-    isNearExpiry: boolean;
-    expiresAt?: number;
-    minutesUntilExpiry?: number;
-  }>({ isNearExpiry: false });
+  const [tokenExpiryInfo, setTokenExpiryInfo] = useState<TokenExpiryInfo>({
+    isNearExpiry: false,
+  });
+  const folderRequestIdRef = useRef(0);
+  const currentFolderPageRef = useRef<{ parentId?: string; pageToken?: string }>({});
+  const isLoadingFoldersRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
 
-  // Initialize drive service only in browser
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const service = new GoogleDriveService(GOOGLE_DRIVE_CONFIG);
-      setDriveService(service);
-      setIsAuthenticated(service.isAuthenticated());
-    }
+    if (typeof window === 'undefined') return;
+
+    const service = new GoogleDriveService(GOOGLE_DRIVE_CONFIG);
+    setDriveService(service);
+    setTokenExpiryInfo(service.getTokenExpiryInfo());
   }, []);
 
-  // Periodically check token expiration
-  useEffect(() => {
+  const prepareDrive = useCallback(async () => {
     if (!driveService) return;
+
+    setPreparationStatus('preparing');
+    setError(null);
+    try {
+      await driveService.prepare();
+      setPreparationStatus('ready');
+      setIsAuthenticated(driveService.hasValidSession());
+      setTokenExpiryInfo(driveService.getTokenExpiryInfo());
+    } catch (err) {
+      setPreparationStatus('error');
+      setError(err instanceof Error ? err.message : 'Failed to prepare Google Drive');
+    }
+  }, [driveService]);
+
+  useEffect(() => {
+    if (driveService) prepareDrive();
+  }, [driveService, prepareDrive]);
+
+  // Periodically check token expiration after Drive is ready.
+  useEffect(() => {
+    if (!driveService || preparationStatus !== 'ready') return;
 
     const checkTokenExpiry = () => {
       const info = driveService.getTokenExpiryInfo();
       setTokenExpiryInfo(info);
+      setIsAuthenticated(driveService.hasValidSession());
     };
 
-    // Check immediately
     checkTokenExpiry();
-
-    // Check every minute
     const interval = setInterval(checkTokenExpiry, 60000);
 
     return () => clearInterval(interval);
-  }, [driveService, isAuthenticated]);
+  }, [driveService, preparationStatus]);
 
   const loadFolders = useCallback(
-    async (parentId?: string) => {
-      if (!driveService) {
-        return;
+    async (parentId?: string, options?: FolderLoadOptions) => {
+      if (!driveService) return false;
+
+      if (!driveService.hasValidSession()) {
+        folderRequestIdRef.current += 1;
+        isLoadingFoldersRef.current = false;
+        isLoadingMoreRef.current = false;
+        setIsAuthenticated(false);
+        setIsLoadingFolders(false);
+        setIsLoadingMoreFolders(false);
+        setError('Google Drive session expired. Reconnect to continue.');
+        return false;
       }
 
-      if (!driveService.isAuthenticated()) {
-        // This check is important for manual calls
-        return;
+      const requestId = ++folderRequestIdRef.current;
+      if (options?.clearExisting) {
+        currentFolderPageRef.current = {};
+        setFolders([]);
       }
-
+      isLoadingFoldersRef.current = true;
+      isLoadingMoreRef.current = false;
       setIsLoadingFolders(true);
+      setIsLoadingMoreFolders(false);
+      setHasMoreFolders(false);
       setError(null);
-      setCurrentParentId(parentId);
+
       try {
         const result = await driveService.listFolders(parentId);
+        if (requestId !== folderRequestIdRef.current) return false;
+
+        currentFolderPageRef.current = { parentId, pageToken: result.nextPageToken };
         setFolders(result.folders);
-        setNextPageToken(result.nextPageToken);
         setHasMoreFolders(!!result.nextPageToken);
-      } catch (err: any) {
+        return true;
+      } catch (err) {
+        if (requestId !== folderRequestIdRef.current) return false;
+
         console.error('Error loading folders:', err);
-        setError(err.message || 'Failed to load folders');
-        // If auth fails, update state
-        if (err.message.includes('Authentication')) {
-          setIsAuthenticated(false);
-        }
+        setHasMoreFolders(!!currentFolderPageRef.current.pageToken);
+        setError(err instanceof Error ? err.message : 'Failed to load folders');
+        if (err instanceof GoogleDriveAuthenticationError) setIsAuthenticated(false);
+        return false;
       } finally {
-        setIsLoadingFolders(false);
+        if (requestId === folderRequestIdRef.current) {
+          isLoadingFoldersRef.current = false;
+          setIsLoadingFolders(false);
+        }
       }
     },
     [driveService],
   );
 
-  // Automatically load folders when authentication state changes to true
+  // Load My Drive once preparation and authentication are complete.
   useEffect(() => {
-    if (isAuthenticated && folders.length === 0) {
-      loadFolders();
-    }
-  }, [isAuthenticated, loadFolders, folders.length]);
+    if (preparationStatus === 'ready' && isAuthenticated) loadFolders();
+  }, [preparationStatus, isAuthenticated, loadFolders]);
 
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  const authenticate = useCallback(async () => {
-    if (!driveService) {
-      setError('Google Drive service not available');
-      return;
-    }
-
-    setIsAuthenticating(true);
-    setError(null);
-    try {
-      const success = await driveService.signIn();
-      setIsAuthenticated(success);
-      if (!success) {
-        setError('Authentication failed. Please try again.');
-      } else {
-        // Immediately update token expiry info after successful authentication
-        const info = driveService.getTokenExpiryInfo();
-        setTokenExpiryInfo(info);
+  const requestAuthentication = useCallback(
+    (action: 'connect' | 'refresh') => {
+      if (!driveService || preparationStatus !== 'ready') {
+        setError('Google Drive is not ready');
+        return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
-      setIsAuthenticated(false);
-    } finally {
-      setIsAuthenticating(false);
-    }
-  }, [driveService]);
+
+      setIsAuthenticating(true);
+      setError(null);
+      driveService
+        .requestAccessToken()
+        .then((success) => {
+          const hasValidSession = driveService.hasValidSession();
+          setIsAuthenticated(hasValidSession);
+
+          if (success) {
+            setTokenExpiryInfo(driveService.getTokenExpiryInfo());
+          } else if (hasValidSession && action === 'refresh') {
+            setError('Refresh did not complete. Your current session is still connected.');
+          } else {
+            setError('Authentication failed. Please try again.');
+          }
+        })
+        .catch((err) => {
+          setIsAuthenticated(driveService.hasValidSession());
+          setError(err instanceof Error ? err.message : 'Authentication failed');
+        })
+        .finally(() => setIsAuthenticating(false));
+    },
+    [driveService, preparationStatus],
+  );
+
+  const connect = useCallback(() => requestAuthentication('connect'), [requestAuthentication]);
+  const refresh = useCallback(() => requestAuthentication('refresh'), [requestAuthentication]);
 
   const logout = useCallback(async () => {
     if (!driveService) {
@@ -173,40 +217,60 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       return;
     }
 
+    setError(null);
     try {
+      folderRequestIdRef.current += 1;
+      currentFolderPageRef.current = {};
+      isLoadingFoldersRef.current = false;
+      isLoadingMoreRef.current = false;
+      setIsLoadingFolders(false);
+      setIsLoadingMoreFolders(false);
+      setHasMoreFolders(false);
       await driveService.signOut();
       setIsAuthenticated(false);
       setFolders([]);
-      setSelectedFolder(null);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to logout');
     }
   }, [driveService]);
 
-  const selectFolder = useCallback((folder: DriveFolder | null) => {
-    setSelectedFolder(folder);
-  }, []);
-
   const loadMoreFolders = useCallback(async () => {
-    if (!driveService || !nextPageToken || isLoadingMoreFolders) {
+    const currentPage = currentFolderPageRef.current;
+    if (
+      !driveService ||
+      !currentPage.pageToken ||
+      isLoadingFoldersRef.current ||
+      isLoadingMoreRef.current
+    ) {
       return;
     }
 
+    const requestId = folderRequestIdRef.current;
+    isLoadingMoreRef.current = true;
     setIsLoadingMoreFolders(true);
     setError(null);
+
     try {
-      const result = await driveService.listFolders(currentParentId, nextPageToken);
-      setFolders((prev) => [...prev, ...result.folders]);
-      setNextPageToken(result.nextPageToken);
+      const result = await driveService.listFolders(currentPage.parentId, currentPage.pageToken);
+      if (requestId !== folderRequestIdRef.current) return;
+
+      currentFolderPageRef.current = { ...currentPage, pageToken: result.nextPageToken };
+      setFolders((previous) => [...previous, ...result.folders]);
       setHasMoreFolders(!!result.nextPageToken);
-    } catch (err: any) {
+    } catch (err) {
+      if (requestId !== folderRequestIdRef.current) return;
+
       console.error('Error loading more folders:', err);
-      setError(err.message || 'Failed to load more folders');
+      setError(err instanceof Error ? err.message : 'Failed to load more folders');
+      if (err instanceof GoogleDriveAuthenticationError) setIsAuthenticated(false);
     } finally {
-      setIsLoadingMoreFolders(false);
+      if (requestId === folderRequestIdRef.current) {
+        isLoadingMoreRef.current = false;
+        setIsLoadingMoreFolders(false);
+      }
     }
-  }, [driveService, nextPageToken, currentParentId, isLoadingMoreFolders]);
+  }, [driveService]);
 
   const createFolder = useCallback(
     async (name: string, parentId?: string): Promise<DriveFolder> => {
@@ -217,11 +281,11 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setError(null);
       try {
         const newFolder = await driveService.createFolder(name, parentId);
-        // Refresh the current folder list
-        await loadFolders(parentId);
+        if (currentFolderPageRef.current.parentId === parentId) await loadFolders(parentId);
         return newFolder;
-      } catch (err: any) {
-        setError(err.message || 'Failed to create folder');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create folder');
+        if (err instanceof GoogleDriveAuthenticationError) setIsAuthenticated(false);
         throw err;
       }
     },
@@ -250,54 +314,28 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       if (!driveService) {
         throw new Error('Google Drive service not available');
       }
-      // Ensure authentication before starting upload to avoid stuck states
-      try {
-        // If not authenticated or token near expiry, trigger sign-in/refresh once
-        const info = driveService.getTokenExpiryInfo();
-        if (!driveService.isAuthenticated() || info.isNearExpiry) {
-          const ok = await driveService.signIn();
-          if (!ok) throw new Error('Authentication required');
-        }
-      } catch (err: any) {
-        setError(err.message || 'Authentication failed');
-        throw err;
+      if (!driveService.hasValidSession()) {
+        const authError = new Error('Google Drive session expired. Reconnect to continue.');
+        setIsAuthenticated(false);
+        setError(authError.message);
+        throw authError;
       }
 
       setUploadStatuses((prev) => ({ ...prev, [fileId]: 'uploading' }));
       setError(null);
       try {
         // Add timeout to prevent hanging uploads
-        const uploadPromise = driveService.createGoogleDoc(
-          title,
-          content,
-          folderId || selectedFolder?.id,
-        );
+        const uploadPromise = driveService.createGoogleDoc(title, content, folderId ?? undefined);
         const timeoutPromise = new Promise<never>(
           (_, reject) => setTimeout(() => reject(new Error('Upload timeout')), 30000), // 30 second timeout
         );
         const file = await Promise.race([uploadPromise, timeoutPromise]);
         setUploadStatuses((prev) => ({ ...prev, [fileId]: 'completed' }));
         return file;
-      } catch (err: any) {
-        setError(err.message || 'Failed to upload to Google Docs');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to upload to Google Docs');
         setUploadStatuses((prev) => ({ ...prev, [fileId]: 'error' }));
-        throw err;
-      }
-    },
-    [driveService, selectedFolder],
-  );
-
-  const getFolder = useCallback(
-    async (folderId: string): Promise<DriveFolder> => {
-      if (!driveService) {
-        throw new Error('Google Drive service not available');
-      }
-
-      setError(null);
-      try {
-        return await driveService.getFolder(folderId);
-      } catch (err: any) {
-        setError(err.message || 'Failed to get folder');
+        if (err instanceof GoogleDriveAuthenticationError) setIsAuthenticated(false);
         throw err;
       }
     },
@@ -305,26 +343,25 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   );
 
   return {
+    preparationStatus,
     isAuthenticated,
     isAuthenticating,
-    authenticate,
+    prepareDrive,
+    connect,
+    refresh,
     logout,
     tokenExpiryInfo,
     folders,
-    selectedFolder,
     isLoadingFolders,
     isLoadingMoreFolders,
     hasMoreFolders,
     loadFolders,
     loadMoreFolders,
-    selectFolder,
     createFolder,
-    getFolder,
     uploadToGoogleDocs,
     uploadStatuses,
     resetUploadStatuses,
     clearUploadStatus,
     error,
-    clearError,
   };
 }

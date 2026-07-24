@@ -21,6 +21,13 @@ import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { FileResult, ProcessingProfile } from '../hooks/useAIProcessor';
+import {
+  DriveDestination,
+  DriveFile,
+  DriveFolder,
+  FolderLoadOptions,
+  MY_DRIVE_ROOT,
+} from '../hooks/useGoogleDrive';
 
 interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
@@ -33,28 +40,24 @@ interface MultiFileResponseDisplayProps {
   uploadStatuses?: Record<string, 'idle' | 'uploading' | 'completed' | 'error'>;
   isWaitingForNextBatch?: boolean;
   throttleSecondsRemaining?: number;
-  selectedFolderName?: string | null;
   // Google Drive integration for inline uploads
   uploadToGoogleDocs?: (
     fileId: string,
     title: string,
     content: string,
     folderId?: string | null,
-  ) => Promise<any>;
-  selectedFolderId?: string | null;
+  ) => Promise<DriveFile>;
   isDriveAuthenticated?: boolean;
 
   // Google Drive folder selection (for Assign Folder modal)
-  driveFolders?: any[];
-  driveSelectedFolder?: any | null;
+  driveFolders?: DriveFolder[];
   driveIsLoadingFolders?: boolean;
   driveIsLoadingMoreFolders?: boolean;
   driveHasMoreFolders?: boolean;
-  driveLoadFolders?: (parentId?: string) => Promise<void>;
+  driveLoadFolders?: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
   driveLoadMoreFolders?: () => Promise<void>;
-  driveSelectFolder?: (folder: any | null) => void;
-  driveCreateFolder?: (name: string, parentId?: string) => Promise<any>;
-  driveGetFolder?: (folderId: string) => Promise<any>;
+  driveCreateFolder?: (name: string, parentId?: string) => Promise<DriveFolder>;
+  driveError?: string | null;
 }
 
 // Replaced FileItem with UnifiedFileCard per Phase 2
@@ -70,20 +73,16 @@ export const MultiFileResponseDisplay = ({
   uploadStatuses,
   isWaitingForNextBatch = false,
   throttleSecondsRemaining = 0,
-  selectedFolderName = null,
   uploadToGoogleDocs,
-  selectedFolderId = null,
   isDriveAuthenticated = false,
   driveFolders = [],
-  driveSelectedFolder = null,
   driveIsLoadingFolders = false,
   driveIsLoadingMoreFolders = false,
   driveHasMoreFolders = false,
   driveLoadFolders,
   driveLoadMoreFolders,
-  driveSelectFolder,
   driveCreateFolder,
-  driveGetFolder,
+  driveError,
 }: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -95,11 +94,17 @@ export const MultiFileResponseDisplay = ({
   const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
   const [isBulkRenameOpen, setIsBulkRenameOpen] = useState<boolean>(false);
-  const [assignedFolders, setAssignedFolders] = useState<
-    Record<number, { id: string | null; name: string }>
-  >({});
+  const [assignedFolders, setAssignedFolders] = useState<Record<number, DriveDestination>>({});
   const [lowConfidenceIndices, setLowConfidenceIndices] = useState<number[]>([]);
   const lowConfidenceSet = useMemo(() => new Set(lowConfidenceIndices), [lowConfidenceIndices]);
+  const initialDestination = useMemo(() => {
+    const destinations = [...selected].map((index) => assignedFolders[index] ?? MY_DRIVE_ROOT);
+    const first = destinations[0];
+
+    return first && destinations.every((destination) => destination.id === first.id)
+      ? first
+      : undefined;
+  }, [selected, assignedFolders]);
 
   // Compute low-confidence files whenever results change
   useEffect(() => {
@@ -290,8 +295,7 @@ export const MultiFileResponseDisplay = ({
     if (!r || !r.isCompleted || !r.response || r.error) return;
     const baseName = (displayNames[index] || r.file.name).replace(/\.[^.]+$/, '');
     try {
-      const folderIdForItem =
-        assignedFolders[index]?.id !== undefined ? assignedFolders[index]?.id : selectedFolderId;
+      const folderIdForItem = assignedFolders[index]?.id;
       await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
       toast.success('Uploaded to Google Docs');
       // Deselect if it was selected
@@ -331,8 +335,7 @@ export const MultiFileResponseDisplay = ({
       const uploadOperation = Promise.allSettled(
         eligibleFiltered.map(async ({ r, i }) => {
           const baseName = (displayNames[i] || r!.file.name).replace(/\.[^.]+$/, '');
-          const folderIdForItem =
-            assignedFolders[i]?.id !== undefined ? assignedFolders[i]?.id : selectedFolderId;
+          const folderIdForItem = assignedFolders[i]?.id;
           await uploadToGoogleDocs(r!.file.name, baseName, r!.response, folderIdForItem);
           return i;
         }),
@@ -388,8 +391,7 @@ export const MultiFileResponseDisplay = ({
         items.map(async (r) => {
           const idx = fileResults.indexOf(r);
           const baseName = (displayNames[idx] || r.file.name).replace(/\.[^.]+$/, '');
-          const folderIdForItem =
-            assignedFolders[idx]?.id !== undefined ? assignedFolders[idx]?.id : selectedFolderId;
+          const folderIdForItem = assignedFolders[idx]?.id;
           await uploadToGoogleDocs(r.file.name, baseName, r.response, folderIdForItem);
           return idx;
         }),
@@ -693,7 +695,7 @@ export const MultiFileResponseDisplay = ({
                     onAbort={onAbortFile ? () => onAbortFile(orderedIndex) : undefined}
                     uploadStatus={uploadStatuses?.[result.file.name]}
                     destinationFolderName={
-                      assignedFolders[orderedIndex]?.name ?? selectedFolderName ?? undefined
+                      assignedFolders[orderedIndex]?.name ?? MY_DRIVE_ROOT.name
                     }
                     onUpload={
                       uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined
@@ -736,7 +738,7 @@ export const MultiFileResponseDisplay = ({
                 }
                 destinationFolderName={
                   viewIndex != null
-                    ? (assignedFolders[viewIndex]?.name ?? selectedFolderName ?? undefined)
+                    ? (assignedFolders[viewIndex]?.name ?? MY_DRIVE_ROOT.name)
                     : undefined
                 }
                 processingProfile={viewedResult?.processingProfile ?? processingProfile}
@@ -778,19 +780,16 @@ export const MultiFileResponseDisplay = ({
         open={isAssignOpen}
         onOpenChange={setIsAssignOpen}
         selectedCount={selectedCount}
+        initialDestination={initialDestination}
         isAuthenticated={!!isDriveAuthenticated}
-        folders={driveFolders as any}
-        selectedFolder={driveSelectedFolder as any}
+        folders={driveFolders}
         isLoadingFolders={!!driveIsLoadingFolders}
         isLoadingMoreFolders={!!driveIsLoadingMoreFolders}
         hasMoreFolders={!!driveHasMoreFolders}
-        loadFolders={driveLoadFolders || (async () => {})}
+        loadFolders={driveLoadFolders || (async () => false)}
         loadMoreFolders={driveLoadMoreFolders || (async () => {})}
-        selectFolder={driveSelectFolder || (() => {})}
-        createFolder={driveCreateFolder || (async (name: string) => ({ id: null, name }))}
-        getFolder={
-          driveGetFolder || (async (folderId: string) => ({ id: folderId, name: 'Unknown' }))
-        }
+        createFolder={driveCreateFolder || (async (name: string) => ({ id: '', name }))}
+        error={driveError}
         onAssign={(folderId, folderName) => {
           setAssignedFolders((prev) => {
             const next = { ...prev };

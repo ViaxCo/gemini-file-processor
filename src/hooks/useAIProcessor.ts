@@ -38,6 +38,7 @@ export interface FileResult {
 
 export const useAIProcessor = () => {
   const [fileResults, setFileResults] = useState<FileResult[]>([]);
+  const [processingBatchId, setProcessingBatchId] = useState(0);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isWaitingForNextBatch, setIsWaitingForNextBatch] = useState<boolean>(false);
@@ -164,7 +165,8 @@ export const useAIProcessor = () => {
       alert('Please select files and provide instructions');
       return;
     }
-    // Ensure UI shows processing immediately upon user action (avoid flicker)
+    // Start a new lifecycle for all state associated with these results.
+    setProcessingBatchId((current) => current + 1);
     setIsProcessing(true);
     // Initialize results for all files (queue: pending)
     const initialResults: FileResult[] = files.map((file) => ({
@@ -281,6 +283,7 @@ export const useAIProcessor = () => {
   };
 
   const clearResults = (): void => {
+    setProcessingBatchId((current) => current + 1);
     setFileResults([]);
     queueRef.current = [];
     responseStore.clearAll();
@@ -685,6 +688,7 @@ export const useAIProcessor = () => {
 
   return {
     fileResults,
+    processingBatchId,
     isProcessing,
     isWaitingForNextBatch,
     throttleSecondsRemaining,

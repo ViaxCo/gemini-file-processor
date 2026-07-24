@@ -6,62 +6,62 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { DriveFolder } from '@/hooks/useGoogleDrive';
-import { useMemo } from 'react';
+import { DriveDestination, DriveFolder, FolderLoadOptions } from '@/hooks/useGoogleDrive';
+import { useEffect, useMemo, useState } from 'react';
 
 interface AssignFolderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedCount: number;
-  // Forwarded Google Drive state/actions from useGoogleDrive
+  initialDestination: DriveDestination | undefined;
   isAuthenticated: boolean;
   folders: DriveFolder[];
-  selectedFolder: DriveFolder | null;
   isLoadingFolders: boolean;
   isLoadingMoreFolders: boolean;
   hasMoreFolders: boolean;
-  loadFolders: (parentId?: string) => Promise<void>;
+  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
   loadMoreFolders: () => Promise<void>;
-  selectFolder: (folder: DriveFolder | null) => void;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
-  getFolder: (folderId: string) => Promise<DriveFolder>;
-
-  // Callback invoked when user confirms assignment
+  error?: string | null;
   onAssign: (folderId: string | null, folderName: string) => void;
 }
 
-export function AssignFolderModal(props: AssignFolderModalProps) {
-  const {
-    open,
-    onOpenChange,
-    selectedCount,
-    isAuthenticated,
-    folders,
-    selectedFolder,
-    isLoadingFolders,
-    isLoadingMoreFolders,
-    hasMoreFolders,
-    loadFolders,
-    loadMoreFolders,
-    selectFolder,
-    createFolder,
-    getFolder,
-    onAssign,
-  } = props;
+export function AssignFolderModal({
+  open,
+  onOpenChange,
+  selectedCount,
+  initialDestination,
+  isAuthenticated,
+  folders,
+  isLoadingFolders,
+  isLoadingMoreFolders,
+  hasMoreFolders,
+  loadFolders,
+  loadMoreFolders,
+  createFolder,
+  error,
+  onAssign,
+}: AssignFolderModalProps) {
+  const [draftDestination, setDraftDestination] = useState(initialDestination);
 
-  const footerLabel = useMemo(() => {
-    const n = selectedCount;
-    return n > 1 ? `Assign to ${n} files` : 'Assign to 1 file';
-  }, [selectedCount]);
+  useEffect(() => {
+    if (open) setDraftDestination(initialDestination);
+  }, [open, initialDestination?.id, initialDestination?.name]);
+
+  const footerLabel = useMemo(
+    () => (selectedCount > 1 ? `Assign to ${selectedCount} files` : 'Assign to 1 file'),
+    [selectedCount],
+  );
 
   const handleAssign = () => {
-    const id = selectedFolder?.id ?? null;
-    const name = selectedFolder?.name ?? 'Root (My Drive)';
-    onAssign(id, name);
+    if (!draftDestination) return;
+
+    onAssign(draftDestination.id, draftDestination.name);
     onOpenChange(false);
   };
 
@@ -87,33 +87,30 @@ export function AssignFolderModal(props: AssignFolderModalProps) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </DialogClose>
           </div>
         </DialogHeader>
         <div className="overflow-hidden px-4 pb-4 sm:px-6">
-          <p className="mb-3 text-xs text-muted-foreground sm:text-sm">
-            Choose a Google Drive folder to assign to the selected file
-            {selectedCount > 1 ? 's' : ''}. You can navigate into folders or create a new one.
-          </p>
+          <DialogDescription className="mb-3 text-xs sm:text-sm">
+            Choose a Google Drive destination for the selected file
+            {selectedCount > 1 ? 's' : ''}. Changes apply only after you confirm.
+          </DialogDescription>
           <GoogleDriveFolderSelector
             folders={folders}
-            selectedFolder={selectedFolder}
+            destination={draftDestination}
             isLoadingFolders={isLoadingFolders}
             isLoadingMoreFolders={isLoadingMoreFolders}
             hasMoreFolders={hasMoreFolders}
             loadFolders={loadFolders}
             loadMoreFolders={loadMoreFolders}
-            selectFolder={selectFolder}
+            onDestinationChange={setDraftDestination}
             createFolder={createFolder}
-            getFolder={getFolder}
             isAuthenticated={isAuthenticated}
-            onFolderSelect={() => {
-              /* handled by hook selection */
-            }}
+            error={error}
           />
         </div>
         <DialogFooter className="px-4 pb-4 sm:px-6">
@@ -124,7 +121,7 @@ export function AssignFolderModal(props: AssignFolderModalProps) {
             <Button
               onClick={handleAssign}
               size="sm"
-              disabled={!isAuthenticated}
+              disabled={!isAuthenticated || !draftDestination}
               className="whitespace-nowrap"
             >
               {footerLabel}

@@ -47,6 +47,7 @@ export function AIFileProcessor() {
   } = useProviderSelector();
   const {
     fileResults,
+    processingBatchId,
     isProcessing,
     abortAll,
     abortFile,
@@ -73,6 +74,7 @@ export function AIFileProcessor() {
       return;
     }
     markInstructionAsProcessed(instruction);
+    googleDrive.resetUploadStatuses();
     await processFiles(
       files,
       instruction,
@@ -85,6 +87,7 @@ export function AIFileProcessor() {
 
   const handleClearAll = (): void => {
     setFiles([]);
+    googleDrive.resetUploadStatuses();
     clearResults();
   };
 
@@ -245,7 +248,7 @@ export function AIFileProcessor() {
                 apiKey={apiKey}
               />
               <div className="flex flex-wrap items-center gap-2">
-                <GoogleDriveAuth {...googleDrive} variant="toolbar" />
+                <GoogleDriveAuth {...googleDrive} />
                 <div className="ml-auto">
                   <ThemeToggle />
                 </div>
@@ -273,6 +276,7 @@ export function AIFileProcessor() {
           <ErrorBoundary>
             <div className="lg:col-span-3">
               <MultiFileResponseDisplay
+                key={processingBatchId}
                 fileResults={fileResults}
                 processingProfile={processingProfile}
                 onRetryFile={handleRetryFile}
@@ -283,20 +287,16 @@ export function AIFileProcessor() {
                 uploadStatuses={googleDrive.uploadStatuses}
                 isWaitingForNextBatch={isWaitingForNextBatch}
                 throttleSecondsRemaining={throttleSecondsRemaining}
-                selectedFolderName={googleDrive.selectedFolder?.name || null}
                 uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
-                selectedFolderId={googleDrive.selectedFolder?.id || null}
                 isDriveAuthenticated={googleDrive.isAuthenticated}
                 driveFolders={googleDrive.folders}
-                driveSelectedFolder={googleDrive.selectedFolder}
                 driveIsLoadingFolders={googleDrive.isLoadingFolders}
                 driveIsLoadingMoreFolders={googleDrive.isLoadingMoreFolders}
                 driveHasMoreFolders={googleDrive.hasMoreFolders}
                 driveLoadFolders={googleDrive.loadFolders}
                 driveLoadMoreFolders={googleDrive.loadMoreFolders}
-                driveSelectFolder={googleDrive.selectFolder}
                 driveCreateFolder={googleDrive.createFolder}
-                driveGetFolder={googleDrive.getFolder}
+                driveError={googleDrive.error}
               />
             </div>
           </ErrorBoundary>

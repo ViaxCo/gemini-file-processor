@@ -1,387 +1,182 @@
-import { Check, ChevronDown, ChevronRight, Folder, FolderPlus, Home, Loader2 } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DriveFolder } from '../hooks/useGoogleDrive';
+import { AlertCircle, Check, ChevronRight, Folder, FolderPlus, Home } from 'lucide-react';
+import { Fragment, useEffect, useState } from 'react';
+import {
+  DriveDestination,
+  DriveFolder,
+  FolderLoadOptions,
+  MY_DRIVE_ROOT,
+} from '../hooks/useGoogleDrive';
+import { GoogleDriveCreateFolderForm } from './GoogleDriveCreateFolderForm';
+import { GoogleDriveFolderList } from './GoogleDriveFolderList';
+import { Alert, AlertDescription } from './ui/alert';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Input } from './ui/input';
 
 interface GoogleDriveFolderSelectorProps {
-  // From useGoogleDrive hook
   folders: DriveFolder[];
-  selectedFolder: DriveFolder | null;
+  destination: DriveDestination | undefined;
   isLoadingFolders: boolean;
   isLoadingMoreFolders: boolean;
   hasMoreFolders: boolean;
-  loadFolders: (parentId?: string) => Promise<void>;
+  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
   loadMoreFolders: () => Promise<void>;
-  selectFolder: (folder: DriveFolder | null) => void;
+  onDestinationChange: (folder: DriveDestination) => void;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
-  getFolder: (folderId: string) => Promise<DriveFolder>;
   isAuthenticated: boolean;
-
-  // Own props
-  onFolderSelect?: (folderId: string | null, folderName: string) => void;
+  error?: string | null;
 }
 
 export function GoogleDriveFolderSelector({
   folders,
-  selectedFolder,
+  destination,
   isLoadingFolders,
   isLoadingMoreFolders,
   hasMoreFolders,
   loadFolders,
   loadMoreFolders,
-  selectFolder,
+  onDestinationChange,
   createFolder,
-  getFolder,
   isAuthenticated,
-  onFolderSelect,
+  error,
 }: GoogleDriveFolderSelectorProps): React.ReactElement {
   const [showCreateFolder, setShowCreateFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [breadcrumb, setBreadcrumb] = useState<Array<{ id: string; name: string }>>([]);
-  const [isBuildingBreadcrumb, setIsBuildingBreadcrumb] = useState(false);
-  const lastNavigatedFolderIdRef = useRef<string | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const newFolderInputRef = useRef<HTMLInputElement>(null);
+  const currentFolder = breadcrumb[breadcrumb.length - 1];
+  const currentDestination = currentFolder ?? MY_DRIVE_ROOT;
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    setBreadcrumb([]);
+    loadFolders(undefined, { clearExisting: true });
+  }, [isAuthenticated, loadFolders]);
+
+  const navigateToBreadcrumb = async (targetIndex: number) => {
+    setShowCreateFolder(false);
+    const folderId = targetIndex === -1 ? undefined : breadcrumb[targetIndex]?.id;
+    if (await loadFolders(folderId)) {
+      setBreadcrumb((current) => current.slice(0, targetIndex + 1));
+    }
+  };
+
+  const openFolder = async (folder: DriveFolder) => {
+    setShowCreateFolder(false);
+    if (await loadFolders(folder.id)) {
+      setBreadcrumb((current) => [...current, { id: folder.id, name: folder.name }]);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
       <Card className="p-3 sm:p-4">
         <div className="text-center text-muted-foreground">
           <Folder className="mx-auto mb-2 h-6 w-6 opacity-50 sm:h-8 sm:w-8" />
-          <p className="text-xs sm:text-sm">Connect to Google Drive to select folders</p>
+          <p className="text-xs sm:text-sm">Reconnect to Google Drive to select a destination.</p>
+          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
         </div>
       </Card>
     );
   }
 
-  const handleFolderSelect = (folder: DriveFolder | null) => {
-    selectFolder(folder);
-    onFolderSelect?.(folder?.id || null, folder?.name || 'Root');
-  };
-
-  const handleBreadcrumbNavigation = async (targetIndex: number) => {
-    const targetFolderId = targetIndex === -1 ? undefined : breadcrumb[targetIndex]?.id;
-    await loadFolders(targetFolderId);
-    setBreadcrumb(breadcrumb.slice(0, targetIndex + 1));
-  };
-
-  const handleFolderNavigation = async (folder: DriveFolder) => {
-    await loadFolders(folder.id);
-    setBreadcrumb([...breadcrumb, { id: folder.id, name: folder.name }]);
-  };
-
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
-
-    setIsCreatingFolder(true);
-    try {
-      const parentId = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1]?.id : undefined;
-      await createFolder(newFolderName.trim(), parentId);
-      setNewFolderName('');
-      setShowCreateFolder(false);
-    } catch (error) {
-      console.error('Failed to create folder:', error);
-    } finally {
-      setIsCreatingFolder(false);
-    }
-  };
-
-  const handleScroll = useCallback(() => {
-    if (!scrollContainerRef.current || !hasMoreFolders || isLoadingMoreFolders) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    if (scrollTop + clientHeight >= scrollHeight - 100) {
-      loadMoreFolders();
-    }
-  }, [hasMoreFolders, isLoadingMoreFolders, loadMoreFolders]);
-
-  // Build breadcrumb path from folder to root
-  const buildBreadcrumbPath = useCallback(
-    async (folder: DriveFolder): Promise<Array<{ id: string; name: string }>> => {
-      const path: Array<{ id: string; name: string }> = [];
-      let currentFolder = folder;
-      const maxDepth = 10; // Prevent infinite loops
-      let depth = 0;
-
-      try {
-        while (currentFolder.parents && currentFolder.parents.length > 0 && depth < maxDepth) {
-          const parentId = currentFolder.parents[0];
-          if (!parentId || parentId === 'root') break;
-
-          const parentFolder = await getFolder(parentId);
-          path.unshift({ id: parentFolder.id, name: parentFolder.name });
-          currentFolder = parentFolder;
-          depth++;
-        }
-      } catch (error) {
-        console.error('Error building breadcrumb path:', error);
-        // Return what we have so far, or a minimal path
-        if (path.length === 0 && folder.parents && folder.parents[0]) {
-          path.push({ id: folder.parents[0], name: 'Parent Folder' });
-        }
-      }
-
-      return path;
-    },
-    [getFolder],
-  );
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, [handleScroll]);
-
-  useEffect(() => {
-    if (showCreateFolder && newFolderInputRef.current) {
-      const timer = setTimeout(() => {
-        newFolderInputRef.current?.focus();
-      }, 10);
-      return () => clearTimeout(timer);
-    }
-  }, [showCreateFolder]);
-
-  // Initialize breadcrumb and navigation when selectedFolder changes
-  useEffect(() => {
-    const initializeNavigation = async () => {
-      if (isBuildingBreadcrumb || !selectedFolder) return; // Prevent multiple concurrent builds
-
-      // Only navigate if we haven't already navigated for this folder
-      if (lastNavigatedFolderIdRef.current === selectedFolder.id) {
-        return;
-      }
-
-      setIsBuildingBreadcrumb(true);
-      lastNavigatedFolderIdRef.current = selectedFolder.id;
-
-      try {
-        if (selectedFolder.parents && selectedFolder.parents.length > 0) {
-          const parentId = selectedFolder.parents[0];
-          if (parentId) {
-            // Navigate to parent directory
-            await loadFolders(parentId);
-
-            // Build the breadcrumb path
-            const breadcrumbPath = await buildBreadcrumbPath(selectedFolder);
-            setBreadcrumb(breadcrumbPath);
-          }
-        } else {
-          // Selected folder is in root, ensure we're showing root folders
-          await loadFolders();
-          setBreadcrumb([]);
-        }
-      } catch (error) {
-        console.error('Error initializing navigation:', error);
-        // Fallback navigation
-        if (selectedFolder.parents && selectedFolder.parents[0]) {
-          loadFolders(selectedFolder.parents[0]);
-          setBreadcrumb([{ id: selectedFolder.parents[0], name: 'Parent Folder' }]);
-        }
-      } finally {
-        setIsBuildingBreadcrumb(false);
-      }
-    };
-
-    // Only run if we have a selectedFolder and haven't navigated for it yet
-    if (selectedFolder && lastNavigatedFolderIdRef.current !== selectedFolder.id) {
-      initializeNavigation();
-    } else if (!selectedFolder) {
-      // Reset state if no selected folder
-      setBreadcrumb([]);
-      setIsBuildingBreadcrumb(false);
-      lastNavigatedFolderIdRef.current = null;
-    }
-  }, [selectedFolder, loadFolders, buildBreadcrumbPath, isBuildingBreadcrumb]);
-
   return (
     <Card className="max-w-full space-y-2 overflow-hidden p-3 sm:p-4">
-      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center sm:gap-0">
-        <h3 className="text-sm font-medium sm:text-base">Select Google Drive Folder</h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowCreateFolder(!showCreateFolder)}
-          className="shrink-0 text-xs sm:text-sm"
-        >
-          <FolderPlus className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
-          New Folder
-        </Button>
+      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+        <h3 className="text-sm font-medium sm:text-base">Select Google Drive Destination</h3>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={destination?.id === currentDestination.id ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => onDestinationChange(currentDestination)}
+            disabled={isLoadingFolders}
+            className="text-xs sm:text-sm"
+          >
+            {currentFolder ? (
+              <Folder className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
+            ) : (
+              <Home className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
+            )}
+            {currentFolder ? 'Use This Folder' : 'Use My Drive'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateFolder((current) => !current)}
+            disabled={isLoadingFolders}
+            className="text-xs sm:text-sm"
+          >
+            <FolderPlus className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
+            New Folder
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-xs text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] sm:text-sm [&::-webkit-scrollbar]:hidden">
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => handleBreadcrumbNavigation(-1)}
+          onClick={() => navigateToBreadcrumb(-1)}
+          disabled={isLoadingFolders}
           className="h-5 shrink-0 px-1 sm:h-6 sm:px-2"
+          aria-label="Go to My Drive"
         >
           <Home className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
         </Button>
         {breadcrumb.map((folder, index) => (
-          <React.Fragment key={folder.id}>
+          <Fragment key={folder.id}>
             <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/60 sm:h-3 sm:w-3" />
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleBreadcrumbNavigation(index)}
+              onClick={() => navigateToBreadcrumb(index)}
+              disabled={isLoadingFolders}
               className="h-5 shrink-0 px-1 text-xs whitespace-nowrap sm:h-6 sm:px-2 sm:text-sm"
             >
               {folder.name}
             </Button>
-          </React.Fragment>
+          </Fragment>
         ))}
       </div>
 
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {showCreateFolder && (
-        <div className="space-y-2 rounded-md bg-muted/50 p-2 sm:p-3">
-          <Input
-            ref={newFolderInputRef}
-            placeholder="Enter folder name"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleCreateFolder()}
-          />
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:space-x-0">
-            <Button
-              size="sm"
-              onClick={handleCreateFolder}
-              disabled={!newFolderName.trim() || isCreatingFolder}
-              className="text-xs sm:text-sm"
-            >
-              {isCreatingFolder && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-              Create
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setShowCreateFolder(false);
-                setNewFolderName('');
-              }}
-              className="text-xs sm:text-sm"
-            >
-              Cancel
-            </Button>
-          </div>
+        <GoogleDriveCreateFolderForm
+          onCreate={async (name) => {
+            await createFolder(name, currentFolder?.id);
+            setShowCreateFolder(false);
+          }}
+          onCancel={() => setShowCreateFolder(false)}
+        />
+      )}
+
+      {destination ? (
+        <div className="flex min-w-0 items-center gap-2 rounded-md border border-primary/20 bg-primary/10 p-2">
+          <Check className="h-3 w-3 shrink-0 text-primary sm:h-4 sm:w-4" />
+          <span className="truncate text-xs text-primary sm:text-sm" title={destination.name}>
+            Destination: {destination.name}
+          </span>
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed p-2 text-xs text-muted-foreground sm:text-sm">
+          The selected files have different destinations. Choose one to replace them.
         </div>
       )}
 
-      {selectedFolder && (
-        <div className="flex w-full flex-col justify-between gap-2 rounded-md border border-primary/20 bg-primary/10 p-2 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden">
-            <Check className="h-3 w-3 shrink-0 text-primary sm:h-4 sm:w-4" />
-            <span
-              className="truncate text-xs text-primary sm:text-sm"
-              title={`Selected: ${selectedFolder.name}`}
-            >
-              Selected: {selectedFolder.name}
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleFolderSelect(null)}
-            className="shrink-0 self-start text-xs text-primary hover:bg-primary/10 hover:text-primary sm:self-auto sm:text-sm"
-          >
-            Clear
-          </Button>
-        </div>
-      )}
-
-      <div
-        ref={scrollContainerRef}
-        className="max-h-40 space-y-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:max-h-130 [&::-webkit-scrollbar]:hidden"
-      >
-        {isLoadingFolders ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            <span className="text-xs text-muted-foreground sm:text-sm">Loading folders...</span>
-          </div>
-        ) : folders.length === 0 ? (
-          <div className="space-y-2 py-4 text-center text-muted-foreground sm:space-y-3 sm:py-6">
-            <Folder className="mx-auto mb-2 h-6 w-6 opacity-50 sm:h-8 sm:w-8" />
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-foreground sm:text-sm">
-                No folders found in Google Drive
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Create your first folder to get started
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCreateFolder(true)}
-              className="mt-2 text-xs sm:mt-3 sm:text-sm"
-            >
-              <FolderPlus className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
-              Create First Folder
-            </Button>
-          </div>
-        ) : (
-          <>
-            {folders.map((folder) => (
-              <div
-                key={folder.id}
-                className="group flex touch-manipulation items-center justify-between gap-2 rounded-md p-2 transition-colors hover:bg-primary/10"
-              >
-                <div className="flex min-w-0 flex-1 items-center space-x-2 overflow-hidden">
-                  <Folder className="h-3 w-3 shrink-0 text-primary sm:h-4 sm:w-4" />
-                  <span className="truncate text-xs text-foreground sm:text-sm" title={folder.name}>
-                    {folder.name}
-                  </span>
-                </div>
-                <div className="flex space-x-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleFolderSelect(folder)}
-                    className="h-5 px-1 text-xs text-primary hover:bg-primary/10 hover:text-primary sm:h-6 sm:px-2"
-                  >
-                    Select
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleFolderNavigation(folder)}
-                    className="h-5 px-1 text-primary hover:bg-primary/10 hover:text-primary sm:h-6 sm:px-2"
-                  >
-                    <ChevronRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            {hasMoreFolders && (
-              <div className="flex items-center justify-center py-2 sm:py-3">
-                {isLoadingMoreFolders ? (
-                  <>
-                    <Loader2 className="mr-2 h-3 w-3 animate-spin sm:h-4 sm:w-4" />
-                    <span className="text-xs text-muted-foreground sm:text-sm">
-                      Loading more folders...
-                    </span>
-                  </>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={loadMoreFolders}
-                    className="text-xs text-primary hover:bg-primary/10 hover:text-primary sm:text-sm"
-                  >
-                    <ChevronDown className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
-                    Load More Folders
-                  </Button>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      <GoogleDriveFolderList
+        folders={folders}
+        isLoading={isLoadingFolders}
+        isLoadingMore={isLoadingMoreFolders}
+        hasMore={hasMoreFolders}
+        onSelect={onDestinationChange}
+        onOpen={openFolder}
+        onLoadMore={loadMoreFolders}
+        onCreateFolder={() => setShowCreateFolder(true)}
+      />
     </Card>
   );
 }

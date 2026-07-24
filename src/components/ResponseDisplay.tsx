@@ -23,6 +23,13 @@ import { toast } from 'sonner';
 import { Streamdown } from 'streamdown';
 import { copyToClipboard, downloadProcessedFile } from '../utils/fileUtils';
 import { AssignFolderModal } from '@/components/AssignFolderModal';
+import {
+  DriveDestination,
+  DriveFile,
+  DriveFolder,
+  FolderLoadOptions,
+  MY_DRIVE_ROOT,
+} from '@/hooks/useGoogleDrive';
 
 interface ResponseDisplayProps {
   response: string;
@@ -35,21 +42,17 @@ interface ResponseDisplayProps {
     title: string,
     content: string,
     folderId?: string | null,
-  ) => Promise<any>;
+  ) => Promise<DriveFile>;
   isDriveAuthenticated?: boolean;
-  selectedFolderName?: string | null;
-  selectedFolderId?: string | null;
   // Folder selection (Assign Folder modal) passthroughs
-  driveFolders?: any[];
-  driveSelectedFolder?: any | null;
+  driveFolders?: DriveFolder[];
   driveIsLoadingFolders?: boolean;
   driveIsLoadingMoreFolders?: boolean;
   driveHasMoreFolders?: boolean;
-  driveLoadFolders?: (parentId?: string) => Promise<void>;
+  driveLoadFolders?: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
   driveLoadMoreFolders?: () => Promise<void>;
-  driveSelectFolder?: (folder: any | null) => void;
-  driveCreateFolder?: (name: string, parentId?: string) => Promise<any>;
-  driveGetFolder?: (folderId: string) => Promise<any>;
+  driveCreateFolder?: (name: string, parentId?: string) => Promise<DriveFolder>;
+  driveError?: string | null;
   // Retry
   hasError?: boolean;
   onRetry?: () => void;
@@ -62,18 +65,14 @@ export const ResponseDisplay = ({
   uploadStatus,
   uploadToGoogleDocs,
   isDriveAuthenticated = false,
-  selectedFolderName = null,
-  selectedFolderId = null,
   driveFolders = [],
-  driveSelectedFolder = null,
   driveIsLoadingFolders = false,
   driveIsLoadingMoreFolders = false,
   driveHasMoreFolders = false,
   driveLoadFolders,
   driveLoadMoreFolders,
-  driveSelectFolder,
   driveCreateFolder,
-  driveGetFolder,
+  driveError,
   hasError = false,
   onRetry,
 }: ResponseDisplayProps) => {
@@ -84,9 +83,7 @@ export const ResponseDisplay = ({
   const [lastResponseLength, setLastResponseLength] = useState<number>(0);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
-  const [assignedFolder, setAssignedFolder] = useState<{ id: string | null; name: string } | null>(
-    null,
-  );
+  const [assignedFolder, setAssignedFolder] = useState<DriveDestination | null>(null);
 
   useEffect(() => {
     // Reset scrolling state when response is cleared or starts fresh
@@ -156,16 +153,15 @@ export const ResponseDisplay = ({
       return;
     }
     const baseName = file.name.replace(/\.[^.]+$/, '');
-    const folderId = assignedFolder?.id ?? selectedFolderId ?? undefined;
     try {
-      await uploadToGoogleDocs(file.name, baseName, response, folderId ?? null);
+      await uploadToGoogleDocs(file.name, baseName, response, assignedFolder?.id);
       toast.success('Uploaded to Google Docs');
     } catch (e) {
       toast.error('Upload failed');
     }
   };
 
-  const destinationName = assignedFolder?.name || selectedFolderName || 'Root (My Drive)';
+  const destinationName = assignedFolder?.name || MY_DRIVE_ROOT.name;
 
   return (
     <Card>
@@ -356,19 +352,16 @@ export const ResponseDisplay = ({
         open={isAssignOpen}
         onOpenChange={setIsAssignOpen}
         selectedCount={1}
+        initialDestination={assignedFolder ?? MY_DRIVE_ROOT}
         isAuthenticated={!!isDriveAuthenticated}
-        folders={driveFolders as any}
-        selectedFolder={driveSelectedFolder as any}
+        folders={driveFolders}
         isLoadingFolders={!!driveIsLoadingFolders}
         isLoadingMoreFolders={!!driveIsLoadingMoreFolders}
         hasMoreFolders={!!driveHasMoreFolders}
-        loadFolders={driveLoadFolders || (async () => {})}
+        loadFolders={driveLoadFolders || (async () => false)}
         loadMoreFolders={driveLoadMoreFolders || (async () => {})}
-        selectFolder={driveSelectFolder || (() => {})}
-        createFolder={driveCreateFolder || (async (name: string) => ({ id: null, name }))}
-        getFolder={
-          driveGetFolder || (async (folderId: string) => ({ id: folderId, name: 'Unknown' }))
-        }
+        createFolder={driveCreateFolder || (async (name: string) => ({ id: '', name }))}
+        error={driveError}
         onAssign={(folderId, folderName) => {
           setAssignedFolder({ id: folderId, name: folderName });
         }}
