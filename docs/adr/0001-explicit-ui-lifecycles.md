@@ -1,0 +1,3 @@
+# Use explicit lifecycle owners for OAuth, processing batches, and folder navigation
+
+Google Drive authentication queries are pure; only explicit logout, confirmed API rejection, or other commands clear a session. OAuth preparation and token requests are separate so browser user activation is preserved. Each processing run has a generation key that remounts batch-scoped result UI, while folder location changes commit only after a successful load and location-sensitive actions stay disabled while navigation is pending. These rules prevent unrelated polling, new batches, and in-flight navigation from mutating another lifecycle's state.
