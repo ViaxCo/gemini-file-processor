@@ -8,7 +8,7 @@ import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay'
 import { Badge } from '@/components/ui/badge';
 import { Toaster } from '@/components/ui/sonner';
 import { useAIProcessor } from '@/hooks/useAIProcessor';
-import { makeUploadKey, useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { DriveFolder, makeUploadKey, useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useProviderSelector } from '@/hooks/useProviderSelector';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
@@ -64,6 +64,7 @@ export function AIFileProcessor() {
 
   // Single source of truth for Google Drive state
   const googleDrive = useGoogleDrive();
+  const [driveAssignmentLocation, setDriveAssignmentLocation] = useState<DriveFolder[]>([]);
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return;
@@ -202,6 +203,10 @@ export function AIFileProcessor() {
   const errorCount = fileResults.filter((result) => result.error).length;
 
   useEffect(() => {
+    if (!googleDrive.isAuthenticated) setDriveAssignmentLocation([]);
+  }, [googleDrive.isAuthenticated]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(PROCESSING_PROFILE_KEY);
@@ -320,6 +325,8 @@ export function AIFileProcessor() {
                 driveLoadMoreFolders={googleDrive.loadMoreFolders}
                 driveCreateFolder={googleDrive.createFolder}
                 driveError={googleDrive.error}
+                driveAssignmentLocation={driveAssignmentLocation}
+                onDriveAssignmentLocationChange={setDriveAssignmentLocation}
               />
             </div>
           </ErrorBoundary>

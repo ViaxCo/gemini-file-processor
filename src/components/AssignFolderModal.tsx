@@ -11,7 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { DriveDestination, DriveFolder, FolderLoadOptions } from '@/hooks/useGoogleDrive';
+import {
+  DriveDestination,
+  DriveFolder,
+  FolderLoadOptions,
+  FolderLoadResult,
+} from '@/hooks/useGoogleDrive';
 import { useEffect, useMemo, useState } from 'react';
 
 interface AssignFolderModalProps {
@@ -19,16 +24,18 @@ interface AssignFolderModalProps {
   onOpenChange: (open: boolean) => void;
   selectedCount: number;
   initialDestination: DriveDestination | undefined;
+  initialDestinationLocation: DriveFolder[];
+  initialLocation: DriveFolder[];
   isAuthenticated: boolean;
   folders: DriveFolder[];
   isLoadingFolders: boolean;
   isLoadingMoreFolders: boolean;
   hasMoreFolders: boolean;
-  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
+  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<FolderLoadResult>;
   loadMoreFolders: () => Promise<void>;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
   error?: string | null;
-  onAssign: (folderId: string | null, folderName: string) => void;
+  onAssign: (folderId: string | null, folderName: string, location: DriveFolder[]) => void;
 }
 
 export function AssignFolderModal({
@@ -36,6 +43,8 @@ export function AssignFolderModal({
   onOpenChange,
   selectedCount,
   initialDestination,
+  initialDestinationLocation,
+  initialLocation,
   isAuthenticated,
   folders,
   isLoadingFolders,
@@ -48,10 +57,14 @@ export function AssignFolderModal({
   onAssign,
 }: AssignFolderModalProps) {
   const [draftDestination, setDraftDestination] = useState(initialDestination);
+  const [draftLocation, setDraftLocation] = useState(initialDestinationLocation);
 
   useEffect(() => {
-    if (open) setDraftDestination(initialDestination);
-  }, [open, initialDestination?.id, initialDestination?.name]);
+    if (!open) return;
+
+    setDraftDestination(initialDestination);
+    setDraftLocation(initialDestinationLocation);
+  }, [open, initialDestination, initialDestinationLocation]);
 
   const footerLabel = useMemo(
     () => (selectedCount > 1 ? `Assign to ${selectedCount} files` : 'Assign to 1 file'),
@@ -61,7 +74,7 @@ export function AssignFolderModal({
   const handleAssign = () => {
     if (!draftDestination) return;
 
-    onAssign(draftDestination.id, draftDestination.name);
+    onAssign(draftDestination.id, draftDestination.name, draftLocation);
     onOpenChange(false);
   };
 
@@ -102,12 +115,16 @@ export function AssignFolderModal({
           <GoogleDriveFolderSelector
             folders={folders}
             destination={draftDestination}
+            initialLocation={initialLocation}
             isLoadingFolders={isLoadingFolders}
             isLoadingMoreFolders={isLoadingMoreFolders}
             hasMoreFolders={hasMoreFolders}
             loadFolders={loadFolders}
             loadMoreFolders={loadMoreFolders}
-            onDestinationChange={setDraftDestination}
+            onDestinationChange={(destination, location) => {
+              setDraftDestination(destination);
+              setDraftLocation(location);
+            }}
             createFolder={createFolder}
             isAuthenticated={isAuthenticated}
             error={error}

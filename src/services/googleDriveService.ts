@@ -1,5 +1,7 @@
 import MarkdownIt from 'markdown-it';
 
+const DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
+
 declare global {
   interface Window {
     google: any;
@@ -374,8 +376,8 @@ export class GoogleDriveService {
     await this.prepare();
 
     const query = parentId
-      ? `mimeType='application/vnd.google-apps.folder' and trashed=false and '${parentId}' in parents`
-      : `mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents`;
+      ? `mimeType='${DRIVE_FOLDER_MIME_TYPE}' and trashed=false and '${parentId}' in parents`
+      : `mimeType='${DRIVE_FOLDER_MIME_TYPE}' and trashed=false and 'root' in parents`;
     const params = new URLSearchParams({
       q: query,
       fields: 'files(id,name,parents),nextPageToken',
@@ -405,17 +407,40 @@ export class GoogleDriveService {
     return fileId;
   }
 
-  private async findFolder(fileId: string): Promise<DriveFolder | null> {
-    const params = new URLSearchParams({ fields: 'id,name,parents' });
+  private async findFolder(
+    fileId: string,
+    options: { requireActive?: boolean } = {},
+  ): Promise<DriveFolder | null> {
+    const params = new URLSearchParams({ fields: 'id,name,parents,mimeType,trashed' });
     try {
-      return await this.request<DriveFolder>(
+      const folder = await this.request<DriveFolder & { mimeType: string; trashed: boolean }>(
         'Verifying folder',
         `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?${params}`,
       );
+      if (options.requireActive && (folder.mimeType !== DRIVE_FOLDER_MIME_TYPE || folder.trashed))
+        return null;
+      return folder;
     } catch (error) {
       if (error instanceof GoogleDriveHttpError && error.status === 404) return null;
       throw error;
     }
+  }
+
+  async resolveFolderPath(path: DriveFolder[]): Promise<DriveFolder[] | null> {
+    const folders = await Promise.all([
+      this.findFolder('root', { requireActive: true }),
+      ...path.map((folder) => this.findFolder(folder.id, { requireActive: true })),
+    ]);
+    let parent = folders[0];
+    if (!parent) return null;
+
+    const verifiedPath: DriveFolder[] = [];
+    for (const folder of folders.slice(1)) {
+      if (!folder?.parents?.includes(parent.id)) return null;
+      verifiedPath.push(folder);
+      parent = folder;
+    }
+    return verifiedPath;
   }
 
   async createFolder(
@@ -443,7 +468,7 @@ export class GoogleDriveService {
           body: JSON.stringify({
             id: fileId,
             name,
-            mimeType: 'application/vnd.google-apps.folder',
+            mimeType: DRIVE_FOLDER_MIME_TYPE,
             ...(parentId && { parents: [parentId] }),
           }),
         },

@@ -1,4 +1,4 @@
-import { DriveDestination, DriveFolder } from '@/hooks/useGoogleDrive';
+import { DriveFolder } from '@/hooks/useGoogleDrive';
 import { ChevronDown, ChevronRight, Folder, FolderPlus, Loader2 } from 'lucide-react';
 import { UIEvent } from 'react';
 import { Button } from './ui/button';
@@ -17,7 +17,7 @@ export function GoogleDriveFolderList({
   isLoading: boolean;
   isLoadingMore: boolean;
   hasMore: boolean;
-  onSelect: (destination: DriveDestination) => void;
+  onSelect: (destination: DriveFolder) => void;
   onOpen: (folder: DriveFolder) => void;
   onLoadMore: () => Promise<void>;
   onCreateFolder: () => void;

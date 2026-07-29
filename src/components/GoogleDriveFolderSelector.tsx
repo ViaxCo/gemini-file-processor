@@ -4,6 +4,7 @@ import {
   DriveDestination,
   DriveFolder,
   FolderLoadOptions,
+  FolderLoadResult,
   MY_DRIVE_ROOT,
 } from '../hooks/useGoogleDrive';
 import { GoogleDriveCreateFolderForm } from './GoogleDriveCreateFolderForm';
@@ -15,12 +16,13 @@ import { Card } from './ui/card';
 interface GoogleDriveFolderSelectorProps {
   folders: DriveFolder[];
   destination: DriveDestination | undefined;
+  initialLocation: DriveFolder[];
   isLoadingFolders: boolean;
   isLoadingMoreFolders: boolean;
   hasMoreFolders: boolean;
-  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
+  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<FolderLoadResult>;
   loadMoreFolders: () => Promise<void>;
-  onDestinationChange: (folder: DriveDestination) => void;
+  onDestinationChange: (folder: DriveDestination, location: DriveFolder[]) => void;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
   isAuthenticated: boolean;
   error?: string | null;
@@ -29,6 +31,7 @@ interface GoogleDriveFolderSelectorProps {
 export function GoogleDriveFolderSelector({
   folders,
   destination,
+  initialLocation,
   isLoadingFolders,
   isLoadingMoreFolders,
   hasMoreFolders,
@@ -40,29 +43,52 @@ export function GoogleDriveFolderSelector({
   error,
 }: GoogleDriveFolderSelectorProps): React.ReactElement {
   const [showCreateFolder, setShowCreateFolder] = useState(false);
-  const [breadcrumb, setBreadcrumb] = useState<Array<{ id: string; name: string }>>([]);
+  const [breadcrumb, setBreadcrumb] = useState<DriveFolder[]>([]);
   const currentFolder = breadcrumb[breadcrumb.length - 1];
   const currentDestination = currentFolder ?? MY_DRIVE_ROOT;
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    setBreadcrumb([]);
-    loadFolders(undefined, { clearExisting: true });
-  }, [isAuthenticated, loadFolders]);
+    let active = true;
+    const loadInitialLocation = async () => {
+      const folder = initialLocation[initialLocation.length - 1];
+      if (folder?.id) {
+        const result = await loadFolders(folder.id, {
+          clearExisting: true,
+          verifyLocation: initialLocation,
+        });
+        if (!active) return;
+        if (result.status === 'success' && result.location) {
+          setBreadcrumb(result.location);
+          return;
+        }
+        if (result.status !== 'invalid-location') return;
+      }
+
+      if (!active) return;
+      setBreadcrumb([]);
+      await loadFolders(undefined, { clearExisting: true });
+    };
+
+    void loadInitialLocation();
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, initialLocation, loadFolders]);
 
   const navigateToBreadcrumb = async (targetIndex: number) => {
     setShowCreateFolder(false);
     const folderId = targetIndex === -1 ? undefined : breadcrumb[targetIndex]?.id;
-    if (await loadFolders(folderId)) {
+    if ((await loadFolders(folderId)).status === 'success') {
       setBreadcrumb((current) => current.slice(0, targetIndex + 1));
     }
   };
 
   const openFolder = async (folder: DriveFolder) => {
     setShowCreateFolder(false);
-    if (await loadFolders(folder.id)) {
-      setBreadcrumb((current) => [...current, { id: folder.id, name: folder.name }]);
+    if ((await loadFolders(folder.id)).status === 'success') {
+      setBreadcrumb((current) => [...current, folder]);
     }
   };
 
@@ -86,7 +112,7 @@ export function GoogleDriveFolderSelector({
           <Button
             variant={destination?.id === currentDestination.id ? 'secondary' : 'outline'}
             size="sm"
-            onClick={() => onDestinationChange(currentDestination)}
+            onClick={() => onDestinationChange(currentDestination, breadcrumb)}
             disabled={isLoadingFolders}
             className="text-xs sm:text-sm"
           >
@@ -172,7 +198,7 @@ export function GoogleDriveFolderSelector({
         isLoading={isLoadingFolders}
         isLoadingMore={isLoadingMoreFolders}
         hasMore={hasMoreFolders}
-        onSelect={onDestinationChange}
+        onSelect={(folder) => onDestinationChange(folder, [...breadcrumb, folder])}
         onOpen={openFolder}
         onLoadMore={loadMoreFolders}
         onCreateFolder={() => setShowCreateFolder(true)}

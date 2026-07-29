@@ -18,7 +18,10 @@ export type DriveUploadRequest = {
   folderId?: string | null;
 };
 export type DriveUploadResult = { uploadKey: string; file: DriveFile };
-export type FolderLoadOptions = { clearExisting?: boolean };
+export type FolderLoadOptions = { clearExisting?: boolean; verifyLocation?: DriveFolder[] };
+export type FolderLoadResult =
+  | { status: 'success'; location?: DriveFolder[] }
+  | { status: 'invalid-location' | 'error' | 'stale' };
 export const MY_DRIVE_ROOT: DriveDestination = { id: null, name: 'Root (My Drive)' };
 
 export interface UseGoogleDriveReturn {
@@ -39,7 +42,7 @@ export interface UseGoogleDriveReturn {
   isLoadingFolders: boolean;
   isLoadingMoreFolders: boolean;
   hasMoreFolders: boolean;
-  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
+  loadFolders: (parentId?: string, options?: FolderLoadOptions) => Promise<FolderLoadResult>;
   loadMoreFolders: () => Promise<void>;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
 
@@ -146,8 +149,8 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
   }, [driveService, preparationStatus, isAuthenticated]);
 
   const loadFolders = useCallback(
-    async (parentId?: string, options?: FolderLoadOptions) => {
-      if (!driveService) return false;
+    async (parentId?: string, options?: FolderLoadOptions): Promise<FolderLoadResult> => {
+      if (!driveService) return { status: 'error' };
 
       if (!driveService.hasValidSession()) {
         folderRequestIdRef.current += 1;
@@ -157,7 +160,7 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
         setIsLoadingFolders(false);
         setIsLoadingMoreFolders(false);
         setError('Google Drive session expired. Reconnect to continue.');
-        return false;
+        return { status: 'error' };
       }
 
       const requestId = ++folderRequestIdRef.current;
@@ -173,21 +176,29 @@ export function useGoogleDrive(): UseGoogleDriveReturn {
       setError(null);
 
       try {
+        const verifiedLocation = options?.verifyLocation
+          ? await driveService.resolveFolderPath(options.verifyLocation)
+          : undefined;
+        if (requestId !== folderRequestIdRef.current) return { status: 'stale' };
+        if (options?.verifyLocation && !verifiedLocation) {
+          return { status: 'invalid-location' };
+        }
+
         const result = await driveService.listFolders(parentId);
-        if (requestId !== folderRequestIdRef.current) return false;
+        if (requestId !== folderRequestIdRef.current) return { status: 'stale' };
 
         currentFolderPageRef.current = { parentId, pageToken: result.nextPageToken };
         setFolders(result.folders);
         setHasMoreFolders(!!result.nextPageToken);
-        return true;
+        return { status: 'success', location: verifiedLocation ?? undefined };
       } catch (err) {
-        if (requestId !== folderRequestIdRef.current) return false;
+        if (requestId !== folderRequestIdRef.current) return { status: 'stale' };
 
         console.error('Error loading folders:', err);
         setHasMoreFolders(!!currentFolderPageRef.current.pageToken);
         setError(err instanceof Error ? err.message : 'Failed to load folders');
         if (err instanceof GoogleDriveAuthenticationError) setIsAuthenticated(false);
-        return false;
+        return { status: 'error' };
       } finally {
         if (requestId === folderRequestIdRef.current) {
           isLoadingFoldersRef.current = false;

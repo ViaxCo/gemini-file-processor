@@ -12,6 +12,10 @@ _Avoid_: Global selection, current folder
 My Drive Root, used when a file has no Destination Assignment. Browsing or cancelling an assignment does not change it.
 _Avoid_: Last selected folder
 
+**Assignment Start Location**:
+The Google Drive folder shown when an assignment dialog opens. It is remembered from the last confirmed Destination Assignment and does not assign files by itself.
+_Avoid_: Default Destination, Draft Destination
+
 **Draft Destination**:
 The temporary Google Drive destination being considered in an open assignment dialog. It is discarded when the dialog is cancelled or closed.
 _Avoid_: Selected folder

@@ -27,6 +27,7 @@ import {
   DriveUploadRequest,
   DriveUploadResult,
   FolderLoadOptions,
+  FolderLoadResult,
   MY_DRIVE_ROOT,
   UploadStatus,
   makeUploadKey,
@@ -57,16 +58,19 @@ interface MultiFileResponseDisplayProps {
   driveIsLoadingFolders?: boolean;
   driveIsLoadingMoreFolders?: boolean;
   driveHasMoreFolders?: boolean;
-  driveLoadFolders?: (parentId?: string, options?: FolderLoadOptions) => Promise<boolean>;
+  driveLoadFolders?: (parentId?: string, options?: FolderLoadOptions) => Promise<FolderLoadResult>;
   driveLoadMoreFolders?: () => Promise<void>;
   driveCreateFolder?: (name: string, parentId?: string) => Promise<DriveFolder>;
   driveError?: string | null;
+  driveAssignmentLocation?: DriveFolder[];
+  onDriveAssignmentLocationChange?: (location: DriveFolder[]) => void;
 }
 
 // Replaced FileItem with UnifiedFileCard per Phase 2
 
 const canStartUpload = (status?: UploadStatus) =>
   !status || status === 'idle' || status === 'error';
+const EMPTY_DRIVE_LOCATION: DriveFolder[] = [];
 
 export const MultiFileResponseDisplay = ({
   fileResults,
@@ -92,6 +96,8 @@ export const MultiFileResponseDisplay = ({
   driveLoadMoreFolders,
   driveCreateFolder,
   driveError,
+  driveAssignmentLocation = EMPTY_DRIVE_LOCATION,
+  onDriveAssignmentLocationChange,
 }: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -101,21 +107,30 @@ export const MultiFileResponseDisplay = ({
   const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
   const [isBulkRenameOpen, setIsBulkRenameOpen] = useState<boolean>(false);
-  const [assignedFolders, setAssignedFolders] = useState<Record<number, DriveDestination>>({});
+  const [destinationAssignments, setDestinationAssignments] = useState<
+    Record<number, { destination: DriveDestination; location: DriveFolder[] }>
+  >({});
   const [lowConfidenceIndices, setLowConfidenceIndices] = useState<number[]>([]);
   const lowConfidenceSet = useMemo(() => new Set(lowConfidenceIndices), [lowConfidenceIndices]);
   const uploadKeys = useMemo(
     () => fileResults.map((result, index) => makeUploadKey(processingBatchId, index, result.file)),
     [processingBatchId, fileResults],
   );
-  const initialDestination = useMemo(() => {
-    const destinations = [...selected].map((index) => assignedFolders[index] ?? MY_DRIVE_ROOT);
-    const first = destinations[0];
+  const initialAssignment = useMemo(() => {
+    const assignments = [...selected].map(
+      (index) =>
+        destinationAssignments[index] ?? {
+          destination: MY_DRIVE_ROOT,
+          location: EMPTY_DRIVE_LOCATION,
+        },
+    );
+    const first = assignments[0];
 
-    return first && destinations.every((destination) => destination.id === first.id)
+    return first &&
+      assignments.every((assignment) => assignment.destination.id === first.destination.id)
       ? first
       : undefined;
-  }, [selected, assignedFolders]);
+  }, [selected, destinationAssignments]);
 
   // Compute low-confidence files whenever results change
   useEffect(() => {
@@ -302,7 +317,7 @@ export const MultiFileResponseDisplay = ({
         uploadKey: uploadKeys[index]!,
         title: (displayNames[index] || result.file.name).replace(/\.[^.]+$/, ''),
         content: result.response,
-        folderId: assignedFolders[index]?.id,
+        folderId: destinationAssignments[index]?.destination.id,
       })),
     );
     return results.map((result, index) =>
@@ -644,7 +659,7 @@ export const MultiFileResponseDisplay = ({
                     onAbort={onAbortFile ? () => onAbortFile(orderedIndex) : undefined}
                     uploadStatus={uploadStatus}
                     destinationFolderName={
-                      assignedFolders[orderedIndex]?.name ?? MY_DRIVE_ROOT.name
+                      destinationAssignments[orderedIndex]?.destination.name ?? MY_DRIVE_ROOT.name
                     }
                     onUpload={
                       uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined
@@ -697,7 +712,7 @@ export const MultiFileResponseDisplay = ({
                 uploadStatus={viewedUploadStatus}
                 destinationFolderName={
                   viewIndex != null
-                    ? (assignedFolders[viewIndex]?.name ?? MY_DRIVE_ROOT.name)
+                    ? (destinationAssignments[viewIndex]?.destination.name ?? MY_DRIVE_ROOT.name)
                     : undefined
                 }
                 processingProfile={viewedResult?.processingProfile ?? processingProfile}
@@ -741,24 +756,27 @@ export const MultiFileResponseDisplay = ({
         open={isAssignOpen}
         onOpenChange={setIsAssignOpen}
         selectedCount={selectedCount}
-        initialDestination={initialDestination}
+        initialDestination={initialAssignment?.destination}
+        initialDestinationLocation={initialAssignment?.location ?? EMPTY_DRIVE_LOCATION}
+        initialLocation={driveAssignmentLocation}
         isAuthenticated={!!isDriveAuthenticated}
         folders={driveFolders}
         isLoadingFolders={!!driveIsLoadingFolders}
         isLoadingMoreFolders={!!driveIsLoadingMoreFolders}
         hasMoreFolders={!!driveHasMoreFolders}
-        loadFolders={driveLoadFolders || (async () => false)}
+        loadFolders={driveLoadFolders || (async () => ({ status: 'error' }))}
         loadMoreFolders={driveLoadMoreFolders || (async () => {})}
         createFolder={driveCreateFolder || (async (name: string) => ({ id: '', name }))}
         error={driveError}
-        onAssign={(folderId, folderName) => {
-          setAssignedFolders((prev) => {
-            const next = { ...prev };
-            for (const idx of selected) {
-              next[idx] = { id: folderId, name: folderName };
+        onAssign={(folderId, folderName, location) => {
+          setDestinationAssignments((previous) => {
+            const next = { ...previous };
+            for (const index of selected) {
+              next[index] = { destination: { id: folderId, name: folderName }, location };
             }
             return next;
           });
+          onDriveAssignmentLocationChange?.(location);
         }}
       />
     </Card>
