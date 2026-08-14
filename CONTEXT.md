@@ -36,6 +36,22 @@ _Avoid_: Renamed file, filename
 The uppercase series title derived from the selected Display Names. It is blank when the selected titles do not agree. For one file without a track number, it uses the complete Display Name.
 _Avoid_: Folder placeholder, detected folder
 
+**Series Group**:
+Files whose Display Names contain the same series title followed by a track number. Matching ignores capitalization and repeated spaces but preserves punctuation differences. A Series Group uses the series title as its label.
+_Avoid_: Folder group, filename group
+
+**Ungrouped Files**:
+Files whose Display Names do not contain a clear series title and track number. They stay together without an inferred series title.
+_Avoid_: Unknown series, miscellaneous series
+
+**Series Selection**:
+The files selected by the Select Series action. It replaces the previous selection with every file in one Series Group, regardless of processing or upload status.
+_Avoid_: Add series, folder selection
+
+**Natural Track Order**:
+The numeric order of tracks inside a Series Group, such as Track 1, Track 2, Track 10. Processing and upload status do not change this order.
+_Avoid_: Filename order, upload order
+
 **Test Batch**:
 A deterministic set of synthetic files used to test the processing workflow without private source material.
 _Avoid_: Sample upload, fake upload

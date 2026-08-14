@@ -1,5 +1,6 @@
 import { AssignFolderModal } from '@/components/AssignFolderModal';
 import { ContextualActionBar } from '@/components/ContextualActionBar';
+import { FileSeriesGroup } from '@/components/FileSeriesGroup';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import { PREFERRED_ASSIGNMENT_ROOT } from '@/config/googleDriveConfig';
 import { getConfidenceScore } from '@/utils/confidenceScore';
 import { suggestSeriesFolderName } from '@/utils/driveFolderName';
 import { downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
+import { groupFilesBySeries } from '@/utils/seriesGroups';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -165,19 +167,16 @@ export const MultiFileResponseDisplay = ({
     };
   }, [fileResults]);
 
-  // Order indices so that uploaded items ('completed' upload status) sink to the bottom
-  const orderedIndices = useMemo(() => {
-    const indices = fileResults.map((_, i) => i);
-    if (!uploadStatuses) return indices;
-    const notUploaded: number[] = [];
-    const uploaded: number[] = [];
-    for (const i of indices) {
-      const status = uploadStatuses[uploadKeys[i]!];
-      if (status === 'completed') uploaded.push(i);
-      else notUploaded.push(i);
-    }
-    return [...notUploaded, ...uploaded];
-  }, [fileResults, uploadStatuses, uploadKeys]);
+  const fileSeriesGroups = useMemo(
+    () =>
+      groupFilesBySeries(
+        fileResults.map((result, index) => ({
+          index,
+          displayName: displayNames[index] || result.file.name,
+        })),
+      ),
+    [fileResults, displayNames],
+  );
 
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
@@ -632,58 +631,71 @@ export const MultiFileResponseDisplay = ({
             </div>
           ) : (
             <>
-              {orderedIndices.map((orderedIndex) => {
-                const result = fileResults[orderedIndex]!;
-                const resultProfile = result.processingProfile ?? processingProfile;
-                const uploadStatus = uploadStatuses?.[uploadKeys[orderedIndex]!];
-                return (
-                  <UnifiedFileCard
-                    key={`${result.file.name}-${orderedIndex}`}
-                    result={result}
-                    index={orderedIndex}
-                    selected={selected.has(orderedIndex)}
-                    onSelectChange={(checked) => {
-                      setSelected((prev) => {
-                        const next = new Set(prev);
-                        if (checked) next.add(orderedIndex);
-                        else next.delete(orderedIndex);
-                        return next;
-                      });
-                    }}
-                    displayName={displayNames[orderedIndex] || result.file.name}
-                    onNameChange={(newName) =>
-                      setDisplayNames((prev) => ({ ...prev, [orderedIndex]: newName }))
-                    }
-                    showMarkdown={showMarkdown}
-                    onToggleMarkdown={setShowMarkdown}
-                    onRetry={
-                      onRetryFile && !isDriveLifecycleBlockingProcessing
-                        ? () => onRetryFile(orderedIndex)
-                        : undefined
-                    }
-                    onAbort={onAbortFile ? () => onAbortFile(orderedIndex) : undefined}
-                    uploadStatus={uploadStatus}
-                    destinationFolderName={
-                      destinationAssignments[orderedIndex]?.destination.name ?? MY_DRIVE_ROOT.name
-                    }
-                    onUpload={
-                      uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined
-                    }
-                    onDiscardUpload={
-                      uploadStatus === 'unknown' && discardUnknownUpload
-                        ? () => handleDiscardUnknownUpload(orderedIndex)
-                        : undefined
-                    }
-                    canUpload={isDriveAuthenticated}
-                    uploadDisabled={isUploadSessionActive}
-                    onViewResponse={() => {
-                      setViewIndex(orderedIndex);
-                      setIsViewOpen(true);
-                    }}
-                    processingProfile={resultProfile}
-                  />
-                );
-              })}
+              <div className="flex flex-col gap-5">
+                {fileSeriesGroups.map((group) => (
+                  <FileSeriesGroup
+                    key={group.id}
+                    title={group.title}
+                    fileCount={group.indices.length}
+                    isUngrouped={group.isUngrouped}
+                    onSelect={() => setSelected(new Set(group.indices))}
+                  >
+                    {group.indices.map((orderedIndex) => {
+                      const result = fileResults[orderedIndex]!;
+                      const resultProfile = result.processingProfile ?? processingProfile;
+                      const uploadStatus = uploadStatuses?.[uploadKeys[orderedIndex]!];
+                      return (
+                        <UnifiedFileCard
+                          key={`${result.file.name}-${orderedIndex}`}
+                          result={result}
+                          index={orderedIndex}
+                          selected={selected.has(orderedIndex)}
+                          onSelectChange={(checked) => {
+                            setSelected((prev) => {
+                              const next = new Set(prev);
+                              if (checked) next.add(orderedIndex);
+                              else next.delete(orderedIndex);
+                              return next;
+                            });
+                          }}
+                          displayName={displayNames[orderedIndex] || result.file.name}
+                          onNameChange={(newName) =>
+                            setDisplayNames((prev) => ({ ...prev, [orderedIndex]: newName }))
+                          }
+                          showMarkdown={showMarkdown}
+                          onToggleMarkdown={setShowMarkdown}
+                          onRetry={
+                            onRetryFile && !isDriveLifecycleBlockingProcessing
+                              ? () => onRetryFile(orderedIndex)
+                              : undefined
+                          }
+                          onAbort={onAbortFile ? () => onAbortFile(orderedIndex) : undefined}
+                          uploadStatus={uploadStatus}
+                          destinationFolderName={
+                            destinationAssignments[orderedIndex]?.destination.name ??
+                            MY_DRIVE_ROOT.name
+                          }
+                          onUpload={
+                            uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined
+                          }
+                          onDiscardUpload={
+                            uploadStatus === 'unknown' && discardUnknownUpload
+                              ? () => handleDiscardUnknownUpload(orderedIndex)
+                              : undefined
+                          }
+                          canUpload={isDriveAuthenticated}
+                          uploadDisabled={isUploadSessionActive}
+                          onViewResponse={() => {
+                            setViewIndex(orderedIndex);
+                            setIsViewOpen(true);
+                          }}
+                          processingProfile={resultProfile}
+                        />
+                      );
+                    })}
+                  </FileSeriesGroup>
+                ))}
+              </div>
 
               <ViewResponseModal
                 open={isViewOpen}
