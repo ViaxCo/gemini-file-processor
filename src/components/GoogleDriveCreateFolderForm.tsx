@@ -1,28 +1,33 @@
 import { Loader2 } from 'lucide-react';
 import { useId, useState } from 'react';
 import type { FormEvent } from 'react';
+import { formatSeriesFolderName } from '@/utils/driveFolderName';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 export function GoogleDriveCreateFolderForm({
   onCreate,
   onCancel,
+  submitLabel,
+  initialName,
 }: {
   onCreate: (name: string) => Promise<void>;
   onCancel: () => void;
+  submitLabel: string;
+  initialName: string;
 }) {
   const nameInputId = useId();
-  const [name, setName] = useState('');
+  const [name, setName] = useState(() => formatSeriesFolderName(initialName));
   const [isCreating, setIsCreating] = useState(false);
 
   const createFolder = async (event: FormEvent) => {
     event.preventDefault();
-    const trimmedName = name.trim();
-    if (!trimmedName || isCreating) return;
+    const folderName = formatSeriesFolderName(name);
+    if (!folderName || isCreating) return;
 
     setIsCreating(true);
     try {
-      await onCreate(trimmedName);
+      await onCreate(folderName);
     } catch (error) {
       console.error('Failed to create folder:', error);
     } finally {
@@ -39,9 +44,9 @@ export function GoogleDriveCreateFolderForm({
         id={nameInputId}
         autoFocus
         disabled={isCreating}
-        placeholder="e.g. Reports"
+        placeholder="Enter a series folder name"
         value={name}
-        onChange={(event) => setName(event.target.value)}
+        onChange={(event) => setName(event.target.value.toUpperCase())}
       />
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button
@@ -51,7 +56,7 @@ export function GoogleDriveCreateFolderForm({
           className="text-xs sm:text-sm"
         >
           {isCreating && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-          Create
+          {submitLabel}
         </Button>
         <Button
           type="button"

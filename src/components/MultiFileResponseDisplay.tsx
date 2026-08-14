@@ -15,7 +15,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { UnifiedFileCard } from '@/components/UnifiedFileCard';
 import { ViewResponseModal } from '@/components/ViewResponseModal';
 import { BulkRenameModal } from '@/components/BulkRenameModal';
+import { PREFERRED_ASSIGNMENT_ROOT } from '@/config/googleDriveConfig';
 import { getConfidenceScore } from '@/utils/confidenceScore';
+import { suggestSeriesFolderName } from '@/utils/driveFolderName';
 import { downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
 import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -62,8 +64,6 @@ interface MultiFileResponseDisplayProps {
   driveLoadMoreFolders?: () => Promise<void>;
   driveCreateFolder?: (name: string, parentId?: string) => Promise<DriveFolder>;
   driveError?: string | null;
-  driveAssignmentLocation?: DriveFolder[];
-  onDriveAssignmentLocationChange?: (location: DriveFolder[]) => void;
 }
 
 // Replaced FileItem with UnifiedFileCard per Phase 2
@@ -96,8 +96,6 @@ export const MultiFileResponseDisplay = ({
   driveLoadMoreFolders,
   driveCreateFolder,
   driveError,
-  driveAssignmentLocation = EMPTY_DRIVE_LOCATION,
-  onDriveAssignmentLocationChange,
 }: MultiFileResponseDisplayProps) => {
   const [showMarkdown, setShowMarkdown] = useState<boolean>(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -131,6 +129,13 @@ export const MultiFileResponseDisplay = ({
       ? first
       : undefined;
   }, [selected, destinationAssignments]);
+  const suggestedFolderName = useMemo(
+    () =>
+      suggestSeriesFolderName(
+        [...selected].map((index) => displayNames[index] || fileResults[index]?.file.name || ''),
+      ),
+    [selected, displayNames, fileResults],
+  );
 
   // Compute low-confidence files whenever results change
   useEffect(() => {
@@ -759,7 +764,8 @@ export const MultiFileResponseDisplay = ({
         selectedCount={selectedCount}
         initialDestination={initialAssignment?.destination}
         initialDestinationLocation={initialAssignment?.location ?? EMPTY_DRIVE_LOCATION}
-        initialLocation={driveAssignmentLocation}
+        initialLocation={PREFERRED_ASSIGNMENT_ROOT}
+        suggestedFolderName={suggestedFolderName}
         isAuthenticated={!!isDriveAuthenticated}
         folders={driveFolders}
         isLoadingFolders={!!driveIsLoadingFolders}
@@ -777,7 +783,7 @@ export const MultiFileResponseDisplay = ({
             }
             return next;
           });
-          onDriveAssignmentLocationChange?.(location);
+          setSelected(new Set());
         }}
       />
     </Card>

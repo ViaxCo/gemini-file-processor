@@ -17,7 +17,7 @@ import {
   FolderLoadOptions,
   FolderLoadResult,
 } from '@/hooks/useGoogleDrive';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface AssignFolderModalProps {
   open: boolean;
@@ -26,6 +26,7 @@ interface AssignFolderModalProps {
   initialDestination: DriveDestination | undefined;
   initialDestinationLocation: DriveFolder[];
   initialLocation: DriveFolder[];
+  suggestedFolderName: string;
   isAuthenticated: boolean;
   folders: DriveFolder[];
   isLoadingFolders: boolean;
@@ -45,6 +46,7 @@ export function AssignFolderModal({
   initialDestination,
   initialDestinationLocation,
   initialLocation,
+  suggestedFolderName,
   isAuthenticated,
   folders,
   isLoadingFolders,
@@ -66,16 +68,15 @@ export function AssignFolderModal({
     setDraftLocation(initialDestinationLocation);
   }, [open, initialDestination, initialDestinationLocation]);
 
-  const footerLabel = useMemo(
-    () => (selectedCount > 1 ? `Assign to ${selectedCount} files` : 'Assign to 1 file'),
-    [selectedCount],
-  );
+  const selectionLabel = `${selectedCount} file${selectedCount === 1 ? '' : 's'}`;
+
+  const assign = (destination: DriveDestination, location: DriveFolder[]) => {
+    onAssign(destination.id, destination.name, location);
+    onOpenChange(false);
+  };
 
   const handleAssign = () => {
-    if (!draftDestination) return;
-
-    onAssign(draftDestination.id, draftDestination.name, draftLocation);
-    onOpenChange(false);
+    if (draftDestination) assign(draftDestination, draftLocation);
   };
 
   return (
@@ -109,8 +110,7 @@ export function AssignFolderModal({
         </DialogHeader>
         <div className="overflow-hidden px-4 pb-4 sm:px-6">
           <DialogDescription className="mb-3 text-xs sm:text-sm">
-            Choose a Google Drive destination for the selected file
-            {selectedCount > 1 ? 's' : ''}. Changes apply only after you confirm.
+            Choose an existing destination for {selectionLabel}, or create and assign a new folder.
           </DialogDescription>
           <GoogleDriveFolderSelector
             folders={folders}
@@ -126,6 +126,9 @@ export function AssignFolderModal({
               setDraftLocation(location);
             }}
             createFolder={createFolder}
+            createFolderSubmitLabel={`Create and assign to ${selectionLabel}`}
+            suggestedFolderName={suggestedFolderName}
+            onCreateAndAssign={assign}
             isAuthenticated={isAuthenticated}
             error={error}
           />
@@ -141,7 +144,7 @@ export function AssignFolderModal({
               disabled={!isAuthenticated || !draftDestination}
               className="whitespace-nowrap"
             >
-              {footerLabel}
+              Assign to {selectionLabel}
             </Button>
           </div>
         </DialogFooter>

@@ -12,9 +12,9 @@ _Avoid_: Global selection, current folder
 My Drive Root, used when a file has no Destination Assignment. Browsing or cancelling an assignment does not change it.
 _Avoid_: Last selected folder
 
-**Assignment Start Location**:
-The Google Drive folder shown when an assignment dialog opens. It is remembered from the last confirmed Destination Assignment and does not assign files by itself.
-_Avoid_: Default Destination, Draft Destination
+**Preferred Assignment Root**:
+The Google Drive folder shown when a new assignment dialog opens. It is a navigation starting point and does not assign files by itself.
+_Avoid_: Default Destination, last selected folder
 
 **Draft Destination**:
 The temporary Google Drive destination being considered in an open assignment dialog. It is discarded when the dialog is cancelled or closed.
@@ -31,6 +31,10 @@ _Avoid_: Current files, result list
 **Display Name**:
 The batch-specific name used for a processed download or Document Upload. Changing it does not change the original uploaded file.
 _Avoid_: Renamed file, filename
+
+**Series Folder Name Suggestion**:
+The uppercase series title derived from the selected Display Names. It is blank when the selected titles do not agree. For one file without a track number, it uses the complete Display Name.
+_Avoid_: Folder placeholder, detected folder
 
 **Test Batch**:
 A deterministic set of synthetic files used to test the processing workflow without private source material.

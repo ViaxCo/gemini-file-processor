@@ -24,6 +24,9 @@ interface GoogleDriveFolderSelectorProps {
   loadMoreFolders: () => Promise<void>;
   onDestinationChange: (folder: DriveDestination, location: DriveFolder[]) => void;
   createFolder: (name: string, parentId?: string) => Promise<DriveFolder>;
+  createFolderSubmitLabel: string;
+  suggestedFolderName: string;
+  onCreateAndAssign: (folder: DriveDestination, location: DriveFolder[]) => void;
   isAuthenticated: boolean;
   error?: string | null;
 }
@@ -39,6 +42,9 @@ export function GoogleDriveFolderSelector({
   loadMoreFolders,
   onDestinationChange,
   createFolder,
+  createFolderSubmitLabel,
+  suggestedFolderName,
+  onCreateAndAssign,
   isAuthenticated,
   error,
 }: GoogleDriveFolderSelectorProps): React.ReactElement {
@@ -173,9 +179,12 @@ export function GoogleDriveFolderSelector({
       {showCreateFolder && (
         <GoogleDriveCreateFolderForm
           onCreate={async (name) => {
-            await createFolder(name, currentFolder?.id);
+            const folder = await createFolder(name, currentFolder?.id);
+            onCreateAndAssign(folder, [...breadcrumb, folder]);
             setShowCreateFolder(false);
           }}
+          submitLabel={createFolderSubmitLabel}
+          initialName={suggestedFolderName}
           onCancel={() => setShowCreateFolder(false)}
         />
       )}
