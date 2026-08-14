@@ -14,7 +14,7 @@ export interface FetchedModel {
  * Fetch available models from a provider using their API key
  */
 export async function fetchModels(provider: AIProvider, apiKey: string): Promise<FetchedModel[]> {
-  if (!apiKey) {
+  if (provider === 'test' || !apiKey) {
     return [];
   }
 

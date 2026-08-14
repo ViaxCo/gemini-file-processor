@@ -6,6 +6,7 @@ import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
 import { InstructionsPanel } from '@/components/InstructionsPanel';
 import { MultiFileResponseDisplay } from '@/components/MultiFileResponseDisplay';
 import { Badge } from '@/components/ui/badge';
+import { providerNeedsApiKey } from '@/config/providerConfig';
 import { Toaster } from '@/components/ui/sonner';
 import { useAIProcessor } from '@/hooks/useAIProcessor';
 import { DriveFolder, makeUploadKey, useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -65,10 +66,11 @@ export function AIFileProcessor() {
   // Single source of truth for Google Drive state
   const googleDrive = useGoogleDrive();
   const [driveAssignmentLocation, setDriveAssignmentLocation] = useState<DriveFolder[]>([]);
+  const hasProviderAccess = !providerNeedsApiKey(selectedProvider) || !!apiKey;
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return;
-    if (!apiKey) {
+    if (!hasProviderAccess) {
       toast.error('API Key Required', {
         description: 'Please enter your API key before processing files.',
       });
@@ -125,7 +127,7 @@ export function AIFileProcessor() {
       return;
     }
 
-    if (!apiKey) {
+    if (!hasProviderAccess) {
       toast.error('API Key Required', {
         description: 'Please enter your API key before retrying.',
       });
@@ -157,7 +159,7 @@ export function AIFileProcessor() {
       return;
     }
 
-    if (!apiKey) {
+    if (!hasProviderAccess) {
       toast.error('API Key Required', {
         description: 'Please enter your API key before retrying.',
       });
@@ -197,7 +199,8 @@ export function AIFileProcessor() {
     }
   };
 
-  const canProcess = files.length > 0 && !!apiKey && !googleDrive.isUploadBlockingProcessing;
+  const canProcess =
+    files.length > 0 && hasProviderAccess && !googleDrive.isUploadBlockingProcessing;
   const completedCount = fileResults.filter((result) => result.isCompleted && !result.error).length;
   const processingCount = fileResults.filter((result) => result.isProcessing).length;
   const errorCount = fileResults.filter((result) => result.error).length;

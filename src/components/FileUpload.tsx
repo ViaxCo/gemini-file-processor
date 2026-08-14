@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
+import { TestFileGenerator } from '@/components/TestFileGenerator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { isSupportedInputFile } from '@/utils/fileUtils';
 import { AlertTriangle, CheckCircle, Upload, X } from 'lucide-react';
@@ -141,9 +142,12 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>Upload or Paste Files</CardTitle>
-          <Badge variant={files.length > 0 ? 'secondary' : 'outline'}>
-            {files.length} file{files.length === 1 ? '' : 's'} selected
-          </Badge>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <TestFileGenerator currentFileCount={files.length} onFilesGenerated={onFilesChange} />
+            <Badge variant={files.length > 0 ? 'secondary' : 'outline'}>
+              {files.length} file{files.length === 1 ? '' : 's'} selected
+            </Badge>
+          </div>
         </div>
         {files.length > 5 && (
           <Alert variant="default" className="mt-2">

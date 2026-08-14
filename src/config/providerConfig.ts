@@ -1,7 +1,7 @@
 // AI Provider configuration for multi-provider support
 // All providers use OpenAI-compatible chat completions API format except Gemini
 
-export type AIProvider = 'gemini' | 'mistral' | 'openrouter' | 'cerebras' | 'groq';
+export type AIProvider = 'gemini' | 'mistral' | 'openrouter' | 'cerebras' | 'groq' | 'test';
 
 export interface ModelConfig {
   id: string;
@@ -18,7 +18,7 @@ export interface ProviderConfig {
   baseUrl: string;
 }
 
-export const PROVIDERS: ProviderConfig[] = [
+const LIVE_PROVIDERS: ProviderConfig[] = [
   {
     id: 'gemini',
     name: 'Google Gemini',
@@ -150,6 +150,38 @@ export const PROVIDERS: ProviderConfig[] = [
     ],
   },
 ];
+
+const TEST_PROVIDER: ProviderConfig = {
+  id: 'test',
+  name: 'Test AI',
+  apiKeyPlaceholder: '',
+  apiKeyUrl: '',
+  baseUrl: '',
+  models: [
+    { id: 'test-success', name: 'Success', rateLimit: { limit: 1000, interval: 1000 } },
+    { id: 'test-mixed', name: 'Mixed results', rateLimit: { limit: 1000, interval: 1000 } },
+    {
+      id: 'test-rate-limited',
+      name: 'Rate limited (429)',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
+    {
+      id: 'test-overloaded',
+      name: 'Model overloaded (503)',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
+    {
+      id: 'test-network',
+      name: 'Network failure',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
+  ],
+};
+
+export const PROVIDERS =
+  process.env.NODE_ENV === 'production' ? LIVE_PROVIDERS : [...LIVE_PROVIDERS, TEST_PROVIDER];
+
+export const providerNeedsApiKey = (provider: AIProvider) => provider !== 'test';
 
 export const getProvider = (id: AIProvider): ProviderConfig | undefined => {
   return PROVIDERS.find((p) => p.id === id);

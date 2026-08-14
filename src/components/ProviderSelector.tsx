@@ -10,7 +10,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Brain, Check, ExternalLink, Eye, EyeOff, Key, Loader2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { AIProvider, PROVIDERS, getDefaultModel, getProvider } from '../config/providerConfig';
+import { AIProvider, PROVIDERS, getProvider, providerNeedsApiKey } from '../config/providerConfig';
 import { apiKeyStore } from '../services/apiKeyStore';
 import { FetchedModel, fetchModels } from '../services/modelFetcher';
 
@@ -39,6 +39,7 @@ export const ProviderSelector = ({
   const [modelFetchError, setModelFetchError] = useState<string | null>(null);
 
   const provider = getProvider(selectedProvider);
+  const needsApiKey = providerNeedsApiKey(selectedProvider);
 
   // Sync tempApiKey with apiKey prop when provider changes or apiKey is loaded
   useEffect(() => {
@@ -48,17 +49,22 @@ export const ProviderSelector = ({
 
   // Fetch models when API key is available
   useEffect(() => {
-    if (!apiKey) {
+    if (!needsApiKey || !apiKey) {
       setFetchedModels([]);
       setModelFetchError(null);
+      setIsLoadingModels(false);
       return;
     }
+
+    let cancelled = false;
 
     const loadModels = async () => {
       setIsLoadingModels(true);
       setModelFetchError(null);
       try {
         const models = await fetchModels(selectedProvider, apiKey);
+        if (cancelled) return;
+
         setFetchedModels(models);
         // If current model is not in fetched list, select the first available
         if (models.length > 0 && !models.some((m) => m.id === selectedModel)) {
@@ -68,29 +74,29 @@ export const ProviderSelector = ({
           }
         }
       } catch (error) {
+        if (cancelled) return;
+
         console.error('Failed to fetch models:', error);
         setModelFetchError('Failed to load models');
         setFetchedModels([]);
       } finally {
-        setIsLoadingModels(false);
+        if (!cancelled) setIsLoadingModels(false);
       }
     };
 
     loadModels();
-  }, [selectedProvider, apiKey]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProvider, apiKey, needsApiKey]);
 
   const handleProviderChange = (newProvider: AIProvider) => {
     onProviderChange(newProvider);
-    // Clear fetched models when provider changes
     setFetchedModels([]);
-    // Load the default model for the new provider (fallback)
-    const defaultModel = getDefaultModel(newProvider);
-    if (defaultModel) {
-      onModelChange(defaultModel.id);
-    }
-    // Load saved API key for the new provider
-    const savedKey = apiKeyStore.getApiKey(newProvider);
-    onApiKeyChange(savedKey || '');
+    onApiKeyChange(
+      providerNeedsApiKey(newProvider) ? apiKeyStore.getApiKey(newProvider) || '' : '',
+    );
   };
 
   const handleSaveApiKey = () => {
@@ -171,7 +177,9 @@ export const ProviderSelector = ({
                   <span>Loading models...</span>
                 </div>
               ) : (
-                <SelectValue placeholder={apiKey ? 'Select model' : 'Enter API key first'}>
+                <SelectValue
+                  placeholder={!needsApiKey || apiKey ? 'Select model' : 'Enter API key first'}
+                >
                   {displayModels.find((m) => m.id === selectedModel)?.name || selectedModel}
                 </SelectValue>
               )}
@@ -187,98 +195,104 @@ export const ProviderSelector = ({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <Key className="h-3.5 w-3.5 text-muted-foreground sm:h-4 sm:w-4" />
-          <span className="text-xs font-medium whitespace-nowrap text-muted-foreground sm:text-sm">
-            API Key
-          </span>
-        </div>
+      {needsApiKey ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Key className="h-3.5 w-3.5 text-muted-foreground sm:h-4 sm:w-4" />
+            <span className="text-xs font-medium whitespace-nowrap text-muted-foreground sm:text-sm">
+              API Key
+            </span>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {isEditing || !apiKey ? (
-            <>
-              <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
-                <Input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={tempApiKey}
-                  onChange={(e) => setTempApiKey(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={provider?.apiKeyPlaceholder || 'Enter API key'}
-                  className="h-8 pr-10 text-sm"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute top-0 right-0 h-8 w-8 p-0"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? (
-                    <EyeOff className="h-3.5 w-3.5" />
-                  ) : (
-                    <Eye className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-              </div>
-              <Button
-                size="sm"
-                variant="default"
-                className="h-8 px-3"
-                onClick={handleSaveApiKey}
-                disabled={!tempApiKey.trim()}
-              >
-                <Check className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="truncate text-sm text-muted-foreground">
-                  ••••••••{apiKey.slice(-4)}
-                </span>
-                <span className="text-xs font-medium whitespace-nowrap text-green-600 dark:text-green-400">
-                  Saved
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 px-2"
-                onClick={() => setIsEditing(true)}
-              >
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 text-destructive"
-                onClick={handleClearApiKey}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          )}
-
-          {provider?.apiKeyUrl && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href={provider.apiKeyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-shrink-0"
-                >
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                    <ExternalLink className="h-3.5 w-3.5" />
+          <div className="flex flex-wrap items-center gap-2">
+            {isEditing || !apiKey ? (
+              <>
+                <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
+                  <Input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={tempApiKey}
+                    onChange={(e) => setTempApiKey(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={provider?.apiKeyPlaceholder || 'Enter API key'}
+                    className="h-8 pr-10 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-0 right-0 h-8 w-8 p-0"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                  >
+                    {showApiKey ? (
+                      <EyeOff className="h-3.5 w-3.5" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5" />
+                    )}
                   </Button>
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>Get API Key</TooltipContent>
-            </Tooltip>
-          )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-8 px-3"
+                  onClick={handleSaveApiKey}
+                  disabled={!tempApiKey.trim()}
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className="truncate text-sm text-muted-foreground">
+                    ••••••••{apiKey.slice(-4)}
+                  </span>
+                  <span className="text-xs font-medium whitespace-nowrap text-green-600 dark:text-green-400">
+                    Saved
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-2"
+                  onClick={() => setIsEditing(true)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-destructive"
+                  onClick={handleClearApiKey}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+
+            {provider?.apiKeyUrl && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href={provider.apiKeyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0"
+                  >
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent>Get API Key</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+          Test AI runs in this browser. It uses no API key and makes no external AI request.
+        </div>
+      )}
     </div>
   );
 };

@@ -22,6 +22,16 @@ export const processFileWithAI = async (
   options?: ProcessOptions,
 ): Promise<void> => {
   const fileContent = await extractTextFromFile(file);
+
+  if (provider === 'test') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test AI is not available in production.');
+    }
+    const { processFileWithTestAI } = await import('../testing/testAIService');
+    await processFileWithTestAI(file.name, fileContent, model, onChunk, options?.signal);
+    return;
+  }
+
   const prompt = `${instruction}\n\nFile content:\n${fileContent}`;
 
   if (provider === 'gemini') {
