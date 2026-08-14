@@ -28,6 +28,18 @@ _Avoid_: No folder, empty selection
 The files and generated results created by one processing action. Selections, display names, upload statuses, and Destination Assignments belong only to that batch.
 _Avoid_: Current files, result list
 
+**Display Name**:
+The batch-specific name used for a processed download or Document Upload. Changing it does not change the original uploaded file.
+_Avoid_: Renamed file, filename
+
+**Test Batch**:
+A deterministic set of synthetic files used to test the processing workflow without private source material.
+_Avoid_: Sample upload, fake upload
+
+**Test AI**:
+A development-only provider that simulates processing and provider failures without an API key or an external request.
+_Avoid_: Mock Gemini, test key
+
 **Upload Session**:
 One user-initiated individual, selected, or all-files upload action. Upload controls do not start another Upload Session until the active one finishes.
 _Avoid_: Upload queue, upload batch
