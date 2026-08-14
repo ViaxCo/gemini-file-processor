@@ -14,6 +14,7 @@ This file is the source of truth for the workflow improvements. A user-visible i
 | Milestone                               | Status      | Acceptance checks                                                                                                                                                                                                                                                   |
 | --------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1. Safe test foundation and Bulk Rename | Done        | Development can generate 10, 50, or 100 repeatable fake files. Test AI makes no external request and can simulate success, mixed results, 429, 503, and network failure. Bulk Rename is repeatable, wraps long names, closes after Apply, and clears the selection. |
+| 1b. Automatic Display Name Cleanup      | Done        | Recognized transcript track names are cleaned when files are added. Other names and original uploaded files remain unchanged. Cleanup can be undone.                                                                                                                |
 | 2. Faster Drive assignment              | Done        | Assignment opens in the preferred transcript root. A new folder can be created and assigned in one action. Existing Drive items are not changed during testing.                                                                                                     |
 | 3. Series groups                        | Done        | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
 | 4. Viewport workspace                   | Done        | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
@@ -39,6 +40,20 @@ This file is the source of truth for the workflow improvements. A user-visible i
 ## Non-blocking follow-up checks
 
 - [ ] Run a phone-width responsive sanity check. Mobile usability is useful but is not a milestone blocker because the app is primarily used on desktop.
+
+## Milestone 1b checks
+
+- [x] Recognized plus-delimited transcript track names are cleaned when files are added.
+- [x] Unrecognized filenames remain unchanged.
+- [x] Original uploaded files remain unchanged.
+- [x] The cleanup notice states how many Display Names changed and offers Undo.
+- [x] Undo restores only the Display Names changed by that file-add action.
+- [x] Bulk Rename and individual name editing remain available.
+- [x] Automatic cleanup gives the same result when it runs twice.
+- [x] Automated tests pass.
+- [x] `npm run pretest` passes.
+- [x] Desktop browser checks pass with mixed fake filenames.
+- [x] User workflow test passes.
 
 ## Milestone 2 checks
 

@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { TestFileGenerator } from '@/components/TestFileGenerator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { makeFileKey } from '@/services/responseStore';
 import { isSupportedInputFile } from '@/utils/fileUtils';
 import { AlertTriangle, CheckCircle, Upload, X } from 'lucide-react';
 import { useState } from 'react';
@@ -14,11 +15,17 @@ import { toast } from 'sonner';
 
 interface FileUploadProps {
   files: File[];
-  onFilesChange: (files: File[]) => void;
+  displayNames: Record<string, string>;
+  onFilesChange: (files: File[]) => number;
   onClearFiles?: () => void;
 }
 
-export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadProps) => {
+export const FileUpload = ({
+  files,
+  displayNames,
+  onFilesChange,
+  onClearFiles,
+}: FileUploadProps) => {
   const [pastedName, setPastedName] = useState<string>('');
   const [pastedText, setPastedText] = useState<string>('');
 
@@ -96,10 +103,12 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
       return filesToAdd.length > 0;
     }
 
-    onFilesChange([...files, ...uniqueFiles]);
-    toast.success(
-      `${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`,
-    );
+    const cleanedCount = onFilesChange([...files, ...uniqueFiles]);
+    if (cleanedCount === 0) {
+      toast.success(
+        `${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`,
+      );
+    }
     return true;
   };
 
@@ -187,37 +196,40 @@ export const FileUpload = ({ files, onFilesChange, onClearFiles }: FileUploadPro
               </div>
 
               <div className="max-h-24 w-full max-w-full space-y-2 overflow-y-auto sm:max-h-32">
-                {files.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex w-full min-w-0 items-center justify-between rounded-lg border bg-background/90 p-2"
-                  >
-                    <div className="min-w-0 flex-1 pr-2 text-left">
-                      <p
-                        className="overflow-wrap-anywhere word-break-break-word text-xs font-medium break-all sm:text-sm"
-                        title={file.name}
-                      >
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {(file.size / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={() => removeFile(index)}
-                          variant="ghost"
-                          size="sm"
-                          className="ml-1 h-6 w-6 flex-shrink-0 p-0 sm:ml-2"
+                {files.map((file, index) => {
+                  const displayName = displayNames[makeFileKey(file)] ?? file.name;
+                  return (
+                    <div
+                      key={makeFileKey(file)}
+                      className="flex w-full min-w-0 items-center justify-between rounded-lg border bg-background/90 p-2"
+                    >
+                      <div className="min-w-0 flex-1 pr-2 text-left">
+                        <p
+                          className="overflow-wrap-anywhere word-break-break-word text-xs font-medium break-all sm:text-sm"
+                          title={displayName === file.name ? file.name : `Original: ${file.name}`}
                         >
-                          <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Remove file</TooltipContent>
-                    </Tooltip>
-                  </div>
-                ))}
+                          {displayName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {(file.size / 1024).toFixed(2)} KB
+                        </p>
+                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={() => removeFile(index)}
+                            variant="ghost"
+                            size="sm"
+                            className="ml-1 h-6 w-6 flex-shrink-0 p-0 sm:ml-2"
+                          >
+                            <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Remove file</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ) : (

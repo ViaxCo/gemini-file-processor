@@ -29,8 +29,12 @@ The files and generated results created by one processing action. Selections, di
 _Avoid_: Current files, result list
 
 **Display Name**:
-The batch-specific name used for a processed download or Document Upload. Changing it does not change the original uploaded file.
+The temporary name used in the workspace for a selected file, processed download, or Document Upload. Changing it does not change the original uploaded file.
 _Avoid_: Renamed file, filename
+
+**Automatic Display Name Cleanup**:
+The pattern-gated conversion of a recognized plus-delimited transcript track filename into its default Display Name when the file is added. Unrecognized names and original uploaded files stay unchanged.
+_Avoid_: Automatic file rename, bulk rename
 
 **Series Folder Name Suggestion**:
 The uppercase series title derived from the selected Display Names. It is blank when the selected titles do not agree. For one file without a track number, it uses the complete Display Name.
@@ -49,7 +53,7 @@ The files selected by the Select Series action. It replaces the previous selecti
 _Avoid_: Add series, folder selection
 
 **Natural Track Order**:
-The numeric order of tracks inside a Series Group, such as Track 1, Track 2, Track 10. Processing and upload status do not change this order.
+The numeric order of tracks with the same upload state inside a Series Group, such as Track 1, Track 2, Track 10. Uploaded tracks appear after tracks that are not uploaded.
 _Avoid_: Filename order, upload order
 
 **Test Batch**:

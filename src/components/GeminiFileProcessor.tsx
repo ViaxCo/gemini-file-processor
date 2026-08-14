@@ -13,6 +13,8 @@ import { makeUploadKey, useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useProviderSelector } from '@/hooks/useProviderSelector';
 import { cn } from '@/lib/utils';
+import { makeFileKey } from '@/services/responseStore';
+import { getAutomaticDisplayName } from '@/utils/bulkRename';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
@@ -37,6 +39,7 @@ const ThemeToggle = dynamic(
 export function AIFileProcessor() {
   const PROCESSING_PROFILE_KEY = 'ai-file-processor-processing-profile';
   const [files, setFiles] = useState<File[]>([]);
+  const [defaultDisplayNames, setDefaultDisplayNames] = useState<Record<string, string>>({});
   const [processingProfile, setProcessingProfile] = useState<'transcript' | 'book'>('transcript');
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
   const {
@@ -91,12 +94,55 @@ export function AIFileProcessor() {
     );
   };
 
+  const handleFilesChange = (nextFiles: File[]): number => {
+    const currentKeys = new Set(files.map(makeFileKey));
+    const nextDisplayNames = { ...defaultDisplayNames };
+    const cleanedEntries: Array<{ key: string; cleaned: string }> = [];
+
+    for (const file of nextFiles) {
+      const key = makeFileKey(file);
+      const existingName = defaultDisplayNames[key];
+      const displayName = existingName ?? getAutomaticDisplayName(file.name);
+
+      if (!currentKeys.has(key) && displayName !== file.name) {
+        nextDisplayNames[key] = displayName;
+        cleanedEntries.push({ key, cleaned: displayName });
+      }
+    }
+
+    setFiles(nextFiles);
+    setDefaultDisplayNames(nextDisplayNames);
+
+    if (cleanedEntries.length > 0) {
+      toast.success(
+        `${cleanedEntries.length} Display Name${cleanedEntries.length === 1 ? '' : 's'} cleaned`,
+        {
+          description: 'Original uploaded files did not change.',
+          action: {
+            label: 'Undo',
+            onClick: () =>
+              setDefaultDisplayNames((current) => {
+                const next = { ...current };
+                for (const entry of cleanedEntries) {
+                  if (next[entry.key] === entry.cleaned) delete next[entry.key];
+                }
+                return next;
+              }),
+          },
+        },
+      );
+    }
+
+    return cleanedEntries.length;
+  };
+
   const handleClearAll = (): boolean => {
     if (!googleDrive.resetUploadStatuses()) {
       toast.error('Finish or verify the current Drive upload before clearing this batch.');
       return false;
     }
     setFiles([]);
+    setDefaultDisplayNames({});
     clearResults();
     return true;
   };
@@ -334,7 +380,12 @@ export function AIFileProcessor() {
         <div className="grid gap-5 lg:grid-cols-5">
           <ErrorBoundary>
             <div className="space-y-5 lg:col-span-2">
-              <FileUpload files={files} onFilesChange={setFiles} onClearFiles={handleClearFiles} />
+              <FileUpload
+                files={files}
+                displayNames={defaultDisplayNames}
+                onFilesChange={handleFilesChange}
+                onClearFiles={handleClearFiles}
+              />
               <InstructionsPanel
                 onProcess={handleProcess}
                 onClearAll={handleClearAll}
@@ -361,6 +412,7 @@ export function AIFileProcessor() {
                 fileResults={fileResults}
                 processingBatchId={processingBatchId}
                 processingProfile={processingProfile}
+                defaultDisplayNames={defaultDisplayNames}
                 onRetryFile={handleRetryFile}
                 onRetryAllFailed={handleRetryAllFailed}
                 onAbortAll={abortAll}

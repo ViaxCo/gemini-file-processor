@@ -26,7 +26,7 @@ export function TestFileGenerator({
   onFilesGenerated,
 }: {
   currentFileCount: number;
-  onFilesGenerated: (files: File[]) => void;
+  onFilesGenerated: (files: File[]) => number;
 }) {
   const [pendingCount, setPendingCount] = useState<(typeof BATCH_SIZES)[number]>();
 
@@ -34,9 +34,9 @@ export function TestFileGenerator({
 
   const generateFiles = async (count: (typeof BATCH_SIZES)[number]) => {
     const { createTestFiles } = await import('@/testing/testFiles');
-    onFilesGenerated(createTestFiles(count));
+    const cleanedCount = onFilesGenerated(createTestFiles(count));
     setPendingCount(undefined);
-    toast.success(`Generated ${count} test files`);
+    if (cleanedCount === 0) toast.success(`Generated ${count} test files`);
   };
 
   const requestBatch = (count: (typeof BATCH_SIZES)[number]) => {

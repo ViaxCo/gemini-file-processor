@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { applyBulkRenameRules, DEFAULT_BULK_RENAME_RULES } from './bulkRename';
+import {
+  applyBulkRenameRules,
+  DEFAULT_BULK_RENAME_RULES,
+  getAutomaticDisplayName,
+} from './bulkRename';
 
 describe('applyBulkRenameRules', () => {
   it('cleans a transcript track name', () => {
@@ -40,5 +44,23 @@ describe('applyBulkRenameRules', () => {
         findPattern: '[',
       }),
     ).toBe('Teaching - Track 2');
+  });
+
+  it('automatically cleans a recognized plus-delimited track name', () => {
+    expect(getAutomaticDisplayName('Bible+Doctrine+on+Sin+Track+1+1st+Jan+2024.txt')).toBe(
+      'Bible Doctrine on Sin - Track 1',
+    );
+  });
+
+  it('leaves an unrecognized filename unchanged', () => {
+    expect(getAutomaticDisplayName('Meeting+Notes+1st+Jan+2024.txt')).toBe(
+      'Meeting+Notes+1st+Jan+2024.txt',
+    );
+  });
+
+  it('does not change an automatically cleaned name when it runs again', () => {
+    const cleaned = getAutomaticDisplayName('Bible+Doctrine+on+Sin+Track+1+1st+Jan+2024.txt');
+
+    expect(getAutomaticDisplayName(cleaned)).toBe(cleaned);
   });
 });

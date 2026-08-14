@@ -17,6 +17,7 @@ import { UnifiedFileCard } from '@/components/UnifiedFileCard';
 import { ViewResponseModal } from '@/components/ViewResponseModal';
 import { BulkRenameModal } from '@/components/BulkRenameModal';
 import { PREFERRED_ASSIGNMENT_ROOT } from '@/config/googleDriveConfig';
+import { makeFileKey } from '@/services/responseStore';
 import { getConfidenceScore } from '@/utils/confidenceScore';
 import { suggestSeriesFolderName } from '@/utils/driveFolderName';
 import { downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
@@ -41,6 +42,7 @@ interface MultiFileResponseDisplayProps {
   fileResults: FileResult[];
   processingBatchId: number;
   processingProfile: ProcessingProfile;
+  defaultDisplayNames?: Record<string, string>;
   onRetryFile?: (index: number) => void;
   onRetryAllFailed?: () => void;
   onAbortFile?: (index: number) => void;
@@ -73,11 +75,13 @@ interface MultiFileResponseDisplayProps {
 const canStartUpload = (status?: UploadStatus) =>
   !status || status === 'idle' || status === 'error';
 const EMPTY_DRIVE_LOCATION: DriveFolder[] = [];
+const EMPTY_DISPLAY_NAMES: Record<string, string> = {};
 
 export const MultiFileResponseDisplay = ({
   fileResults,
   processingBatchId,
   processingProfile,
+  defaultDisplayNames = EMPTY_DISPLAY_NAMES,
   onRetryFile,
   onRetryAllFailed,
   onAbortFile,
@@ -116,6 +120,14 @@ export const MultiFileResponseDisplay = ({
     () => fileResults.map((result, index) => makeUploadKey(processingBatchId, index, result.file)),
     [processingBatchId, fileResults],
   );
+  const resolvedDisplayNames = useMemo(
+    () =>
+      fileResults.map(
+        (result, index) =>
+          displayNames[index] ?? defaultDisplayNames[makeFileKey(result.file)] ?? result.file.name,
+      ),
+    [fileResults, displayNames, defaultDisplayNames],
+  );
   const initialAssignment = useMemo(() => {
     const assignments = [...selected].map(
       (index) =>
@@ -132,11 +144,8 @@ export const MultiFileResponseDisplay = ({
       : undefined;
   }, [selected, destinationAssignments]);
   const suggestedFolderName = useMemo(
-    () =>
-      suggestSeriesFolderName(
-        [...selected].map((index) => displayNames[index] || fileResults[index]?.file.name || ''),
-      ),
-    [selected, displayNames, fileResults],
+    () => suggestSeriesFolderName([...selected].map((index) => resolvedDisplayNames[index] || '')),
+    [selected, resolvedDisplayNames],
   );
 
   // Compute low-confidence files whenever results change
@@ -172,11 +181,11 @@ export const MultiFileResponseDisplay = ({
       groupFilesBySeries(
         fileResults.map((result, index) => ({
           index,
-          displayName: displayNames[index] || result.file.name,
+          displayName: resolvedDisplayNames[index] || result.file.name,
         })),
         (index) => uploadStatuses?.[uploadKeys[index]!] === 'completed',
       ),
-    [fileResults, displayNames, uploadStatuses, uploadKeys],
+    [fileResults, resolvedDisplayNames, uploadStatuses, uploadKeys],
   );
 
   const completedResults = fileResults.filter(
@@ -255,7 +264,7 @@ export const MultiFileResponseDisplay = ({
         continue;
       }
 
-      const name = displayNames[i] || r.file.name.replace(/\.[^.]+$/, '');
+      const name = (resolvedDisplayNames[i] || r.file.name).replace(/\.[^.]+$/, '');
       try {
         await downloadProcessedFile(r.response, name, format);
         successCount++;
@@ -320,7 +329,7 @@ export const MultiFileResponseDisplay = ({
     const results = await uploadToGoogleDocs(
       items.map(({ result, index }) => ({
         uploadKey: uploadKeys[index]!,
-        title: (displayNames[index] || result.file.name).replace(/\.[^.]+$/, ''),
+        title: (resolvedDisplayNames[index] || result.file.name).replace(/\.[^.]+$/, ''),
         content: result.response,
         folderId: destinationAssignments[index]?.destination.id,
       })),
@@ -659,7 +668,7 @@ export const MultiFileResponseDisplay = ({
                               return next;
                             });
                           }}
-                          displayName={displayNames[orderedIndex] || result.file.name}
+                          displayName={resolvedDisplayNames[orderedIndex] || result.file.name}
                           onNameChange={(newName) =>
                             setDisplayNames((prev) => ({ ...prev, [orderedIndex]: newName }))
                           }
@@ -707,7 +716,7 @@ export const MultiFileResponseDisplay = ({
                 result={viewedResult}
                 displayName={
                   viewIndex != null
-                    ? displayNames[viewIndex] || fileResults[viewIndex]?.file.name
+                    ? resolvedDisplayNames[viewIndex] || fileResults[viewIndex]?.file.name
                     : undefined
                 }
                 onRetry={
@@ -764,7 +773,7 @@ export const MultiFileResponseDisplay = ({
         onOpenChange={setIsBulkRenameOpen}
         items={[...selected].map((idx) => ({
           index: idx,
-          currentName: displayNames[idx] || fileResults[idx]?.file.name || '',
+          currentName: resolvedDisplayNames[idx] || fileResults[idx]?.file.name || '',
         }))}
         onApply={(mapping) => {
           setDisplayNames((prev) => ({ ...prev, ...mapping }));
