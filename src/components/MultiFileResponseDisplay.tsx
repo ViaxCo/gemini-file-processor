@@ -750,6 +750,7 @@ export const MultiFileResponseDisplay = ({
         }))}
         onApply={(mapping) => {
           setDisplayNames((prev) => ({ ...prev, ...mapping }));
+          setSelected(new Set());
         }}
       />
       <AssignFolderModal
