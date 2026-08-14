@@ -12,6 +12,7 @@ import { useAIProcessor } from '@/hooks/useAIProcessor';
 import { makeUploadKey, useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useProviderSelector } from '@/hooks/useProviderSelector';
+import { cn } from '@/lib/utils';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
@@ -203,6 +204,7 @@ export function AIFileProcessor() {
   const completedCount = fileResults.filter((result) => result.isCompleted && !result.error).length;
   const processingCount = fileResults.filter((result) => result.isProcessing).length;
   const errorCount = fileResults.filter((result) => result.error).length;
+  const hasActiveResults = fileResults.length > 0;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -228,15 +230,54 @@ export function AIFileProcessor() {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto w-full max-w-7xl px-4 pt-5 pb-8 sm:px-6 sm:pt-7 lg:px-8 lg:pt-10">
-        <div className="mb-6 rounded-3xl border border-border/70 bg-card/78 p-4 shadow-xl backdrop-blur-md sm:p-6">
-          <div className="grid gap-5 xl:grid-cols-[1fr_auto]">
-            <div className="space-y-4">
-              <Badge variant="outline" className="w-fit border-primary/40 bg-primary/10">
+      <div
+        className={cn(
+          'mx-auto w-full max-w-7xl px-4 pt-5 pb-8 sm:px-6 sm:pt-7 lg:px-8 lg:pt-10',
+          hasActiveResults && 'lg:py-4',
+        )}
+      >
+        <div
+          className={cn(
+            'mb-6 rounded-3xl border border-border/70 bg-card/78 p-4 shadow-xl backdrop-blur-md sm:p-6',
+            hasActiveResults && 'lg:mb-4 lg:p-4',
+          )}
+        >
+          <div
+            className={cn(
+              'grid gap-5',
+              hasActiveResults
+                ? 'lg:grid-cols-[minmax(0,1fr)_560px] lg:gap-4'
+                : 'xl:grid-cols-[1fr_auto]',
+            )}
+          >
+            <div
+              className={cn(
+                'space-y-4',
+                hasActiveResults &&
+                  'lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:space-y-0 lg:gap-x-3 lg:gap-y-2',
+              )}
+            >
+              <Badge
+                variant="outline"
+                className={cn(
+                  'w-fit border-primary/40 bg-primary/10',
+                  hasActiveResults && 'lg:col-start-1 lg:row-start-1',
+                )}
+              >
                 Batch-ready AI workspace
               </Badge>
-              <div className="space-y-2">
-                <h1 className="text-3xl leading-tight font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+              <div
+                className={cn(
+                  'space-y-2',
+                  hasActiveResults && 'lg:col-span-2 lg:row-start-2 lg:space-y-1',
+                )}
+              >
+                <h1
+                  className={cn(
+                    'text-3xl leading-tight font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl',
+                    hasActiveResults && 'lg:text-3xl',
+                  )}
+                >
                   AI File Processor
                 </h1>
                 <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -244,7 +285,12 @@ export function AIFileProcessor() {
                   live progress, retries, and optional Google Docs export.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div
+                className={cn(
+                  'flex flex-wrap gap-2',
+                  hasActiveResults && 'lg:col-start-2 lg:row-start-1 lg:justify-end',
+                )}
+              >
                 <Badge variant="secondary" className="gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {completedCount} complete
@@ -260,7 +306,12 @@ export function AIFileProcessor() {
                 <Badge variant="outline">{files.length}/20 queued</Badge>
               </div>
             </div>
-            <div className="min-w-0 space-y-3 rounded-2xl border border-border/70 bg-background/65 p-3 sm:p-4 xl:min-w-[360px]">
+            <div
+              className={cn(
+                'min-w-0 space-y-3 rounded-2xl border border-border/70 bg-background/65 p-3 sm:p-4 xl:min-w-[360px]',
+                hasActiveResults && 'lg:space-y-2 lg:p-2',
+              )}
+            >
               <ProviderSelector
                 selectedProvider={selectedProvider}
                 selectedModel={selectedModel}
@@ -268,6 +319,7 @@ export function AIFileProcessor() {
                 onModelChange={setSelectedModel}
                 onApiKeyChange={setApiKey}
                 apiKey={apiKey}
+                compact={hasActiveResults}
               />
               <div className="flex flex-wrap items-center gap-2">
                 <GoogleDriveAuth {...googleDrive} />
@@ -297,7 +349,13 @@ export function AIFileProcessor() {
           </ErrorBoundary>
 
           <ErrorBoundary>
-            <div className="lg:col-span-3">
+            <div
+              className={cn(
+                'lg:col-span-3',
+                hasActiveResults &&
+                  'lg:sticky lg:top-4 lg:h-[calc(100dvh-17rem)] lg:self-start xl:h-[calc(100dvh-15.5rem)]',
+              )}
+            >
               <MultiFileResponseDisplay
                 key={processingBatchId}
                 fileResults={fileResults}

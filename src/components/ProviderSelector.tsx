@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import { Brain, Check, ExternalLink, Eye, EyeOff, Key, Loader2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AIProvider, PROVIDERS, getProvider, providerNeedsApiKey } from '../config/providerConfig';
@@ -21,6 +22,7 @@ interface ProviderSelectorProps {
   onModelChange: (model: string) => void;
   onApiKeyChange: (apiKey: string) => void;
   apiKey: string;
+  compact?: boolean;
 }
 
 export const ProviderSelector = ({
@@ -30,6 +32,7 @@ export const ProviderSelector = ({
   onModelChange,
   onApiKeyChange,
   apiKey,
+  compact = false,
 }: ProviderSelectorProps) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [tempApiKey, setTempApiKey] = useState(apiKey);
@@ -128,8 +131,8 @@ export const ProviderSelector = ({
       : provider?.models.map((m) => ({ id: m.id, name: m.name })) || [];
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+    <div className={cn('flex w-full min-w-0 flex-col gap-3', compact && 'lg:gap-2')}>
+      <div className={cn('grid gap-3 sm:grid-cols-2', compact && 'lg:gap-2')}>
         <div className="min-w-0 space-y-1.5">
           <div className="flex items-center gap-1.5">
             <Brain className="h-3.5 w-3.5 text-muted-foreground sm:h-4 sm:w-4" />
@@ -196,7 +199,13 @@ export const ProviderSelector = ({
       </div>
 
       {needsApiKey ? (
-        <div className="space-y-1.5">
+        <div
+          className={cn(
+            'space-y-1.5',
+            compact &&
+              'lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:gap-2 lg:space-y-0',
+          )}
+        >
           <div className="flex items-center gap-1.5">
             <Key className="h-3.5 w-3.5 text-muted-foreground sm:h-4 sm:w-4" />
             <span className="text-xs font-medium whitespace-nowrap text-muted-foreground sm:text-sm">
@@ -289,7 +298,12 @@ export const ProviderSelector = ({
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+        <div
+          className={cn(
+            'rounded-lg border border-dashed p-3 text-sm text-muted-foreground',
+            compact && 'lg:p-2',
+          )}
+        >
           Test AI runs in this browser. It uses no API key and makes no external AI request.
         </div>
       )}

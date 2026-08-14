@@ -223,20 +223,20 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   const uploadLabel = UPLOAD_LABELS[uploadStatus || 'idle'];
 
   return (
-    <Card className="w-full gap-0">
-      <CardHeader className="pb-2">
+    <Card className="w-full gap-0 py-3 shadow-sm">
+      <CardHeader className="px-3 pb-0 sm:px-4">
         <div className="flex min-w-0 items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
+          <div className="flex min-w-0 flex-1 items-start gap-2">
             <input
               type="checkbox"
-              className="mt-1 h-4 w-4 flex-shrink-0 accent-primary"
+              className="mt-1.5 h-4 w-4 flex-shrink-0 accent-primary"
               checked={selected}
               onChange={(e) => onSelectChange(e.target.checked)}
               aria-label="Select file"
             />
-            <div className="mt-0.5 flex-shrink-0">{getStatusIcon()}</div>
+            <div className="mt-1 flex-shrink-0">{getStatusIcon()}</div>
             <div className="min-w-0 flex-1 overflow-hidden">
-              <div className="flex items-center gap-2 sm:gap-2">
+              <div className="flex items-center gap-1.5">
                 {isEditingName ? (
                   <Input
                     value={editValue}
@@ -298,199 +298,203 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                   </Tooltip>
                 )}
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {result.error ? (
-                  <Badge variant="destructive">Error</Badge>
-                ) : result.isCompleted ? (
-                  <Badge variant="default">Completed</Badge>
-                ) : result.isProcessing ? (
-                  <Badge variant="secondary">Processing...</Badge>
-                ) : (
-                  <Badge variant="outline">Queued</Badge>
-                )}
-                {uploadStatus === 'completed' && (
-                  <Badge
-                    variant="secondary"
-                    className="bg-emerald-500 text-white dark:bg-emerald-600 [a&]:hover:bg-emerald-500/90"
-                  >
-                    Uploaded
-                  </Badge>
-                )}
-                <Badge variant="outline">{destinationFolderName || 'Root (My Drive)'}</Badge>
-                {uploadStatus === 'unknown' && (
-                  <Badge variant="destructive">Upload unconfirmed</Badge>
-                )}
-                {confidence && result.isCompleted && !result.error && (
-                  <span className={`text-xs ${confidenceColorClass(confidence.level)}`}>
-                    Confidence {confidence.level} ({Math.round(confidence.score * 100)}%)
-                  </span>
-                )}
-                {processingProfile === 'book' &&
-                  lengthRatio !== null &&
-                  result.isCompleted &&
-                  !result.error && (
-                    <Badge variant="secondary">Length: {lengthRatio.toFixed(2)}x</Badge>
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  {result.error ? (
+                    <Badge variant="destructive">Error</Badge>
+                  ) : result.isCompleted ? (
+                    <Badge variant="default">Completed</Badge>
+                  ) : result.isProcessing ? (
+                    <Badge variant="secondary">Processing...</Badge>
+                  ) : (
+                    <Badge variant="outline">Queued</Badge>
                   )}
-                {result.previousConfidence && !result.isCompleted && !result.error && (
-                  <span
-                    className={`text-xs ${confidenceColorClass(result.previousConfidence.level)}`}
-                  >
-                    Previous Confidence {result.previousConfidence.level} (
-                    {Math.round(result.previousConfidence.score * 100)}%)
-                  </span>
-                )}
-                {result.isRetryingDueToError && !result.isCompleted && !result.error && (
-                  <span className="text-xs text-rose-600 dark:text-rose-400">
-                    Retrying due to error
-                  </span>
-                )}
-                {result.retryCount !== undefined &&
-                  result.retryCount > 0 &&
-                  !result.isCompleted &&
-                  !result.error && <Badge variant="secondary">Retry {result.retryCount}/3</Badge>}
-              </div>
-
-              {(result.response || result.error || result.isCompleted) && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={handleCopy}
-                        variant="ghost"
-                        size="sm"
-                        disabled={!result.response || result.isProcessing}
-                        className="h-7 w-7 p-0 hover:bg-muted/50"
-                        aria-label="Copy response"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{copyFeedback || 'Copy response to clipboard'}</TooltipContent>
-                  </Tooltip>
-                  <DropdownMenu>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={!result.response || result.isProcessing}
-                              className="h-7 w-7 p-0 hover:bg-muted/50"
-                              aria-label="Download response"
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Download response</TooltipContent>
-                    </Tooltip>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem onClick={() => handleDownload('markdown')}>
-                        Markdown (.md)
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownload('docx')}>
-                        Word (.docx)
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {onRetry && (result.isCompleted || result.error) && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={onRetry}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 hover:bg-muted/50"
-                          aria-label="Retry"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Retry processing this file</TooltipContent>
-                    </Tooltip>
+                  {uploadStatus === 'completed' && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-emerald-500 text-white dark:bg-emerald-600 [a&]:hover:bg-emerald-500/90"
+                    >
+                      Uploaded
+                    </Badge>
                   )}
-                  {onAbort && (result.isProcessing || result.queueStatus === 'pending') && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={onAbort}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:bg-muted/50"
-                          aria-label="Abort"
-                        >
-                          {/* Use a simple square/stop icon via SVG to avoid adding new imports */}
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                            className="h-3.5 w-3.5"
-                          >
-                            <rect x="6" y="6" width="12" height="12" rx="1" />
-                          </svg>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Abort this file</TooltipContent>
-                    </Tooltip>
+                  <Badge variant="outline">{destinationFolderName || 'Root (My Drive)'}</Badge>
+                  {uploadStatus === 'unknown' && (
+                    <Badge variant="destructive">Upload unconfirmed</Badge>
                   )}
-                  {onUpload && canUpload && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={onUpload}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 hover:bg-muted/50"
-                          aria-label={uploadLabel}
-                          disabled={
-                            uploadDisabled || isUploadPending || uploadStatus === 'completed'
-                          }
-                        >
-                          {isUploadPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <UploadCloud className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{uploadLabel}</TooltipContent>
-                    </Tooltip>
+                  {confidence && result.isCompleted && !result.error && (
+                    <span className={`text-xs ${confidenceColorClass(confidence.level)}`}>
+                      Confidence {confidence.level} ({Math.round(confidence.score * 100)}%)
+                    </span>
                   )}
-                  {onDiscardUpload && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={onDiscardUpload}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          aria-label="Discard unconfirmed upload"
-                          disabled={uploadDisabled}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Discard unconfirmed upload</TooltipContent>
-                    </Tooltip>
+                  {processingProfile === 'book' &&
+                    lengthRatio !== null &&
+                    result.isCompleted &&
+                    !result.error && (
+                      <Badge variant="secondary">Length: {lengthRatio.toFixed(2)}x</Badge>
+                    )}
+                  {result.previousConfidence && !result.isCompleted && !result.error && (
+                    <span
+                      className={`text-xs ${confidenceColorClass(result.previousConfidence.level)}`}
+                    >
+                      Previous Confidence {result.previousConfidence.level} (
+                      {Math.round(result.previousConfidence.score * 100)}%)
+                    </span>
                   )}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={handleToggleExpand}
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 hover:bg-muted/50"
-                        aria-label="View response"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>View Response</TooltipContent>
-                  </Tooltip>
+                  {result.isRetryingDueToError && !result.isCompleted && !result.error && (
+                    <span className="text-xs text-rose-600 dark:text-rose-400">
+                      Retrying due to error
+                    </span>
+                  )}
+                  {result.retryCount !== undefined &&
+                    result.retryCount > 0 &&
+                    !result.isCompleted &&
+                    !result.error && <Badge variant="secondary">Retry {result.retryCount}/3</Badge>}
                 </div>
-              )}
+
+                {(result.response || result.error || result.isCompleted) && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={handleCopy}
+                          variant="ghost"
+                          size="sm"
+                          disabled={!result.response || result.isProcessing}
+                          className="h-7 w-7 p-0 hover:bg-muted/50"
+                          aria-label="Copy response"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {copyFeedback || 'Copy response to clipboard'}
+                      </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenu>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={!result.response || result.isProcessing}
+                                className="h-7 w-7 p-0 hover:bg-muted/50"
+                                aria-label="Download response"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Download response</TooltipContent>
+                      </Tooltip>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => handleDownload('markdown')}>
+                          Markdown (.md)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownload('docx')}>
+                          Word (.docx)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {onRetry && (result.isCompleted || result.error) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={onRetry}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 hover:bg-muted/50"
+                            aria-label="Retry"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Retry processing this file</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {onAbort && (result.isProcessing || result.queueStatus === 'pending') && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={onAbort}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:bg-muted/50"
+                            aria-label="Abort"
+                          >
+                            {/* Use a simple square/stop icon via SVG to avoid adding new imports */}
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="h-3.5 w-3.5"
+                            >
+                              <rect x="6" y="6" width="12" height="12" rx="1" />
+                            </svg>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Abort this file</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {onUpload && canUpload && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={onUpload}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 hover:bg-muted/50"
+                            aria-label={uploadLabel}
+                            disabled={
+                              uploadDisabled || isUploadPending || uploadStatus === 'completed'
+                            }
+                          >
+                            {isUploadPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <UploadCloud className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{uploadLabel}</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {onDiscardUpload && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={onDiscardUpload}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            aria-label="Discard unconfirmed upload"
+                            disabled={uploadDisabled}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Discard unconfirmed upload</TooltipContent>
+                      </Tooltip>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={handleToggleExpand}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 hover:bg-muted/50"
+                          aria-label="View response"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>View Response</TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

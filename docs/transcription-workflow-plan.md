@@ -16,7 +16,7 @@ This file is the source of truth for the workflow improvements. A user-visible i
 | 1. Safe test foundation and Bulk Rename | Done        | Development can generate 10, 50, or 100 repeatable fake files. Test AI makes no external request and can simulate success, mixed results, 429, 503, and network failure. Bulk Rename is repeatable, wraps long names, closes after Apply, and clears the selection. |
 | 2. Faster Drive assignment              | Done        | Assignment opens in the preferred transcript root. A new folder can be created and assigned in one action. Existing Drive items are not changed during testing.                                                                                                     |
 | 3. Series groups                        | Done        | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
-| 4. Viewport workspace                   | Not started | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
+| 4. Viewport workspace                   | Done        | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
 | 5. Structured errors and retries        | Not started | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
 | 6. Large processing queues              | Not started | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
 | 7. Gemini quota pools                   | Not started | The scheduler tracks RPM, TPM, and RPD per project and model. Keys from one Google project share one pool.                                                                                                                                                          |
@@ -60,11 +60,29 @@ This file is the source of truth for the workflow improvements. A user-visible i
 - [x] Current Display Names determine Series Groups.
 - [x] Matching ignores capitalization and repeated spaces but preserves punctuation differences.
 - [x] Series Groups use alphabetical order.
-- [x] Tracks use Natural Track Order regardless of processing or upload status.
+- [x] Tracks use Natural Track Order within their upload state; uploaded tracks move to the bottom of their Series Group.
 - [x] Ungrouped Files appear last.
 - [x] Each Series Group shows its title, track count, and Select Series action.
 - [x] Select Series replaces the previous selection with every file in that group.
+- [x] Successful uploads are deselected; failed uploads remain selected for retry.
 - [x] Bulk Rename and manual name edits update the groups.
+- [x] Automated tests pass.
+- [x] `npm run pretest` passes.
+- [x] Desktop browser checks pass with fake files.
+- [x] User workflow test passes.
+
+## Milestone 4 checks
+
+- [x] The desktop workspace becomes active when at least one processing result exists.
+- [x] The active desktop header is compact without hiding its information or controls.
+- [x] The complete AI Responses card is visible within the viewport on page load.
+- [x] The AI Responses card stays pinned while the page scrolls through the left column.
+- [x] The page keeps its normal scroll for the Upload and Instructions column.
+- [x] The AI Responses card has one results scroll area.
+- [x] The AI Responses header remains visible while results scroll.
+- [x] File result cards use a compact two-row desktop layout.
+- [x] Selected-file actions remain visible at the bottom of the card.
+- [x] Tablet and phone layouts use normal page flow without a fixed results height.
 - [x] Automated tests pass.
 - [x] `npm run pretest` passes.
 - [x] Desktop browser checks pass with fake files.

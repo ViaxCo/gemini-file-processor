@@ -50,4 +50,21 @@ describe('groupFilesBySeries', () => {
     ]);
     expect(groups[1]?.indices).toEqual([0, 2]);
   });
+
+  it('moves uploaded files to the bottom of each group', () => {
+    const uploaded = new Set([1, 3]);
+    const groups = groupFilesBySeries(
+      [
+        { index: 0, displayName: 'Bible Doctrine on Sin - Track 3' },
+        { index: 1, displayName: 'Bible Doctrine on Sin - Track 1' },
+        { index: 2, displayName: 'Bible Doctrine on Sin - Track 2' },
+        { index: 3, displayName: 'Standalone Teaching.docx' },
+        { index: 4, displayName: 'Another Teaching.docx' },
+      ],
+      (index) => uploaded.has(index),
+    );
+
+    expect(groups[0]?.indices).toEqual([2, 0, 1]);
+    expect(groups[1]?.indices).toEqual([4, 3]);
+  });
 });

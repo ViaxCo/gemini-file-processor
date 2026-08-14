@@ -174,8 +174,9 @@ export const MultiFileResponseDisplay = ({
           index,
           displayName: displayNames[index] || result.file.name,
         })),
+        (index) => uploadStatuses?.[uploadKeys[index]!] === 'completed',
       ),
-    [fileResults, displayNames],
+    [fileResults, displayNames, uploadStatuses, uploadKeys],
   );
 
   const completedResults = fileResults.filter(
@@ -434,8 +435,8 @@ export const MultiFileResponseDisplay = ({
   }
 
   return (
-    <Card className="overflow-hidden border-border/70">
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between space-y-0 pb-2">
+    <Card className="overflow-hidden border-border/70 lg:h-full lg:min-h-0">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between space-y-0 pb-2 lg:shrink-0">
         <CardTitle className="text-lg sm:text-xl">AI Responses</CardTitle>
         <div className="flex items-center gap-3">
           {allCompleted && completedResults.length > 0 && (
@@ -493,8 +494,8 @@ export const MultiFileResponseDisplay = ({
           )}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="max-h-189 space-y-4 overflow-y-auto pr-2 lg:overflow-y-auto">
+      <CardContent className="lg:min-h-0 lg:flex-1">
+        <div className="space-y-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <div className="sticky top-0 z-20 space-y-3 border-b border-border/70 bg-card/92 pt-1 pb-3 backdrop-blur-md supports-[backdrop-filter]:bg-card/72">
             <div className="flex flex-col justify-between gap-2 text-sm sm:flex-row sm:items-center">
               <span className="text-muted-foreground">

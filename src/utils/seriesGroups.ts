@@ -19,7 +19,22 @@ function parseTrack(displayName: string) {
   };
 }
 
-export function groupFilesBySeries(files: Array<{ index: number; displayName: string }>) {
+function moveUploadedLast(indices: number[], isUploaded: (index: number) => boolean) {
+  const notUploaded: number[] = [];
+  const uploaded: number[] = [];
+
+  for (const index of indices) {
+    if (isUploaded(index)) uploaded.push(index);
+    else notUploaded.push(index);
+  }
+
+  return [...notUploaded, ...uploaded];
+}
+
+export function groupFilesBySeries(
+  files: Array<{ index: number; displayName: string }>,
+  isUploaded: (index: number) => boolean = () => false,
+) {
   const series = new Map<string, { id: string; title: string; tracks: Array<[number, number]> }>();
   const ungrouped: number[] = [];
 
@@ -45,9 +60,12 @@ export function groupFilesBySeries(files: Array<{ index: number; displayName: st
     )
     .map(({ tracks, ...group }) => ({
       ...group,
-      indices: [...tracks]
-        .sort(([trackA, indexA], [trackB, indexB]) => trackA - trackB || indexA - indexB)
-        .map(([, index]) => index),
+      indices: moveUploadedLast(
+        [...tracks]
+          .sort(([trackA, indexA], [trackB, indexB]) => trackA - trackB || indexA - indexB)
+          .map(([, index]) => index),
+        isUploaded,
+      ),
       isUngrouped: false,
     }));
 
@@ -55,7 +73,7 @@ export function groupFilesBySeries(files: Array<{ index: number; displayName: st
     groups.push({
       id: 'ungrouped',
       title: 'Ungrouped Files',
-      indices: ungrouped,
+      indices: moveUploadedLast(ungrouped, isUploaded),
       isUngrouped: true,
     });
   }
