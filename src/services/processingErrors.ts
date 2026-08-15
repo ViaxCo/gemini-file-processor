@@ -232,10 +232,10 @@ const describeFailure = (
       };
     case 'content_blocked':
       return {
-        kind: 'permanent',
+        kind: 'temporary',
         title: 'Content blocked',
         message: 'The provider blocked this request or its output.',
-        retryable: false,
+        retryable: true,
         recoveryAction: 'retry',
       };
     case 'invalid_response':

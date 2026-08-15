@@ -68,7 +68,7 @@ describe('processing errors', () => {
     });
   });
 
-  it('allows a manual retry after content is blocked without retrying automatically', () => {
+  it('automatically retries blocked content and allows a manual retry afterward', () => {
     const error = createProviderRequestError(400, {
       error: {
         message: 'The provider blocked this content.',
@@ -78,8 +78,8 @@ describe('processing errors', () => {
 
     expect(toProcessingFailure(error, 'gemini', 'gemini-2.5-flash')).toMatchObject({
       category: 'content_blocked',
-      kind: 'permanent',
-      retryable: false,
+      kind: 'temporary',
+      retryable: true,
       recoveryAction: 'retry',
     });
   });
