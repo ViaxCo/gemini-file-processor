@@ -12,10 +12,12 @@ export type GeminiQuotaAcquisition =
   | { kind: 'ready'; project: GeminiProject }
   | { kind: 'wait'; nextAt: number }
   | { kind: 'daily_exhausted'; nextAt: number }
+  | { kind: 'model_unavailable' }
   | { kind: 'key_problem' };
 
 export class GeminiQuotaScheduler {
   private cursor = 0;
+  private modelUnavailableProjectIds = new Set<string>();
 
   constructor(
     private projects: GeminiProject[],
@@ -28,6 +30,10 @@ export class GeminiQuotaScheduler {
     const candidates = this.projects.map((project, index) => {
       if (project.verification === 'key_problem') {
         return { project, index, availableAt: Number.POSITIVE_INFINITY, reason: 'key' as const };
+      }
+
+      if (this.modelUnavailableProjectIds.has(project.id)) {
+        return { project, index, availableAt: Number.POSITIVE_INFINITY, reason: 'model' as const };
       }
 
       const state = getGeminiQuotaState(project.id, this.model, now);
@@ -69,7 +75,11 @@ export class GeminiQuotaScheduler {
     }
 
     const recoverable = candidates.filter((candidate) => Number.isFinite(candidate.availableAt));
-    if (recoverable.length === 0) return { kind: 'key_problem' };
+    if (recoverable.length === 0) {
+      return candidates.some((candidate) => candidate.reason === 'model')
+        ? { kind: 'model_unavailable' }
+        : { kind: 'key_problem' };
+    }
     const nextAt = Math.min(...recoverable.map((candidate) => candidate.availableAt));
     return recoverable.every((candidate) => candidate.reason === 'daily')
       ? { kind: 'daily_exhausted', nextAt }
@@ -77,6 +87,7 @@ export class GeminiQuotaScheduler {
   }
 
   reportSuccess(projectId: string, inputTokens = 0, now = Date.now()): void {
+    this.modelUnavailableProjectIds.delete(projectId);
     const state = getGeminiQuotaState(projectId, this.model, now);
     saveGeminiQuotaState({
       ...state,
@@ -85,6 +96,11 @@ export class GeminiQuotaScheduler {
   }
 
   reportFailure(projectId: string, failure: ProcessingFailure, now = Date.now()): void {
+    if (failure.category === 'model_unavailable') {
+      this.modelUnavailableProjectIds.add(projectId);
+      return;
+    }
+
     if (failure.category === 'authentication') {
       setGeminiProjectVerification(projectId, 'key_problem');
       this.projects = getGeminiProjects();

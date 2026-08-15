@@ -118,6 +118,27 @@ describe('GeminiQuotaScheduler', () => {
     expect(getGeminiProjects()[0]?.verification).toBe('key_problem');
     expect(scheduler.acquire(now)).toMatchObject({ kind: 'ready', project: projects[1] });
   });
+
+  it('routes around a project that cannot use the selected model', () => {
+    const scheduler = new GeminiQuotaScheduler(projects, 'gemini-2.5-flash', 5, 60_000);
+    const now = Date.UTC(2026, 7, 15, 12);
+    scheduler.reportFailure('project-1', failure('model_unavailable'), now);
+
+    expect(scheduler.acquire(now)).toMatchObject({ kind: 'ready', project: projects[1] });
+    expect(
+      new GeminiQuotaScheduler([projects[0]!], 'gemini-2.5-pro', 5, 60_000).acquire(now),
+    ).toMatchObject({ kind: 'ready', project: projects[0] });
+  });
+
+  it('reports model unavailability only after every usable project rejects the model', () => {
+    const scheduler = new GeminiQuotaScheduler(projects, 'gemini-2.5-flash', 5, 60_000);
+    const now = Date.UTC(2026, 7, 15, 12);
+    projects.forEach((project) =>
+      scheduler.reportFailure(project.id, failure('model_unavailable'), now),
+    );
+
+    expect(scheduler.acquire(now)).toEqual({ kind: 'model_unavailable' });
+  });
 });
 
 describe('Gemini project migration', () => {

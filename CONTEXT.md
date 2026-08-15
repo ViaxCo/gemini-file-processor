@@ -68,6 +68,10 @@ _Avoid_: API key limit, global rate limit
 A temporary period when the scheduler does not send a specific model to one Gemini Project after an RPM or TPM limit. Other available Gemini Projects can continue processing.
 _Avoid_: Queue Pause, daily quota
 
+**Gemini Model Access Failure**:
+A Processing Failure that means one Gemini Project cannot use one selected model. Other Gemini Projects and other models remain eligible for processing.
+_Avoid_: Provider-wide Processing Failure, model outage
+
 **Gemini Daily Exhaustion**:
 The state of one Gemini Quota Pool after its RPD limit is reached. That project and model remain unavailable until the next Gemini daily reset at midnight Pacific Time.
 _Avoid_: Gemini Project Cooldown, provider failure

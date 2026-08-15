@@ -19,6 +19,7 @@ import {
   getProviderFailureSignature,
   getQueueProgress,
   isImmediateProviderWideFailure,
+  isRepeatedProviderWideFailure,
 } from '../utils/processingQueue';
 
 export type ProcessingProfile = 'transcript' | 'book';
@@ -38,22 +39,40 @@ const getEffectiveRateLimit = (
     : rateLimit;
 };
 
+const GEMINI_PAUSE_DETAILS = {
+  daily_quota: {
+    kind: 'deferred',
+    title: 'All Gemini daily quotas reached',
+    recoveryAction: 'retry_later',
+    quotaType: 'rpd',
+  },
+  authentication: {
+    kind: 'permanent',
+    title: 'No usable Gemini key',
+    recoveryAction: 'check_api_key',
+  },
+  model_unavailable: {
+    kind: 'permanent',
+    title: 'Model unavailable in all projects',
+    recoveryAction: 'choose_model',
+  },
+} as const;
+
 const makeGeminiPauseFailure = (
-  category: 'daily_quota' | 'authentication',
+  category: 'daily_quota' | 'authentication' | 'model_unavailable',
   message: string,
   model: string,
-): ProcessingFailure => ({
-  kind: category === 'daily_quota' ? 'deferred' : 'permanent',
-  category,
-  title: category === 'daily_quota' ? 'All Gemini daily quotas reached' : 'No usable Gemini key',
-  message,
-  provider: 'gemini',
-  model,
-  technicalMessage: message,
-  retryable: false,
-  recoveryAction: category === 'daily_quota' ? 'retry_later' : 'check_api_key',
-  quotaType: category === 'daily_quota' ? 'rpd' : undefined,
-});
+): ProcessingFailure => {
+  return {
+    ...GEMINI_PAUSE_DETAILS[category],
+    category,
+    message,
+    provider: 'gemini',
+    model,
+    technicalMessage: message,
+    retryable: false,
+  };
+};
 
 export interface FileResult {
   file: File;
@@ -853,7 +872,8 @@ export const useAIProcessor = () => {
             !!geminiProject &&
             (failure.category === 'rate_limit' ||
               failure.category === 'daily_quota' ||
-              failure.category === 'authentication');
+              failure.category === 'authentication' ||
+              failure.category === 'model_unavailable');
 
           if (isGeminiProjectFailure) {
             geminiSchedulerRef.current?.reportFailure(geminiProject.id, failure);
@@ -942,7 +962,7 @@ export const useAIProcessor = () => {
             if (isImmediateProviderWideFailure(failure)) {
               pausedFailureItemsRef.current.set(index, item);
               setPaused({ kind: 'automatic', failure });
-            } else if (failure.kind === 'temporary') {
+            } else if (isRepeatedProviderWideFailure(failure)) {
               const consecutive = consecutiveFailuresRef.current;
               const items =
                 consecutive?.signature === signature ? [...consecutive.items, item] : [item];
@@ -1047,6 +1067,18 @@ export const useAIProcessor = () => {
                 failure: makeGeminiPauseFailure(
                   'daily_quota',
                   `Every Gemini project reached its daily limit. Processing will resume at ${new Date(blocked.nextAt).toLocaleString()}.`,
+                  currentConfig.model,
+                ),
+              });
+              continue;
+            }
+            if (blocked.kind === 'model_unavailable') {
+              automaticResumeAtRef.current = undefined;
+              setPaused({
+                kind: 'automatic',
+                failure: makeGeminiPauseFailure(
+                  'model_unavailable',
+                  'No configured Gemini project can use the selected model.',
                   currentConfig.model,
                 ),
               });

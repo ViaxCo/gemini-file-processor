@@ -84,6 +84,25 @@ describe('processing errors', () => {
     });
   });
 
+  it('uses specific model and safety evidence before a general forbidden status', () => {
+    const modelError = createProviderRequestError(403, {
+      error: {
+        message: 'This model is not supported for this project.',
+        status: 'PERMISSION_DENIED',
+      },
+    });
+    const safetyError = createProviderRequestError(403, {
+      error: { message: 'The provider blocked this content.', status: 'SAFETY' },
+    });
+
+    expect(toProcessingFailure(modelError, 'gemini', 'gemini-2.5-flash').category).toBe(
+      'model_unavailable',
+    );
+    expect(toProcessingFailure(safetyError, 'gemini', 'gemini-2.5-flash').category).toBe(
+      'content_blocked',
+    );
+  });
+
   it.each([
     [503, 'UNAVAILABLE', 'overloaded'],
     [408, 'DEADLINE_EXCEEDED', 'timeout'],
@@ -95,6 +114,17 @@ describe('processing errors', () => {
     });
 
     expect(toProcessingFailure(error, 'gemini', 'gemini-2.5-flash').category).toBe(category);
+  });
+
+  it('keeps temporary model unavailability retryable when the provider returns 503', () => {
+    const error = createProviderRequestError(503, {
+      error: { message: 'The model is temporarily unavailable.', status: 'UNAVAILABLE' },
+    });
+
+    expect(toProcessingFailure(error, 'gemini', 'gemini-2.5-flash')).toMatchObject({
+      category: 'overloaded',
+      retryable: true,
+    });
   });
 
   it('recognizes a network failure without an HTTP response', () => {

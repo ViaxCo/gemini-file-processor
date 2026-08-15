@@ -56,6 +56,10 @@ export function isImmediateProviderWideFailure(failure: ProcessingFailure) {
   return ['authentication', 'daily_quota', 'model_unavailable'].includes(failure.category);
 }
 
+export function isRepeatedProviderWideFailure(failure: ProcessingFailure) {
+  return ['overloaded', 'network', 'server_error'].includes(failure.category);
+}
+
 export function getProviderFailureSignature(failure: ProcessingFailure) {
   return [failure.category, failure.httpStatus ?? '', failure.providerCode ?? ''].join(':');
 }

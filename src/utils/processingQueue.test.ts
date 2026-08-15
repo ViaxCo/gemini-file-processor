@@ -5,6 +5,7 @@ import {
   getProviderFailureSignature,
   getQueueProgress,
   isImmediateProviderWideFailure,
+  isRepeatedProviderWideFailure,
 } from './processingQueue';
 import type { ProcessingFailure } from '@/services/processingErrors';
 
@@ -83,6 +84,20 @@ describe('processing queue policy', () => {
   it('does not immediately pause for one temporary failure', () => {
     expect(isImmediateProviderWideFailure(failure('overloaded'))).toBe(false);
   });
+
+  it.each(['overloaded', 'network', 'server_error'] as const)(
+    'can pause after repeated %s failures',
+    (category) => {
+      expect(isRepeatedProviderWideFailure(failure(category))).toBe(true);
+    },
+  );
+
+  it.each(['content_blocked', 'timeout'] as const)(
+    'does not pause unrelated files after repeated %s failures',
+    (category) => {
+      expect(isRepeatedProviderWideFailure(failure(category))).toBe(false);
+    },
+  );
 
   it('builds a stable provider failure signature', () => {
     expect(getProviderFailureSignature(failure('daily_quota'))).toBe('daily_quota:429:TEST');

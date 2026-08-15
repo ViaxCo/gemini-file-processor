@@ -273,6 +273,15 @@ const classifyFailure = (
 ): ProcessingFailureCategory => {
   const signal = `${providerCode ?? ''} ${error.message} ${evidence ?? ''}`.toLowerCase();
 
+  if (/safety|recitation|prohibited_content|content[_\s-]?blocked|blocklist|spii/.test(signal)) {
+    return 'content_blocked';
+  }
+  if (
+    httpStatus === 403 &&
+    /model.{0,30}(?:not[_\s-]?found|does not exist|not supported|unavailable)/.test(signal)
+  ) {
+    return 'model_unavailable';
+  }
   if (
     /api[_\s-]?key[_\s-]?invalid|invalid api key|authentication|unauthori[sz]ed|permission_denied/.test(
       signal,
@@ -281,9 +290,6 @@ const classifyFailure = (
     httpStatus === 403
   ) {
     return 'authentication';
-  }
-  if (/safety|recitation|prohibited_content|content[_\s-]?blocked|blocklist|spii/.test(signal)) {
-    return 'content_blocked';
   }
   if (httpStatus === 429) {
     return /per.?day|daily|requestsperday|tokensperday|permodelperday/.test(signal)

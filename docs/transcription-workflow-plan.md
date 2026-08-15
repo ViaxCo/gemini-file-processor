@@ -165,6 +165,7 @@ Browser measurements used realistic fake text files of approximately 65 KB each.
 - [x] Local RPM scheduling is tracked separately for each project and model.
 - [x] Gemini input-token metadata is recorded locally for each project and model.
 - [x] An RPM or TPM response cools only that project and reroutes the file without consuming its file retry count.
+- [x] A model access failure excludes only that project and model, then reroutes the file without consuming its file retry count.
 - [x] An RPD response stops that project for the selected model until midnight Pacific Time.
 - [x] An invalid key disables only that project.
 - [x] The queue waits and resumes automatically when all usable projects have temporary cooldowns.
