@@ -5,7 +5,7 @@ This context covers processing uploaded files and choosing where generated docum
 ## Language
 
 **Destination Assignment**:
-The Google Drive destination committed to one or more selected files. It affects only those files, changes only when the user confirms the assignment, and is required before a Document Upload.
+The Google Drive destination committed to one or more selected files. It authorizes an automatic Document Upload after successful processing and cannot change while that upload is unresolved or after it succeeds.
 _Avoid_: Global selection, current folder
 
 **Unassigned File**:
@@ -137,8 +137,12 @@ A development-only provider that simulates processing and provider failures with
 _Avoid_: Mock Gemini, test key
 
 **Upload Session**:
-One user-initiated individual, selected, or all-files upload action. Upload controls do not start another Upload Session until the active one finishes.
-_Avoid_: Upload queue, upload batch
+One bounded group of Document Uploads sent to Google Drive together. Only one Upload Session can be active, and an automatic session contains at most ten documents.
+_Avoid_: Processing batch, individual upload
+
+**Waiting Document Upload**:
+A successfully processed file whose Destination Assignment authorizes an automatic Document Upload that cannot start yet. It remains waiting while Drive is disconnected or another Upload Session is active.
+_Avoid_: Failed upload, unassigned file
 
 **Document Upload**:
 The creation of one Google Doc from one processed file in a Processing Batch. A successful Document Upload is terminal for that file unless the user explicitly requests another copy.

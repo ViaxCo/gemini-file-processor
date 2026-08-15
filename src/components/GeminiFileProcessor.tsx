@@ -55,6 +55,7 @@ export function AIFileProcessor() {
   const [defaultDisplayNames, setDefaultDisplayNames] = useState<Record<string, string>>({});
   const [processingProfile, setProcessingProfile] = useState<'transcript' | 'book'>('transcript');
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
+  const [hasWaitingAutomaticUploads, setHasWaitingAutomaticUploads] = useState(false);
   const {
     selectedProvider,
     selectedModel,
@@ -102,10 +103,23 @@ export function AIFileProcessor() {
       });
       return;
     }
+    if (googleDrive.isUploadBlockingProcessing) {
+      toast.error('Finish or verify the current Drive upload before processing new files.');
+      return;
+    }
+    if (
+      hasWaitingAutomaticUploads &&
+      !confirm(
+        'Some assigned files are waiting for Google Drive. Start a new processing batch without uploading them?',
+      )
+    ) {
+      return;
+    }
     if (!googleDrive.resetUploadStatuses()) {
       toast.error('Finish or verify the current Drive upload before processing new files.');
       return;
     }
+    setHasWaitingAutomaticUploads(false);
     markInstructionAsProcessed(instruction);
     await processFiles(
       files,
@@ -162,6 +176,16 @@ export function AIFileProcessor() {
   };
 
   const handleClearAll = (): boolean => {
+    if (googleDrive.isUploadBlockingProcessing) {
+      toast.error('Finish or verify the current Drive upload before clearing this batch.');
+      return false;
+    }
+    if (
+      hasWaitingAutomaticUploads &&
+      !confirm('Some assigned files are waiting for Google Drive. Clear them without uploading?')
+    ) {
+      return false;
+    }
     if (!googleDrive.resetUploadStatuses()) {
       toast.error('Finish or verify the current Drive upload before clearing this batch.');
       return false;
@@ -169,6 +193,7 @@ export function AIFileProcessor() {
     abortAll();
     setFiles([]);
     setDefaultDisplayNames({});
+    setHasWaitingAutomaticUploads(false);
     clearResults();
     return true;
   };
@@ -502,6 +527,7 @@ export function AIFileProcessor() {
                 isDriveAuthenticated={googleDrive.isAuthenticated}
                 isUploadSessionActive={googleDrive.isUploadSessionActive}
                 discardUnknownUpload={googleDrive.discardUnknownUpload}
+                onAutomaticUploadWaitingChange={setHasWaitingAutomaticUploads}
                 driveFolders={googleDrive.folders}
                 driveIsLoadingFolders={googleDrive.isLoadingFolders}
                 driveIsLoadingMoreFolders={googleDrive.isLoadingMoreFolders}

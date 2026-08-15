@@ -11,16 +11,17 @@ This file is the source of truth for the workflow improvements. A user-visible i
 
 ## Milestones
 
-| Milestone                               | Status | Acceptance checks                                                                                                                                                                                                                                                   |
-| --------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Safe test foundation and Bulk Rename | Done   | Development can generate 10, 50, or 100 repeatable fake files. Test AI makes no external request and can simulate success, mixed results, 429, 503, and network failure. Bulk Rename is repeatable, wraps long names, closes after Apply, and clears the selection. |
-| 1b. Automatic Display Name Cleanup      | Done   | Recognized transcript track names are cleaned when files are added. Other names and original uploaded files remain unchanged. Cleanup can be undone.                                                                                                                |
-| 2. Faster Drive assignment              | Done   | Assignment opens in the preferred transcript root. A new folder can be created and assigned in one action. Existing Drive items are not changed during testing.                                                                                                     |
-| 3. Series groups                        | Done   | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
-| 4. Viewport workspace                   | Done   | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
-| 5. Structured errors and retries        | Done   | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
-| 6. Large processing queues              | Done   | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
-| 7. Gemini quota pools                   | Done   | Gemini requests route across one key per Google project. Local request and input-token usage is tracked per project and model. RPM, TPM, RPD, and invalid-key failures affect only the relevant project when possible.                                              |
+| Milestone                               | Status              | Acceptance checks                                                                                                                                                                                                                                                   |
+| --------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Safe test foundation and Bulk Rename | Done                | Development can generate 10, 50, or 100 repeatable fake files. Test AI makes no external request and can simulate success, mixed results, 429, 503, and network failure. Bulk Rename is repeatable, wraps long names, closes after Apply, and clears the selection. |
+| 1b. Automatic Display Name Cleanup      | Done                | Recognized transcript track names are cleaned when files are added. Other names and original uploaded files remain unchanged. Cleanup can be undone.                                                                                                                |
+| 2. Faster Drive assignment              | Done                | Assignment opens in the preferred transcript root. A new folder can be created and assigned in one action. Existing Drive items are not changed during testing.                                                                                                     |
+| 3. Series groups                        | Done                | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
+| 4. Viewport workspace                   | Done                | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
+| 5. Structured errors and retries        | Done                | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
+| 6. Large processing queues              | Done                | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
+| 7. Gemini quota pools                   | Done                | Gemini requests route across one key per Google project. Local request and input-token usage is tracked per project and model. RPM, TPM, RPD, and invalid-key failures affect only the relevant project when possible.                                              |
+| 8. Automatic assigned uploads           | Ready for your test | A successful medium- or high-confidence result uploads automatically after it has a Destination Assignment. Upload Sessions contain at most ten documents, wait for Drive reconnection, and pause behind an unknown outcome.                                        |
 
 ## Milestone 1 checks
 
@@ -182,6 +183,22 @@ Browser measurements used realistic fake text files of approximately 65 KB each.
 - [x] User workflow test passes.
 
 The local counts are conservative scheduling aids. Google remains the source of truth for quota. The app reacts to API quota responses when the local estimate differs from the provider state. Google applies Gemini API quota per project, not per API key, and daily quota resets at midnight Pacific Time.
+
+## Milestone 8 checks
+
+- [x] A completed medium- or high-confidence file becomes eligible for automatic upload after assignment.
+- [x] An assigned file becomes eligible after successful processing completes.
+- [x] Automatic Upload Sessions contain at most ten documents.
+- [x] Disconnected Drive uploads wait for reconnection.
+- [x] A normal upload failure requires a manual retry.
+- [x] An Unknown Upload Outcome pauses the automatic queue.
+- [x] Active, unresolved, and successful uploads cannot receive a new Destination Assignment.
+- [x] Clearing or replacing a batch with uploads waiting for Drive requires confirmation.
+- [x] Automatic successes do not create one toast for every file.
+- [x] Automated tests pass.
+- [x] `npm run pretest` passes.
+- [ ] Authenticated Drive workflow test passes.
+- [ ] User workflow test passes.
 
 ## Real Google Drive test rules
 

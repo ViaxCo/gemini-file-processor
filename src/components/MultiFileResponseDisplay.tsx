@@ -17,8 +17,10 @@ import { UnifiedFileCard } from '@/components/UnifiedFileCard';
 import { ViewResponseModal } from '@/components/ViewResponseModal';
 import { BulkRenameModal } from '@/components/BulkRenameModal';
 import { PREFERRED_ASSIGNMENT_ROOT } from '@/config/googleDriveConfig';
+import { useAutomaticDriveUploads } from '@/hooks/useAutomaticDriveUploads';
 import { makeFileKey } from '@/services/responseStore';
 import { PROCESSING_FAILURE_LABELS } from '@/services/processingErrors';
+import { canChangeUploadDestination } from '@/utils/automaticUploads';
 import { suggestSeriesFolderName } from '@/utils/driveFolderName';
 import { downloadProcessedFile } from '@/utils/fileUtils';
 import { groupFilesBySeries } from '@/utils/seriesGroups';
@@ -67,6 +69,7 @@ interface MultiFileResponseDisplayProps {
   isDriveAuthenticated?: boolean;
   isUploadSessionActive?: boolean;
   discardUnknownUpload?: (uploadKey: string) => boolean;
+  onAutomaticUploadWaitingChange?: (isWaiting: boolean) => void;
 
   // Google Drive folder selection (for Assign Folder modal)
   driveFolders?: DriveFolder[];
@@ -131,6 +134,7 @@ export const MultiFileResponseDisplay = ({
   isDriveAuthenticated = false,
   isUploadSessionActive = false,
   discardUnknownUpload,
+  onAutomaticUploadWaitingChange,
   driveFolders = [],
   driveIsLoadingFolders = false,
   driveIsLoadingMoreFolders = false,
@@ -162,6 +166,13 @@ export const MultiFileResponseDisplay = ({
     () => sourceFiles.map((file, index) => makeUploadKey(processingBatchId, index, file)),
     [processingBatchId, sourceFiles],
   );
+  const assignableSelectedIndices = useMemo(
+    () =>
+      [...selected].filter((index) =>
+        canChangeUploadDestination(uploadStatuses?.[uploadKeys[index]!]),
+      ),
+    [selected, uploadKeys, uploadStatuses],
+  );
   const resolvedDisplayNames = useMemo(
     () =>
       sourceFiles.map(
@@ -170,7 +181,7 @@ export const MultiFileResponseDisplay = ({
     [sourceFiles, displayNames, defaultDisplayNames],
   );
   const initialAssignment = useMemo(() => {
-    const assignments = [...selected].map(
+    const assignments = assignableSelectedIndices.map(
       (index) =>
         destinationAssignments[index] ?? {
           destination: MY_DRIVE_ROOT,
@@ -183,10 +194,13 @@ export const MultiFileResponseDisplay = ({
       assignments.every((assignment) => assignment.destination.id === first.destination.id)
       ? first
       : undefined;
-  }, [selected, destinationAssignments]);
+  }, [assignableSelectedIndices, destinationAssignments]);
   const suggestedFolderName = useMemo(
-    () => suggestSeriesFolderName([...selected].map((index) => resolvedDisplayNames[index] || '')),
-    [selected, resolvedDisplayNames],
+    () =>
+      suggestSeriesFolderName(
+        assignableSelectedIndices.map((index) => resolvedDisplayNames[index] || ''),
+      ),
+    [assignableSelectedIndices, resolvedDisplayNames],
   );
 
   const fileSeriesGroups = useMemo(
@@ -215,6 +229,39 @@ export const MultiFileResponseDisplay = ({
         !lowConfidenceSet.has(index)
       );
     });
+  const automaticUploadRequests = useMemo(
+    () =>
+      fileResults.flatMap((result, index) => {
+        const assignment = destinationAssignments[index];
+        if (
+          !assignment ||
+          !result.isCompleted ||
+          result.error ||
+          !result.response ||
+          lowConfidenceSet.has(index)
+        ) {
+          return [];
+        }
+
+        return [
+          {
+            uploadKey: uploadKeys[index]!,
+            title: (resolvedDisplayNames[index] || result.file.name).replace(/\.[^.]+$/, ''),
+            content: result.response,
+            folderId: assignment.destination.id,
+          },
+        ];
+      }),
+    [destinationAssignments, fileResults, lowConfidenceSet, resolvedDisplayNames, uploadKeys],
+  );
+  useAutomaticDriveUploads({
+    requests: automaticUploadRequests,
+    uploadStatuses,
+    isDriveAuthenticated,
+    isUploadSessionActive,
+    uploadToGoogleDocs,
+    onWaitingForConnectionChange: onAutomaticUploadWaitingChange,
+  });
   const allCompleted = fileResults.length > 0 && fileResults.every((result) => result.isCompleted);
   const isAnyProcessing = fileResults.some((result) => result.isProcessing);
   const pendingCount = fileResults.filter(
@@ -905,7 +952,9 @@ export const MultiFileResponseDisplay = ({
           {selectedCount > 0 && (
             <ContextualActionBar
               selectedCount={selectedCount}
-              onAssignFolder={() => setIsAssignOpen(true)}
+              onAssignFolder={
+                assignableSelectedIndices.length > 0 ? () => setIsAssignOpen(true) : undefined
+              }
               onBulkRename={() => setIsBulkRenameOpen(true)}
               onUploadSelected={
                 uploadToGoogleDocs && isDriveAuthenticated ? handleUploadSelected : undefined
@@ -941,7 +990,7 @@ export const MultiFileResponseDisplay = ({
       <AssignFolderModal
         open={isAssignOpen}
         onOpenChange={setIsAssignOpen}
-        selectedCount={selectedCount}
+        selectedCount={assignableSelectedIndices.length}
         initialDestination={initialAssignment?.destination}
         initialDestinationLocation={initialAssignment?.location ?? EMPTY_DRIVE_LOCATION}
         initialLocation={PREFERRED_ASSIGNMENT_ROOT}
@@ -958,7 +1007,7 @@ export const MultiFileResponseDisplay = ({
         onAssign={(folderId, folderName, location) => {
           setDestinationAssignments((previous) => {
             const next = { ...previous };
-            for (const index of selected) {
+            for (const index of assignableSelectedIndices) {
               next[index] = { destination: { id: folderId, name: folderName }, location };
             }
             return next;
