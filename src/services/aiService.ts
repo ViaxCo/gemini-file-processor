@@ -10,6 +10,10 @@ export interface ProcessOptions {
   attempt?: number;
 }
 
+export type AIResponseMetadata = {
+  inputTokens?: number;
+};
+
 /**
  * Process a file with AI using the specified provider and model
  * Supports streaming responses from all providers
@@ -22,7 +26,7 @@ export const processFileWithAI = async (
   apiKey: string,
   onChunk: (chunk: string) => void,
   options?: ProcessOptions,
-): Promise<void> => {
+): Promise<AIResponseMetadata> => {
   const fileContent = await extractTextFromFile(file);
 
   if (provider === 'test') {
@@ -38,16 +42,26 @@ export const processFileWithAI = async (
       options?.signal,
       options?.attempt,
     );
-    return;
+    return {};
+  }
+
+  if (
+    provider === 'gemini' &&
+    process.env.NODE_ENV !== 'production' &&
+    apiKey.startsWith('test-gemini-')
+  ) {
+    const { processFileWithSimulatedGemini } = await import('../testing/testAIService');
+    await processFileWithSimulatedGemini(file.name, fileContent, apiKey, onChunk, options?.signal);
+    return { inputTokens: Math.ceil(fileContent.length / 4) };
   }
 
   const prompt = `${instruction}\n\nFile content:\n${fileContent}`;
 
   if (provider === 'gemini') {
-    await streamGemini(prompt, model, apiKey, onChunk, options);
+    return streamGemini(prompt, model, apiKey, onChunk, options);
   } else {
     // All other providers use OpenAI-compatible API
-    await streamOpenAICompatible(prompt, provider, model, apiKey, onChunk, options);
+    return streamOpenAICompatible(prompt, provider, model, apiKey, onChunk, options);
   }
 };
 
@@ -60,7 +74,7 @@ async function streamGemini(
   apiKey: string,
   onChunk: (chunk: string) => void,
   options?: ProcessOptions,
-): Promise<void> {
+): Promise<AIResponseMetadata> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
   const response = await fetch(url, {
@@ -96,6 +110,7 @@ async function streamGemini(
   const decoder = new TextDecoder();
   let receivedChunks = false;
   let blockedCode: string | undefined;
+  let metadata: AIResponseMetadata = {};
 
   try {
     while (true) {
@@ -116,6 +131,11 @@ async function streamGemini(
               throw createProviderRequestError(undefined, data);
             }
             const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (data.usageMetadata) {
+              metadata = {
+                inputTokens: data.usageMetadata.promptTokenCount,
+              };
+            }
             const finishReason = data.candidates?.[0]?.finishReason;
             const responseBlockedCode = data.promptFeedback?.blockReason || finishReason;
             if (
@@ -153,6 +173,7 @@ async function streamGemini(
       error: { message: 'No content received from Gemini API', status: 'INVALID_RESPONSE' },
     });
   }
+  return metadata;
 }
 
 /**
@@ -165,7 +186,7 @@ async function streamOpenAICompatible(
   apiKey: string,
   onChunk: (chunk: string) => void,
   options?: ProcessOptions,
-): Promise<void> {
+): Promise<AIResponseMetadata> {
   const providerConfig = getProvider(provider);
   if (!providerConfig) {
     throw new Error(`Unknown provider: ${provider}`);
@@ -260,4 +281,5 @@ async function streamOpenAICompatible(
       },
     });
   }
+  return {};
 }

@@ -59,9 +59,11 @@ export function AIFileProcessor() {
     selectedProvider,
     selectedModel,
     apiKey,
+    geminiProjects,
     setSelectedProvider,
     setSelectedModel,
     setApiKey,
+    setGeminiProjects,
   } = useProviderSelector();
   const {
     fileResults,
@@ -88,7 +90,9 @@ export function AIFileProcessor() {
 
   // Single source of truth for Google Drive state
   const googleDrive = useGoogleDrive();
-  const hasProviderAccess = !providerNeedsApiKey(selectedProvider) || !!apiKey;
+  const hasProviderAccess =
+    !providerNeedsApiKey(selectedProvider) ||
+    (selectedProvider === 'gemini' ? geminiProjects.length > 0 : !!apiKey);
 
   const handleProcess = async (instruction: string): Promise<void> => {
     if (files.length === 0) return;
@@ -110,6 +114,7 @@ export function AIFileProcessor() {
       selectedModel,
       apiKey,
       processingProfile,
+      geminiProjects,
     );
   };
 
@@ -180,7 +185,7 @@ export function AIFileProcessor() {
       });
       return;
     }
-    resumeQueue(selectedProvider, selectedModel, apiKey);
+    resumeQueue(selectedProvider, selectedModel, apiKey, geminiProjects);
   };
 
   const handleRetryFile = async (index: number) => {
@@ -213,7 +218,15 @@ export function AIFileProcessor() {
     }
 
     const retryProfile = fileToRetry?.processingProfile ?? processingProfile;
-    await retryFile(index, instructionToUse, selectedProvider, selectedModel, apiKey, retryProfile);
+    await retryFile(
+      index,
+      instructionToUse,
+      selectedProvider,
+      selectedModel,
+      apiKey,
+      retryProfile,
+      geminiProjects,
+    );
   };
 
   const handleRetryAllFailed = async () => {
@@ -262,6 +275,7 @@ export function AIFileProcessor() {
         apiKey,
         'transcript',
         groupedFailedIndices.transcript,
+        geminiProjects,
       );
     }
 
@@ -273,6 +287,7 @@ export function AIFileProcessor() {
         apiKey,
         'book',
         groupedFailedIndices.book,
+        geminiProjects,
       );
     }
   };
@@ -414,6 +429,8 @@ export function AIFileProcessor() {
                 onModelChange={setSelectedModel}
                 onApiKeyChange={setApiKey}
                 apiKey={apiKey}
+                geminiProjects={geminiProjects}
+                onGeminiProjectsChange={setGeminiProjects}
                 compact={hasActiveResults}
                 disabled={isProcessing && !isPaused}
               />

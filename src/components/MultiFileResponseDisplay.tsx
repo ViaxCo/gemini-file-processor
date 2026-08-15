@@ -724,13 +724,22 @@ export const MultiFileResponseDisplay = ({
                 <Pause className="h-4 w-4" />
                 <AlertDescription>
                   {pauseReason?.kind === 'automatic' ? (
-                    <>
-                      <span className="font-medium">
-                        Queue paused: {pauseReason.failure.title}.
-                      </span>{' '}
-                      {pauseReason.failure.message} Correct the provider access or choose another
-                      model, then resume. Provider-wide failed files will retry first.
-                    </>
+                    pauseReason.failure.category === 'daily_quota' ? (
+                      <>
+                        <span className="font-medium">
+                          Queue paused: {pauseReason.failure.title}.
+                        </span>{' '}
+                        {pauseReason.failure.message} The queue will resume automatically.
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium">
+                          Queue paused: {pauseReason.failure.title}.
+                        </span>{' '}
+                        {pauseReason.failure.message} Correct the provider access or choose another
+                        model, then resume. Provider-wide failed files will retry first.
+                      </>
+                    )
                   ) : (
                     'Queue paused. Waiting files will not start until you resume.'
                   )}

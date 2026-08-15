@@ -2,6 +2,7 @@
 // Each provider has a different API structure but all support model listing
 
 import { AIProvider, getProvider } from '../config/providerConfig';
+import { createProviderRequestError } from './processingErrors';
 
 export interface FetchedModel {
   id: string;
@@ -18,28 +19,24 @@ export async function fetchModels(provider: AIProvider, apiKey: string): Promise
     return [];
   }
 
-  try {
-    if (provider === 'gemini') {
-      return await fetchGeminiModels(apiKey);
-    } else {
-      return await fetchOpenAICompatibleModels(provider, apiKey);
-    }
-  } catch (error) {
-    console.error(`Error fetching models from ${provider}:`, error);
-    return [];
-  }
+  if (provider === 'gemini') return fetchGeminiModels(apiKey);
+  return fetchOpenAICompatibleModels(provider, apiKey);
 }
 
 /**
  * Fetch models from Google Gemini API
  */
 async function fetchGeminiModels(apiKey: string): Promise<FetchedModel[]> {
+  if (process.env.NODE_ENV !== 'production' && apiKey.startsWith('test-gemini-')) {
+    return getProvider('gemini')!.models.map(({ id, name }) => ({ id, name }));
+  }
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
   );
 
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
+    const error = await response.json().catch(() => undefined);
+    throw createProviderRequestError(response.status, error, response.headers.get('Retry-After'));
   }
 
   const data = await response.json();

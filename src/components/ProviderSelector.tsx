@@ -10,10 +10,12 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Brain, Check, ExternalLink, Eye, EyeOff, Key, Loader2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AIProvider, PROVIDERS, getProvider, providerNeedsApiKey } from '../config/providerConfig';
 import { apiKeyStore } from '../services/apiKeyStore';
+import type { GeminiProject } from '../services/geminiProjectStore';
 import { FetchedModel, fetchModels } from '../services/modelFetcher';
+import { GeminiProjectManager } from './GeminiProjectManager';
 
 interface ProviderSelectorProps {
   selectedProvider: AIProvider;
@@ -24,6 +26,8 @@ interface ProviderSelectorProps {
   apiKey: string;
   compact?: boolean;
   disabled?: boolean;
+  geminiProjects?: GeminiProject[];
+  onGeminiProjectsChange?: (projects: GeminiProject[]) => void;
 }
 
 export const ProviderSelector = ({
@@ -35,6 +39,8 @@ export const ProviderSelector = ({
   apiKey,
   compact = false,
   disabled = false,
+  geminiProjects = [],
+  onGeminiProjectsChange,
 }: ProviderSelectorProps) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [tempApiKey, setTempApiKey] = useState(apiKey);
@@ -45,6 +51,17 @@ export const ProviderSelector = ({
 
   const provider = getProvider(selectedProvider);
   const needsApiKey = providerNeedsApiKey(selectedProvider);
+  const modelKeys = useMemo(
+    () =>
+      selectedProvider === 'gemini'
+        ? geminiProjects
+            .filter((project) => project.verification !== 'key_problem')
+            .map((project) => project.apiKey)
+        : apiKey
+          ? [apiKey]
+          : [],
+    [apiKey, geminiProjects, selectedProvider],
+  );
 
   // Sync tempApiKey with apiKey prop when provider changes or apiKey is loaded
   useEffect(() => {
@@ -54,7 +71,7 @@ export const ProviderSelector = ({
 
   // Fetch models when API key is available
   useEffect(() => {
-    if (!needsApiKey || !apiKey) {
+    if (!needsApiKey || modelKeys.length === 0) {
       setFetchedModels([]);
       setModelFetchError(null);
       setIsLoadingModels(false);
@@ -67,7 +84,17 @@ export const ProviderSelector = ({
       setIsLoadingModels(true);
       setModelFetchError(null);
       try {
-        const models = await fetchModels(selectedProvider, apiKey);
+        let models: FetchedModel[] = [];
+        let lastError: unknown;
+        for (const key of modelKeys) {
+          try {
+            models = await fetchModels(selectedProvider, key);
+            if (models.length > 0) break;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        if (models.length === 0 && lastError) throw lastError;
         if (cancelled) return;
 
         setFetchedModels(models);
@@ -94,13 +121,17 @@ export const ProviderSelector = ({
     return () => {
       cancelled = true;
     };
-  }, [selectedProvider, apiKey, needsApiKey]);
+  }, [selectedProvider, needsApiKey, modelKeys]);
 
   const handleProviderChange = (newProvider: AIProvider) => {
     onProviderChange(newProvider);
     setFetchedModels([]);
     onApiKeyChange(
-      providerNeedsApiKey(newProvider) ? apiKeyStore.getApiKey(newProvider) || '' : '',
+      newProvider === 'gemini'
+        ? (geminiProjects[0]?.apiKey ?? '')
+        : providerNeedsApiKey(newProvider)
+          ? apiKeyStore.getApiKey(newProvider) || ''
+          : '',
     );
   };
 
@@ -187,7 +218,9 @@ export const ProviderSelector = ({
                 </div>
               ) : (
                 <SelectValue
-                  placeholder={!needsApiKey || apiKey ? 'Select model' : 'Enter API key first'}
+                  placeholder={
+                    !needsApiKey || modelKeys.length > 0 ? 'Select model' : 'Add API key first'
+                  }
                 >
                   {displayModels.find((m) => m.id === selectedModel)?.name || selectedModel}
                 </SelectValue>
@@ -204,7 +237,14 @@ export const ProviderSelector = ({
         </div>
       </div>
 
-      {needsApiKey ? (
+      {selectedProvider === 'gemini' ? (
+        <GeminiProjectManager
+          projects={geminiProjects}
+          model={selectedModel}
+          disabled={disabled}
+          onChange={onGeminiProjectsChange ?? (() => undefined)}
+        />
+      ) : needsApiKey ? (
         <div
           className={cn(
             'space-y-1.5',

@@ -36,6 +36,7 @@ export type ProcessingFailure = {
   httpStatus?: number;
   providerCode?: string;
   retryAfterMs?: number;
+  quotaType?: 'rpm' | 'tpm' | 'rpd' | 'unknown';
 };
 
 export const PROCESSING_FAILURE_LABELS: Record<ProcessingFailureCategory, string> = {
@@ -330,6 +331,19 @@ const classifyFailure = (
   return 'unknown';
 };
 
+const classifyQuotaType = (
+  category: ProcessingFailureCategory,
+  providerCode?: string,
+  evidence?: string,
+): ProcessingFailure['quotaType'] => {
+  if (category !== 'rate_limit' && category !== 'daily_quota') return undefined;
+  const signal = `${providerCode ?? ''} ${evidence ?? ''}`.toLowerCase();
+  if (/per.?day|requestsperday|tokensperday|permodelperday/.test(signal)) return 'rpd';
+  if (/token.*per.?minute|inputtokenspermodelperminute|tpm/.test(signal)) return 'tpm';
+  if (/request.*per.?minute|requestsperminute|rpm/.test(signal)) return 'rpm';
+  return 'unknown';
+};
+
 export function toProcessingFailure(
   error: unknown,
   provider: AIProvider,
@@ -353,6 +367,7 @@ export function toProcessingFailure(
     httpStatus: requestError?.httpStatus,
     providerCode: requestError?.providerCode,
     retryAfterMs: requestError?.retryAfterMs,
+    quotaType: classifyQuotaType(category, requestError?.providerCode, requestError?.evidence),
   };
 }
 

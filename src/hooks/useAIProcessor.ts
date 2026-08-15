@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AIProvider, getModel } from '../config/providerConfig';
 import { processFileWithAI } from '../services/aiService';
+import type { GeminiProject } from '../services/geminiProjectStore';
+import { GeminiQuotaScheduler } from '../services/geminiQuotaScheduler';
 import {
   MAX_PROCESSING_ATTEMPTS,
   ProcessingFailure,
@@ -24,6 +26,34 @@ export type QueuePauseReason =
   | { kind: 'manual' }
   | { kind: 'automatic'; failure: ProcessingFailure };
 type ProcessingQueueStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+
+const getEffectiveRateLimit = (
+  provider: AIProvider,
+  model: string,
+  geminiProjects: GeminiProject[],
+) => {
+  const rateLimit = getModel(provider, model)?.rateLimit ?? { limit: 10, interval: 60_000 };
+  return provider === 'gemini'
+    ? { ...rateLimit, limit: rateLimit.limit * Math.max(1, geminiProjects.length) }
+    : rateLimit;
+};
+
+const makeGeminiPauseFailure = (
+  category: 'daily_quota' | 'authentication',
+  message: string,
+  model: string,
+): ProcessingFailure => ({
+  kind: category === 'daily_quota' ? 'deferred' : 'permanent',
+  category,
+  title: category === 'daily_quota' ? 'All Gemini daily quotas reached' : 'No usable Gemini key',
+  message,
+  provider: 'gemini',
+  model,
+  technicalMessage: message,
+  retryable: false,
+  recoveryAction: category === 'daily_quota' ? 'retry_later' : 'check_api_key',
+  quotaType: category === 'daily_quota' ? 'rpd' : undefined,
+});
 
 export interface FileResult {
   file: File;
@@ -115,6 +145,7 @@ export const useAIProcessor = () => {
         provider: AIProvider;
         model: string;
         apiKey: string;
+        geminiProjects: GeminiProject[];
         mode: 'single' | 'batch';
         profile: ProcessingProfile;
       }
@@ -125,6 +156,8 @@ export const useAIProcessor = () => {
   const throttleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cleanupIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestTimestampsRef = useRef<number[]>([]); // timestamps of requests for token bucket algorithm
+  const geminiSchedulerRef = useRef<GeminiQuotaScheduler | undefined>(undefined);
+  const automaticResumeAtRef = useRef<number | undefined>(undefined);
 
   // Default rate limit fallback
   const DEFAULT_RATE_LIMIT = { limit: 10, interval: 60000 };
@@ -210,6 +243,7 @@ export const useAIProcessor = () => {
 
   const abortAll = (): void => {
     abortRef.current = true;
+    automaticResumeAtRef.current = undefined;
     queueRef.current = [];
     pausedFailureItemsRef.current.clear();
     consecutiveFailuresRef.current = undefined;
@@ -256,6 +290,7 @@ export const useAIProcessor = () => {
     model: string,
     apiKey: string,
     profile: ProcessingProfile = 'transcript',
+    geminiProjects: GeminiProject[] = [],
   ): Promise<void> => {
     if (processingRef.current) return;
     if (!files.length || !instruction.trim()) {
@@ -264,6 +299,7 @@ export const useAIProcessor = () => {
     }
     // Start a new lifecycle for all state associated with these results.
     setPaused(undefined);
+    automaticResumeAtRef.current = undefined;
     pausedFailureItemsRef.current.clear();
     consecutiveFailuresRef.current = undefined;
     requestTimestampsRef.current = [];
@@ -287,7 +323,15 @@ export const useAIProcessor = () => {
     const processingMode: 'single' | 'batch' = files.length === 1 ? 'single' : 'batch';
 
     // Start processing
-    await processQueue(instruction, provider, model, apiKey, processingMode, profile);
+    await processQueue(
+      instruction,
+      provider,
+      model,
+      apiKey,
+      processingMode,
+      profile,
+      geminiProjects,
+    );
   };
 
   const retryFile = async (
@@ -297,6 +341,7 @@ export const useAIProcessor = () => {
     model: string,
     apiKey: string,
     profile: ProcessingProfile = 'transcript',
+    geminiProjects: GeminiProject[] = [],
   ): Promise<void> => {
     if (processingRef.current) return;
     if (fileIndex < 0 || fileIndex >= fileResults.length) return;
@@ -343,7 +388,7 @@ export const useAIProcessor = () => {
     // Show processing state immediately when retrying
     setIsProcessing(true);
     addToQueue([fileToRetry.file], fileIndex, 0, 0, profile);
-    await processQueue(instruction, provider, model, apiKey, 'single', profile);
+    await processQueue(instruction, provider, model, apiKey, 'single', profile, geminiProjects);
   };
 
   const retryAllFailed = async (
@@ -353,6 +398,7 @@ export const useAIProcessor = () => {
     apiKey: string,
     profile: ProcessingProfile = 'transcript',
     targetIndices?: number[],
+    geminiProjects: GeminiProject[] = [],
   ): Promise<void> => {
     if (processingRef.current) return;
     // First, identify failed files from current state. When targetIndices is provided,
@@ -413,11 +459,13 @@ export const useAIProcessor = () => {
       apiKey,
       failedFiles.length === 1 ? 'single' : 'batch',
       profile,
+      geminiProjects,
     );
   };
 
   const clearResults = (): void => {
     setPaused(undefined);
+    automaticResumeAtRef.current = undefined;
     setProcessingBatchId((current) => current + 1);
     updateFileResults(() => [], true);
     queueRef.current = [];
@@ -461,16 +509,24 @@ export const useAIProcessor = () => {
   };
 
   const pauseQueue = (): void => {
-    if (processingRef.current) setPaused({ kind: 'manual' });
+    if (processingRef.current) {
+      automaticResumeAtRef.current = undefined;
+      setPaused({ kind: 'manual' });
+    }
   };
 
-  const resumeQueue = (provider: AIProvider, model: string, apiKey: string): void => {
+  const resumeQueue = (
+    provider: AIProvider,
+    model: string,
+    apiKey: string,
+    geminiProjects: GeminiProject[] = [],
+  ): void => {
     const config = batchConfigRef.current;
     if (!config || activePromisesRef.current.size > 0) return;
 
     const changedPool =
       config.provider !== provider || config.model !== model || config.apiKey !== apiKey;
-    batchConfigRef.current = { ...config, provider, model, apiKey };
+    batchConfigRef.current = { ...config, provider, model, apiKey, geminiProjects };
     if (changedPool) requestTimestampsRef.current = [];
 
     const failedItems = [...pausedFailureItemsRef.current.values()].map((item) => ({
@@ -508,8 +564,20 @@ export const useAIProcessor = () => {
       );
     }
 
-    const nextRateLimit = getModel(provider, model)?.rateLimit || DEFAULT_RATE_LIMIT;
+    const nextRateLimit = getEffectiveRateLimit(provider, model, geminiProjects);
     setRateLimit(nextRateLimit);
+    if (provider === 'gemini') {
+      const projectRateLimit = getModel(provider, model)?.rateLimit ?? DEFAULT_RATE_LIMIT;
+      geminiSchedulerRef.current = new GeminiQuotaScheduler(
+        geminiProjects,
+        model,
+        projectRateLimit.limit,
+        projectRateLimit.interval,
+      );
+    } else {
+      geminiSchedulerRef.current = undefined;
+    }
+    automaticResumeAtRef.current = undefined;
     setPaused(undefined);
   };
 
@@ -520,13 +588,32 @@ export const useAIProcessor = () => {
     apiKey: string,
     mode: 'single' | 'batch',
     profile: ProcessingProfile = 'transcript',
+    geminiProjects: GeminiProject[] = [],
   ): Promise<void> => {
     if (processingRef.current) return;
     processingRef.current = true;
     setIsProcessing(true);
     abortRef.current = false;
-    batchConfigRef.current = { instruction, provider, model, apiKey, mode, profile };
-    setRateLimit(getModel(provider, model)?.rateLimit || DEFAULT_RATE_LIMIT);
+    batchConfigRef.current = {
+      instruction,
+      provider,
+      model,
+      apiKey,
+      geminiProjects,
+      mode,
+      profile,
+    };
+    const projectRateLimit = getModel(provider, model)?.rateLimit ?? DEFAULT_RATE_LIMIT;
+    geminiSchedulerRef.current =
+      provider === 'gemini'
+        ? new GeminiQuotaScheduler(
+            geminiProjects,
+            model,
+            projectRateLimit.limit,
+            projectRateLimit.interval,
+          )
+        : undefined;
+    setRateLimit(getEffectiveRateLimit(provider, model, geminiProjects));
 
     try {
       // Update UI to show queued files as pending
@@ -537,7 +624,7 @@ export const useAIProcessor = () => {
         })),
       );
 
-      const processItem = async (item: QueueItem) => {
+      const processItem = async (item: QueueItem, geminiProject?: GeminiProject) => {
         const {
           file,
           index,
@@ -574,12 +661,12 @@ export const useAIProcessor = () => {
           };
           const controller = new AbortController();
           controllersRef.current.set(key, controller);
-          await processFileWithAI(
+          const metadata = await processFileWithAI(
             file,
             config.instruction,
             config.provider,
             config.model,
-            config.apiKey,
+            geminiProject?.apiKey ?? config.apiKey,
             (chunk: string) => {
               if (streamToUI) {
                 responseBuffer += chunk;
@@ -595,6 +682,9 @@ export const useAIProcessor = () => {
             },
             { signal: controller.signal, attempt: retryCount + 1 },
           );
+          if (geminiProject) {
+            geminiSchedulerRef.current?.reportSuccess(geminiProject.id, metadata.inputTokens ?? 0);
+          }
           if (streamToUI) flushBufferToUI();
 
           // For batch processing, get the final response before clearing it
@@ -661,6 +751,7 @@ export const useAIProcessor = () => {
                     latestConfig.apiKey,
                     latestConfig.mode,
                     itemProfile,
+                    latestConfig.geminiProjects,
                   );
                 }
               }, backoffDelay);
@@ -746,6 +837,33 @@ export const useAIProcessor = () => {
           }
 
           const failure = toProcessingFailure(error, config.provider, config.model);
+          const isGeminiProjectFailure =
+            !!geminiProject &&
+            (failure.category === 'rate_limit' ||
+              failure.category === 'daily_quota' ||
+              failure.category === 'authentication');
+
+          if (isGeminiProjectFailure) {
+            geminiSchedulerRef.current?.reportFailure(geminiProject.id, failure);
+            updateFileResults((prev) =>
+              prev.map((result, i) =>
+                i === index
+                  ? {
+                      ...result,
+                      response: '',
+                      isProcessing: false,
+                      isCompleted: false,
+                      queueStatus: 'pending',
+                      error: undefined,
+                      retryFailure: failure,
+                      nextRetryAt: undefined,
+                    }
+                  : result,
+              ),
+            );
+            addToQueue([file], index, retryCount, lowConfidenceRetryCount, itemProfile, true);
+            return;
+          }
           if (failure.retryable && retryCount < MAX_PROCESSING_ATTEMPTS - 1) {
             const retryDelay = getRetryDelayMs(failure, retryCount);
             const nextRetryAt = Date.now() + retryDelay;
@@ -780,6 +898,7 @@ export const useAIProcessor = () => {
                   config.apiKey,
                   config.mode,
                   itemProfile,
+                  config.geminiProjects,
                 );
               }
             }, retryDelay);
@@ -836,22 +955,115 @@ export const useAIProcessor = () => {
           retryTimeoutsRef.current.size > 0)
       ) {
         if (pausedRef.current) {
-          setIsWaitingForNextBatch(false);
-          setThrottleSecondsRemaining(0);
+          const resumeAt = automaticResumeAtRef.current;
+          if (resumeAt !== undefined && resumeAt <= Date.now()) {
+            automaticResumeAtRef.current = undefined;
+            setPaused(undefined);
+            continue;
+          }
+          setIsWaitingForNextBatch(resumeAt !== undefined);
+          setThrottleSecondsRemaining(
+            resumeAt === undefined ? 0 : Math.max(0, Math.ceil((resumeAt - Date.now()) / 1000)),
+          );
           await wait(200);
           continue;
         }
 
         const currentConfig = batchConfigRef.current!;
+        const activeSlots = ACTIVE_REQUEST_LIMIT - activePromisesRef.current.size;
+        const now = Date.now();
+
+        if (currentConfig.provider === 'gemini') {
+          const scheduler = geminiSchedulerRef.current;
+          const starting: Array<{ item: QueueItem; project: GeminiProject }> = [];
+          let blocked: ReturnType<GeminiQuotaScheduler['acquire']> | undefined;
+
+          while (scheduler && starting.length < activeSlots && queueRef.current.length > 0) {
+            const acquisition = scheduler.acquire(now);
+            if (acquisition.kind !== 'ready') {
+              blocked = acquisition;
+              break;
+            }
+            starting.push({ item: queueRef.current.shift()!, project: acquisition.project });
+          }
+
+          if (starting.length > 0) {
+            setIsWaitingForNextBatch(false);
+            setThrottleSecondsRemaining(0);
+            const startingIndices = new Set(starting.map(({ item }) => item.index));
+            updateFileResults((prev) =>
+              prev.map((result, index) =>
+                startingIndices.has(index)
+                  ? {
+                      ...result,
+                      isProcessing: true,
+                      queueStatus: 'processing',
+                      nextRetryAt: undefined,
+                    }
+                  : result,
+              ),
+            );
+
+            for (const { item, project } of starting) {
+              let activePromise: Promise<void>;
+              activePromise = processItem(item, project).finally(() => {
+                activePromisesRef.current.delete(activePromise);
+              });
+              activePromisesRef.current.add(activePromise);
+            }
+            await wait(0);
+            continue;
+          }
+
+          if (queueRef.current.length > 0 && activeSlots > 0) {
+            blocked ??= scheduler?.acquire(now) ?? { kind: 'key_problem' };
+            if (blocked.kind === 'wait') {
+              const waitMs = Math.max(0, blocked.nextAt - now);
+              setIsWaitingForNextBatch(true);
+              setThrottleSecondsRemaining(Math.ceil(waitMs / 1000));
+              await Promise.race([
+                ...activePromisesRef.current,
+                wait(Math.min(1000, Math.max(200, waitMs))),
+              ]);
+              continue;
+            }
+            if (blocked.kind === 'daily_exhausted') {
+              automaticResumeAtRef.current = blocked.nextAt;
+              setPaused({
+                kind: 'automatic',
+                failure: makeGeminiPauseFailure(
+                  'daily_quota',
+                  `Every Gemini project reached its daily limit. Processing will resume at ${new Date(blocked.nextAt).toLocaleString()}.`,
+                  currentConfig.model,
+                ),
+              });
+              continue;
+            }
+            if (blocked.kind === 'key_problem') {
+              automaticResumeAtRef.current = undefined;
+              setPaused({
+                kind: 'automatic',
+                failure: makeGeminiPauseFailure(
+                  'authentication',
+                  'Add or correct a Gemini project, then select Resume.',
+                  currentConfig.model,
+                ),
+              });
+              continue;
+            }
+          }
+
+          await Promise.race([...activePromisesRef.current, wait(100)]);
+          continue;
+        }
+
         const currentRateLimit =
           getModel(currentConfig.provider, currentConfig.model)?.rateLimit || DEFAULT_RATE_LIMIT;
         const { limit, interval } = currentRateLimit;
-        const now = Date.now();
         requestTimestampsRef.current = requestTimestampsRef.current.filter(
           (timestamp) => now - timestamp < interval,
         );
 
-        const activeSlots = ACTIVE_REQUEST_LIMIT - activePromisesRef.current.size;
         const rateSlots = limit - requestTimestampsRef.current.length;
         const startCount = Math.min(activeSlots, rateSlots, queueRef.current.length);
 

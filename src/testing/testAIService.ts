@@ -57,3 +57,49 @@ export async function processFileWithTestAI(
     onChunk(chunk);
   }
 }
+
+const simulatedGeminiCalls = new Map<string, number>();
+
+export function resetSimulatedGemini(): void {
+  simulatedGeminiCalls.clear();
+}
+
+export async function processFileWithSimulatedGemini(
+  fileName: string,
+  fileContent: string,
+  apiKey: string,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (signal?.aborted) throw new DOMException('Processing aborted', 'AbortError');
+  const calls = simulatedGeminiCalls.get(apiKey) ?? 0;
+  simulatedGeminiCalls.set(apiKey, calls + 1);
+
+  if (apiKey.includes('invalid-key')) {
+    throw providerError(403, 'Simulated Gemini API key is invalid.', 'PERMISSION_DENIED', [
+      { reason: 'API_KEY_INVALID' },
+    ]);
+  }
+  if (apiKey.includes('daily-limit')) {
+    throw providerError(429, 'Simulated Gemini daily quota reached.', 'RESOURCE_EXHAUSTED', [
+      { quotaId: 'GenerateContentRequestsPerDayPerProjectPerModel-FreeTier' },
+    ]);
+  }
+  if (calls === 0 && apiKey.includes('rpm-once')) {
+    throw providerError(429, 'Simulated Gemini RPM reached.', 'RESOURCE_EXHAUSTED', [
+      { quotaId: 'GenerateContentRequestsPerMinutePerProjectPerModel-FreeTier' },
+      { retryDelay: '1s' },
+    ]);
+  }
+  if (calls === 0 && apiKey.includes('tpm-once')) {
+    throw providerError(429, 'Simulated Gemini TPM reached.', 'RESOURCE_EXHAUSTED', [
+      { quotaId: 'GenerateContentInputTokensPerModelPerMinute-FreeTier' },
+      { retryDelay: '1s' },
+    ]);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  if (signal?.aborted) throw new DOMException('Processing aborted', 'AbortError');
+  onChunk(`Simulated Gemini processed ${fileName}.\n\n`);
+  onChunk(fileContent);
+}
