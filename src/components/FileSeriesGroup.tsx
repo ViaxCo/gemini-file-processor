@@ -13,6 +13,7 @@ export function FileSeriesGroup({
   isOpen,
   onOpenChange,
   status,
+  assignment,
   selectedCount,
   page,
   pageCount,
@@ -35,6 +36,7 @@ export function FileSeriesGroup({
     failed: number;
     uploaded: number;
   };
+  assignment: { assignedCount: number; destinationCount: number };
   selectedCount: number;
   page: number;
   pageCount: number;
@@ -48,6 +50,15 @@ export function FileSeriesGroup({
     : `${fileCount} track${fileCount === 1 ? '' : 's'}`;
   const isFullySelected = fileCount > 0 && selectedCount === fileCount;
   const isPartlySelected = selectedCount > 0 && !isFullySelected;
+  const assignmentLabel =
+    assignment.assignedCount === 0
+      ? 'Unassigned'
+      : assignment.assignedCount < fileCount
+        ? `${assignment.assignedCount} of ${fileCount} assigned`
+        : assignment.destinationCount > 1
+          ? `Assigned · ${assignment.destinationCount} folders`
+          : 'Assigned';
+  const isFullyAssigned = assignment.assignedCount === fileCount;
 
   return (
     <Collapsible open={isOpen} onOpenChange={onOpenChange} asChild>
@@ -78,6 +89,15 @@ export function FileSeriesGroup({
                 <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs font-normal text-muted-foreground">
                   <Badge variant="secondary" className="h-5 px-1.5 text-[11px] tabular-nums">
                     {itemLabel}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'h-5 px-1.5 text-[11px] tabular-nums',
+                      isFullyAssigned && 'border-primary/35 text-foreground',
+                    )}
+                  >
+                    {assignmentLabel}
                   </Badge>
                   <span>{status.completed} complete</span>
                   {status.retrying > 0 ? <span>{status.retrying} retrying</span> : null}

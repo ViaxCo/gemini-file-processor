@@ -1,5 +1,7 @@
 import { FileSeriesGroup } from '@/components/FileSeriesGroup';
 import type { FileResult } from '@/hooks/useAIProcessor';
+import type { DriveDestination } from '@/hooks/useGoogleDrive';
+import { summarizeDestinationAssignments } from '@/utils/destinationAssignments';
 import type { groupFilesBySeries } from '@/utils/seriesGroups';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -11,6 +13,7 @@ export function FileSeriesResults({
   fileResults,
   selected,
   isUploaded,
+  destinationAssignments,
   onToggleGroup,
   renderFile,
 }: {
@@ -18,6 +21,7 @@ export function FileSeriesResults({
   fileResults: FileResult[];
   selected: ReadonlySet<number>;
   isUploaded: (index: number) => boolean;
+  destinationAssignments: Readonly<Record<number, { destination: DriveDestination }>>;
   onToggleGroup: (indices: number[]) => void;
   renderFile: (index: number) => ReactNode;
 }) {
@@ -56,6 +60,7 @@ export function FileSeriesResults({
           uploaded: 0,
         };
         let selectedCount = 0;
+        const assignment = summarizeDestinationAssignments(group.indices, destinationAssignments);
 
         for (const index of group.indices) {
           const result = fileResults[index]!;
@@ -78,6 +83,7 @@ export function FileSeriesResults({
             isOpen={isOpen}
             onOpenChange={(open) => setOpenGroupId(open ? group.id : undefined)}
             status={status}
+            assignment={assignment}
             selectedCount={selectedCount}
             page={page}
             pageCount={pageCount}

@@ -259,6 +259,8 @@ export const MultiFileResponseDisplay = ({
   const isDriveLifecycleBlockingProcessing = isUploadSessionActive || hasUnknownUpload;
   const selectedUploadItems = uploadEligible.filter(({ index }) => selected.has(index));
   const uploadSelectedEligibleCount = selectedUploadItems.length;
+  const countUnassigned = (items: Array<{ index: number }>) =>
+    items.reduce((count, { index }) => count + (destinationAssignments[index] ? 0 : 1), 0);
   const viewedResult = viewIndex != null ? (fileResults[viewIndex] ?? null) : null;
   const viewedUploadStatus =
     viewIndex != null ? uploadStatuses?.[uploadKeys[viewIndex]!] : undefined;
@@ -354,6 +356,13 @@ export const MultiFileResponseDisplay = ({
   ): Promise<PromiseSettledResult<number>[]> => {
     if (!uploadToGoogleDocs) return [];
 
+    const unassignedCount = countUnassigned(items);
+    if (unassignedCount > 0) {
+      throw new Error(
+        `Assign a destination to ${unassignedCount} file${unassignedCount === 1 ? '' : 's'} before uploading.`,
+      );
+    }
+
     const results = await uploadToGoogleDocs(
       items.map(({ result, index }) => ({
         uploadKey: uploadKeys[index]!,
@@ -407,6 +416,10 @@ export const MultiFileResponseDisplay = ({
     if (!uploadToGoogleDocs || !isDriveAuthenticated) return;
     const result = fileResults[index];
     if (!result?.isCompleted || !result.response || result.error) return;
+    if (!destinationAssignments[index]) {
+      toast.error('Assign a destination before uploading.');
+      return;
+    }
 
     try {
       const [uploadResult] = await uploadItems([{ result, index }]);
@@ -428,6 +441,14 @@ export const MultiFileResponseDisplay = ({
   const handleUploadSelected = async (): Promise<void> => {
     if (!uploadToGoogleDocs || !isDriveAuthenticated || selectedUploadItems.length === 0) return;
 
+    const unassignedCount = countUnassigned(selectedUploadItems);
+    if (unassignedCount > 0) {
+      toast.error(
+        `Assign a destination to ${unassignedCount} selected file${unassignedCount === 1 ? '' : 's'} before uploading.`,
+      );
+      return;
+    }
+
     try {
       const results = await uploadItems(selectedUploadItems);
       finishBulkUpload(
@@ -441,6 +462,14 @@ export const MultiFileResponseDisplay = ({
 
   const handleUploadAll = async (): Promise<void> => {
     if (!uploadToGoogleDocs || !isDriveAuthenticated || uploadEligible.length === 0) return;
+
+    const unassignedCount = countUnassigned(uploadEligible);
+    if (unassignedCount > 0) {
+      toast.error(
+        `Assign a destination to ${unassignedCount} file${unassignedCount === 1 ? '' : 's'} before uploading.`,
+      );
+      return;
+    }
 
     try {
       const results = await uploadItems(uploadEligible);
@@ -512,9 +541,7 @@ export const MultiFileResponseDisplay = ({
           onReviewInstructions={onReviewInstructions}
           onAbort={onAbortFile ? handleCardAbort : undefined}
           uploadStatus={uploadStatus}
-          destinationFolderName={
-            destinationAssignments[orderedIndex]?.destination.name ?? MY_DRIVE_ROOT.name
-          }
+          destinationFolderName={destinationAssignments[orderedIndex]?.destination.name}
           onUpload={uploadToGoogleDocs ? handleCardUpload : undefined}
           onDiscardUpload={
             uploadStatus === 'unknown' && discardUnknownUpload ? handleCardDiscardUpload : undefined
@@ -828,6 +855,7 @@ export const MultiFileResponseDisplay = ({
                 fileResults={fileResults}
                 selected={selected}
                 isUploaded={isResultUploaded}
+                destinationAssignments={destinationAssignments}
                 onToggleGroup={handleToggleGroup}
                 renderFile={renderFileCard}
               />
@@ -867,7 +895,7 @@ export const MultiFileResponseDisplay = ({
                 uploadStatus={viewedUploadStatus}
                 destinationFolderName={
                   viewIndex != null
-                    ? (destinationAssignments[viewIndex]?.destination.name ?? MY_DRIVE_ROOT.name)
+                    ? destinationAssignments[viewIndex]?.destination.name
                     : undefined
                 }
                 processingProfile={viewedResult?.processingProfile ?? processingProfile}

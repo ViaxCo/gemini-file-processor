@@ -314,7 +314,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                       Uploaded
                     </Badge>
                   )}
-                  <Badge variant="outline">{destinationFolderName || 'Root (My Drive)'}</Badge>
+                  <Badge variant="outline">{destinationFolderName || 'Unassigned'}</Badge>
                   {uploadStatus === 'unknown' && (
                     <Badge variant="destructive">Upload unconfirmed</Badge>
                   )}

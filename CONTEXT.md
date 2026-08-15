@@ -5,12 +5,12 @@ This context covers processing uploaded files and choosing where generated docum
 ## Language
 
 **Destination Assignment**:
-The Google Drive destination committed to one or more selected files. It affects only those files and changes only when the user confirms the assignment.
+The Google Drive destination committed to one or more selected files. It affects only those files, changes only when the user confirms the assignment, and is required before a Document Upload.
 _Avoid_: Global selection, current folder
 
-**Default Destination**:
-My Drive Root, used when a file has no Destination Assignment. Browsing or cancelling an assignment does not change it.
-_Avoid_: Last selected folder
+**Unassigned File**:
+A file with no Destination Assignment. It cannot be uploaded until the user assigns a destination. My Drive Root counts as assigned only when the user explicitly selects it.
+_Avoid_: My Drive Root, default destination
 
 **Preferred Assignment Root**:
 The Google Drive folder shown when a new assignment dialog opens. It is a navigation starting point and does not assign files by itself.
@@ -115,6 +115,10 @@ _Avoid_: Folder group, filename group
 **Ungrouped Files**:
 Files whose Display Names do not contain a clear series title and track number. They stay together without an inferred series title.
 _Avoid_: Unknown series, miscellaneous series
+
+**Group Assignment Summary**:
+The Destination Assignment coverage shown for every file in a Series Group or Ungrouped Files, including files already uploaded. It is Unassigned when none are assigned, a count when only some are assigned, Assigned when all use one destination, and Assigned with a folder count when all use multiple destinations.
+_Avoid_: Upload status, group destination
 
 **Series Selection**:
 The files selected by the Select Series action. It replaces the previous selection with every file in one Series Group, regardless of processing or upload status.

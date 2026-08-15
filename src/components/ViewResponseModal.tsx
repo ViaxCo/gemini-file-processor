@@ -136,7 +136,7 @@ export function ViewResponseModal({
     }
   };
 
-  const folderLabel = destinationFolderName ?? 'Root (My Drive)';
+  const folderLabel = destinationFolderName ?? 'Unassigned';
   const isUploadPending = uploadStatus === 'uploading' || uploadStatus === 'verifying';
   const uploadLabel = UPLOAD_LABELS[uploadStatus || 'idle'];
 
