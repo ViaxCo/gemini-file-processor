@@ -92,6 +92,10 @@ _Avoid_: Queue delay, manual retry
 A new attempt started by the user after reviewing a Processing Failure or correcting its cause.
 _Avoid_: Automatic retry, resume
 
+**Manual Confidence Retry**:
+A new attempt started by the user for a completed result with low confidence. It can re-enter an active Processing Batch without waiting for the other files to finish.
+_Avoid_: Automatic Processing Retry, new Processing Batch
+
 **Recovered Processing**:
 A completed file-processing outcome that succeeded after one or more Automatic Processing Retries. It retains the number of retries that were needed.
 _Avoid_: Retried failure, eventual success

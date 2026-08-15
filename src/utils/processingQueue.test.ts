@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACTIVE_REQUEST_LIMIT,
+  canRetryProcessingResult,
   estimateRemainingSeconds,
   getProviderFailureSignature,
   getQueueProgress,
@@ -24,6 +25,37 @@ const failure = (category: ProcessingFailure['category']): ProcessingFailure => 
 });
 
 describe('processing queue policy', () => {
+  it('allows only settled results to enter the queue for a manual retry', () => {
+    expect(
+      canRetryProcessingResult({
+        isCompleted: true,
+        isProcessing: false,
+        queueStatus: 'completed',
+      }),
+    ).toBe(true);
+    expect(
+      canRetryProcessingResult({
+        isCompleted: false,
+        isProcessing: false,
+        queueStatus: 'cancelled',
+      }),
+    ).toBe(true);
+    expect(
+      canRetryProcessingResult({
+        isCompleted: false,
+        isProcessing: false,
+        queueStatus: 'pending',
+      }),
+    ).toBe(false);
+    expect(
+      canRetryProcessingResult({
+        isCompleted: false,
+        isProcessing: true,
+        queueStatus: 'processing',
+      }),
+    ).toBe(false);
+  });
+
   it('counts every queue state once', () => {
     expect(
       getQueueProgress([

@@ -15,6 +15,7 @@ import { scheduleIdleWork } from '../utils/performance';
 import {
   ACTIVE_REQUEST_LIMIT,
   PROVIDER_FAILURE_PAUSE_THRESHOLD,
+  canRetryProcessingResult,
   estimateRemainingSeconds,
   getProviderFailureSignature,
   getQueueProgress,
@@ -366,11 +367,10 @@ export const useAIProcessor = () => {
     profile: ProcessingProfile = 'transcript',
     geminiProjects: GeminiProject[] = [],
   ): Promise<void> => {
-    if (processingRef.current) return;
-    if (fileIndex < 0 || fileIndex >= fileResults.length) return;
+    if (fileIndex < 0 || fileIndex >= fileResultsRef.current.length) return;
 
-    const fileToRetry = fileResults[fileIndex];
-    if (!fileToRetry) return;
+    const fileToRetry = fileResultsRef.current[fileIndex];
+    if (!fileToRetry || !canRetryProcessingResult(fileToRetry)) return;
 
     // Reset state and re-queue as a single-file job
     updateFileResults(
@@ -409,9 +409,12 @@ export const useAIProcessor = () => {
       true,
     );
 
-    // Show processing state immediately when retrying
-    setIsProcessing(true);
-    addToQueue([fileToRetry.file], fileIndex, 0, 0, profile);
+    addToQueue([fileToRetry.file], fileIndex, 0, 0, profile, true);
+    if (processingRef.current) {
+      await wait(0);
+      if (processingRef.current) return;
+    }
+
     await processQueue(instruction, provider, model, apiKey, 'single', profile, geminiProjects);
   };
 

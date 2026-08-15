@@ -3,6 +3,16 @@ import type { ProcessingFailure } from '@/services/processingErrors';
 export const ACTIVE_REQUEST_LIMIT = 3;
 export const PROVIDER_FAILURE_PAUSE_THRESHOLD = 3;
 
+export function canRetryProcessingResult(result: {
+  isCompleted: boolean;
+  isProcessing: boolean;
+  error?: unknown;
+  queueStatus?: string;
+}) {
+  if (result.isProcessing || result.queueStatus === 'pending') return false;
+  return result.isCompleted || !!result.error || result.queueStatus === 'cancelled';
+}
+
 export function getQueueProgress(
   results: ReadonlyArray<{
     isCompleted: boolean;

@@ -578,11 +578,7 @@ export const MultiFileResponseDisplay = ({
           onNameChange={handleCardName}
           showMarkdown={showMarkdown}
           onToggleMarkdown={setShowMarkdown}
-          onRetry={
-            onRetryFile && !isProcessing && !isDriveLifecycleBlockingProcessing
-              ? handleCardRetry
-              : undefined
-          }
+          onRetry={onRetryFile && !isDriveLifecycleBlockingProcessing ? handleCardRetry : undefined}
           onCheckApiKey={onCheckApiKey}
           onChooseModel={onChooseModel}
           onReviewInstructions={onReviewInstructions}
@@ -868,14 +864,18 @@ export const MultiFileResponseDisplay = ({
                           variant="outline"
                           size="sm"
                           className="ml-2"
-                          disabled={isProcessing || isDriveLifecycleBlockingProcessing}
+                          disabled={isDriveLifecycleBlockingProcessing}
                         >
                           <RotateCcw className="mr-1 h-3 w-3" />
                           <span className="hidden sm:inline">Retry Low Confidence</span>
                           <span className="sm:hidden">Retry</span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Retry all low-confidence files</TooltipContent>
+                      <TooltipContent>
+                        {isProcessing
+                          ? 'Add all low-confidence files to the processing queue'
+                          : 'Retry all low-confidence files'}
+                      </TooltipContent>
                     </Tooltip>
                   )}
                 </AlertDescription>
