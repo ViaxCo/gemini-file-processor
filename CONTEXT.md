@@ -56,6 +56,22 @@ _Avoid_: RPM, batch size
 The maximum number of provider requests that can start during a provider time window. It does not state how many requests can be active at the same time.
 _Avoid_: Active Request Limit, queue size
 
+**Gemini Project**:
+One saved Gemini API key that represents one separate Google project for request routing. Gemini applies RPM, TPM, and RPD limits to the Google project, not to the API key. Multiple keys from the same Google project must not be entered as separate Gemini Projects because they share one quota.
+_Avoid_: Gemini key, account, provider
+
+**Gemini Quota Pool**:
+The RPM, TPM, and RPD availability of one Gemini Project for one model. The scheduler sends a waiting request to the Gemini Project that can accept it soonest and uses round-robin order when projects are equally available.
+_Avoid_: API key limit, global rate limit
+
+**Gemini Project Cooldown**:
+A temporary period when the scheduler does not send a specific model to one Gemini Project after an RPM or TPM limit. Other available Gemini Projects can continue processing.
+_Avoid_: Queue Pause, daily quota
+
+**Gemini Daily Exhaustion**:
+The state of one Gemini Quota Pool after its RPD limit is reached. That project and model remain unavailable until the next Gemini daily reset at midnight Pacific Time.
+_Avoid_: Gemini Project Cooldown, provider failure
+
 **Queue Pause**:
 A Processing Batch state that prevents waiting files from starting. Active requests can finish. A manual pause starts from a user action; an automatic pause starts after a Provider-wide Processing Failure.
 _Avoid_: Cancel, stop, abort

@@ -11,16 +11,16 @@ This file is the source of truth for the workflow improvements. A user-visible i
 
 ## Milestones
 
-| Milestone                               | Status      | Acceptance checks                                                                                                                                                                                                                                                   |
-| --------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Safe test foundation and Bulk Rename | Done        | Development can generate 10, 50, or 100 repeatable fake files. Test AI makes no external request and can simulate success, mixed results, 429, 503, and network failure. Bulk Rename is repeatable, wraps long names, closes after Apply, and clears the selection. |
-| 1b. Automatic Display Name Cleanup      | Done        | Recognized transcript track names are cleaned when files are added. Other names and original uploaded files remain unchanged. Cleanup can be undone.                                                                                                                |
-| 2. Faster Drive assignment              | Done        | Assignment opens in the preferred transcript root. A new folder can be created and assigned in one action. Existing Drive items are not changed during testing.                                                                                                     |
-| 3. Series groups                        | Done        | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
-| 4. Viewport workspace                   | Done        | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
-| 5. Structured errors and retries        | Done        | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
-| 6. Large processing queues              | Done        | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
-| 7. Gemini quota pools                   | Not started | The scheduler tracks RPM, TPM, and RPD per project and model. Keys from one Google project share one pool.                                                                                                                                                          |
+| Milestone                               | Status | Acceptance checks                                                                                                                                                                                                                                                   |
+| --------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Safe test foundation and Bulk Rename | Done   | Development can generate 10, 50, or 100 repeatable fake files. Test AI makes no external request and can simulate success, mixed results, 429, 503, and network failure. Bulk Rename is repeatable, wraps long names, closes after Apply, and clears the selection. |
+| 1b. Automatic Display Name Cleanup      | Done   | Recognized transcript track names are cleaned when files are added. Other names and original uploaded files remain unchanged. Cleanup can be undone.                                                                                                                |
+| 2. Faster Drive assignment              | Done   | Assignment opens in the preferred transcript root. A new folder can be created and assigned in one action. Existing Drive items are not changed during testing.                                                                                                     |
+| 3. Series groups                        | Done   | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
+| 4. Viewport workspace                   | Done   | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
+| 5. Structured errors and retries        | Done   | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
+| 6. Large processing queues              | Done   | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
+| 7. Gemini quota pools                   | Done   | Gemini requests route across one key per Google project. Local request and input-token usage is tracked per project and model. RPM, TPM, RPD, and invalid-key failures affect only the relevant project when possible.                                              |
 
 ## Milestone 1 checks
 
@@ -150,6 +150,36 @@ This file is the source of truth for the workflow improvements. A user-visible i
 - [x] User workflow test passes.
 
 Browser measurements used realistic fake text files of approximately 65 KB each. A 1,000-file, 66.5 MB batch completed without blocking normal browser use. The released browser safeguards are 1,000 files, 100 MB total, 2 MB for each `.txt` or `.md` file, and 10 MB for each `.docx` file. These limits protect browser memory and do not represent provider quotas.
+
+## Milestone 7 checks
+
+- [x] Gemini accepts one saved API key for each Google project.
+- [x] The previous single Gemini key migrates into the project list.
+- [x] Saved projects, local usage counts, cooldowns, and daily-limit states survive reloads in this browser.
+- [x] The project manager states that browser storage is not encrypted and that the app cannot detect two keys from the same Google project.
+- [x] Requests use the project that is available soonest, with round-robin routing when projects are equally available.
+- [x] Gemini processing keeps the browser-wide limit of three active requests.
+- [x] Local RPM scheduling is tracked separately for each project and model.
+- [x] Gemini input-token metadata is recorded locally for each project and model.
+- [x] An RPM or TPM response cools only that project and reroutes the file without consuming its file retry count.
+- [x] An RPD response stops that project for the selected model until midnight Pacific Time.
+- [x] An invalid key disables only that project.
+- [x] The queue waits and resumes automatically when all usable projects have temporary cooldowns.
+- [x] The queue pauses until the Pacific reset and resumes automatically when all usable projects have reached RPD.
+- [x] The queue pauses for manual recovery when no project has valid access.
+- [x] Manual Pause remains available and cancels any scheduled automatic resume.
+- [x] Correcting access or changing the model requires the user to select Resume after an access pause.
+- [x] Model loading tries saved Gemini projects in order and can fall back to another project.
+- [x] Saving a project validates the key when possible. Authentication failure marks a key problem; network failure leaves it unverified.
+- [x] The compact project summary and manager show current status and requests sent today.
+- [x] Development can load eight simulated projects with RPM, TPM, RPD, and invalid-key behavior without external requests.
+- [x] Test controls and fake Gemini processing are unavailable in production builds.
+- [x] Automated tests pass.
+- [x] `npm run pretest` passes.
+- [x] Desktop browser checks pass with a simulated 10-file batch and no Gemini network request.
+- [x] User workflow test passes.
+
+The local counts are conservative scheduling aids. Google remains the source of truth for quota. The app reacts to API quota responses when the local estimate differs from the provider state. Google applies Gemini API quota per project, not per API key, and daily quota resets at midnight Pacific Time.
 
 ## Real Google Drive test rules
 
