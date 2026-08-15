@@ -25,7 +25,7 @@ An explicit Google Drive destination representing the top level of My Drive. It 
 _Avoid_: No folder, empty selection
 
 **Processing Batch**:
-The files and generated results created by one processing action. Selections, display names, upload statuses, and Destination Assignments belong only to that batch.
+The fixed set of source files and generated results created by one processing action. File membership is locked when processing starts; selections, display names, upload statuses, and Destination Assignments belong only to that batch.
 _Avoid_: Current files, result list
 
 **Processing Failure**:
@@ -43,6 +43,26 @@ _Avoid_: Permanent failure, retryable failure
 **Permanent Processing Failure**:
 A Processing Failure that needs user correction or a manual decision before another attempt.
 _Avoid_: Fatal error, unrecoverable failure
+
+**Provider-wide Processing Failure**:
+A Processing Failure likely to affect all remaining files using the current provider access, model, or quota. It pauses new requests in the Processing Batch while active requests can finish.
+_Avoid_: File error, queue error
+
+**Active Request Limit**:
+The maximum number of provider requests from one Processing Batch that can be in progress at the same time. It protects browser responsiveness and is separate from a provider rate limit.
+_Avoid_: RPM, batch size
+
+**Provider Rate Limit**:
+The maximum number of provider requests that can start during a provider time window. It does not state how many requests can be active at the same time.
+_Avoid_: Active Request Limit, queue size
+
+**Queue Pause**:
+A Processing Batch state that prevents waiting files from starting. Active requests can finish. A manual pause starts from a user action; an automatic pause starts after a Provider-wide Processing Failure.
+_Avoid_: Cancel, stop, abort
+
+**Estimated Completion Time**:
+An approximate duration calculated from the waiting and active files, provider scheduling limits, and recent request duration. It is recalculated as the Processing Batch changes and is not a guaranteed finish time.
+_Avoid_: Deadline, exact completion time
 
 **Automatic Processing Retry**:
 A bounded new attempt started without user action after a Temporary Processing Failure. It waits according to the provider response or the app's backoff policy.

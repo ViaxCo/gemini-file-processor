@@ -19,7 +19,7 @@ This file is the source of truth for the workflow improvements. A user-visible i
 | 3. Series groups                        | Done        | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
 | 4. Viewport workspace                   | Done        | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
 | 5. Structured errors and retries        | Done        | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
-| 6. Large processing queues              | Not started | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
+| 6. Large processing queues              | Done        | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
 | 7. Gemini quota pools                   | Not started | The scheduler tracks RPM, TPM, and RPD per project and model. Keys from one Google project share one pool.                                                                                                                                                          |
 
 ## Milestone 1 checks
@@ -122,6 +122,34 @@ This file is the source of truth for the workflow improvements. A user-visible i
 - [x] `npm run pretest` passes.
 - [x] Desktop browser checks pass with fake failures.
 - [x] User workflow test passes.
+
+## Milestone 6 checks
+
+- [x] A Processing Batch runs no more than three active provider requests at one time.
+- [x] Provider RPM scheduling remains separate from the Active Request Limit.
+- [x] Manual Pause stops waiting files from starting while active requests finish.
+- [x] Provider-wide Processing Failures pause the queue automatically.
+- [x] Three consecutive files that exhaust retries with the same temporary provider failure pause the queue.
+- [x] Resume uses the current provider access and model, retries provider-wide failures first, and then continues untouched waiting files.
+- [x] File membership and instructions are locked while the batch is running or paused.
+- [x] Provider, model, and API-key controls are locked while running and available while paused.
+- [x] Progress shows complete, active, waiting, failed, cancelled, and approximate remaining time.
+- [x] Closing or reloading warns while a batch is running or paused.
+- [x] Series Groups behave as a single-open accordion and show status counts when collapsed.
+- [x] An expanded group renders no more than 50 File Result cards at one time.
+- [x] The added-file preview renders no more than 50 filename rows at one time.
+- [x] Bulk actions continue to affect hidden selected files.
+- [x] Unchanged File Result cards do not rerender for unrelated queue updates.
+- [x] Uploaded files continue to move to the bottom of their Series Group and become deselected.
+- [x] Fake browser tests progress through 50, 100, 341, and 1,000 realistically sized files without real provider keys.
+- [x] The released file-count and total-size safeguards use measured browser results instead of provider quota assumptions.
+- [x] Automated tests pass.
+- [x] `npm run pretest` passes.
+- [x] Desktop browser checks pass with fake files.
+- [x] Phone-width responsive sanity check passes.
+- [x] User workflow test passes.
+
+Browser measurements used realistic fake text files of approximately 65 KB each. A 1,000-file, 66.5 MB batch completed without blocking normal browser use. The released browser safeguards are 1,000 files, 100 MB total, 2 MB for each `.txt` or `.md` file, and 10 MB for each `.docx` file. These limits protect browser memory and do not represent provider quotas.
 
 ## Real Google Drive test rules
 
