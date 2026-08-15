@@ -850,7 +850,7 @@ export const MultiFileResponseDisplay = ({
               </Alert>
             )}
             {lowConfidenceIndices.length > 0 && (
-              <Alert>
+              <Alert className="items-center">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <span>
