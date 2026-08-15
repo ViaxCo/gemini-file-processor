@@ -240,10 +240,10 @@ const describeFailure = (
       };
     case 'invalid_response':
       return {
-        kind: 'permanent',
+        kind: 'temporary',
         title: 'Invalid response',
         message: 'The provider returned no usable content.',
-        retryable: false,
+        retryable: true,
         recoveryAction: 'retry',
       };
     case 'server_error':

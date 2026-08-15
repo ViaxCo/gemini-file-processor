@@ -84,6 +84,22 @@ describe('processing errors', () => {
     });
   });
 
+  it('automatically retries a response with no usable content', () => {
+    const error = createProviderRequestError(undefined, {
+      error: {
+        message: 'No content received from Gemini API',
+        status: 'INVALID_RESPONSE',
+      },
+    });
+
+    expect(toProcessingFailure(error, 'gemini', 'gemini-2.5-flash')).toMatchObject({
+      category: 'invalid_response',
+      kind: 'temporary',
+      retryable: true,
+      recoveryAction: 'retry',
+    });
+  });
+
   it('uses specific model and safety evidence before a general forbidden status', () => {
     const modelError = createProviderRequestError(403, {
       error: {
