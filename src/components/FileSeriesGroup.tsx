@@ -13,6 +13,7 @@ export function FileSeriesGroup({
   isOpen,
   onOpenChange,
   status,
+  isFullyUploaded,
   assignment,
   selectedCount,
   page,
@@ -36,6 +37,7 @@ export function FileSeriesGroup({
     failed: number;
     uploaded: number;
   };
+  isFullyUploaded: boolean;
   assignment: { assignedCount: number; destinationCount: number };
   selectedCount: number;
   page: number;
@@ -65,6 +67,8 @@ export function FileSeriesGroup({
       <section
         className={cn(
           'overflow-hidden rounded-xl border bg-muted/65 transition-colors',
+          isFullyUploaded &&
+            'border-emerald-600/30 bg-emerald-50/70 dark:border-emerald-400/25 dark:bg-emerald-950/20',
           isFullySelected && 'border-primary/60 bg-primary/10',
           isPartlySelected && 'border-primary/35',
         )}
@@ -90,6 +94,15 @@ export function FileSeriesGroup({
                   <Badge variant="secondary" className="h-5 px-1.5 text-[11px] tabular-nums">
                     {itemLabel}
                   </Badge>
+                  {isFullyUploaded ? (
+                    <Badge
+                      variant="secondary"
+                      className="h-5 border border-emerald-600/20 bg-emerald-600 px-1.5 text-[11px] text-white dark:border-emerald-400/20 dark:bg-emerald-700"
+                    >
+                      <Check />
+                      Uploaded
+                    </Badge>
+                  ) : null}
                   <Badge
                     variant="outline"
                     className={cn(

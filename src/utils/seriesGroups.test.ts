@@ -67,4 +67,24 @@ describe('groupFilesBySeries', () => {
     expect(groups[0]?.indices).toEqual([2, 0, 1]);
     expect(groups[1]?.indices).toEqual([4, 3]);
   });
+
+  it('moves fully uploaded groups below groups that still need work', () => {
+    const uploaded = new Set([0, 2, 3]);
+    const groups = groupFilesBySeries(
+      [
+        { index: 0, displayName: 'Alpha Series - Track 1' },
+        { index: 1, displayName: 'Beta Series - Track 1' },
+        { index: 2, displayName: 'Alpha Series - Track 2' },
+        { index: 3, displayName: 'Standalone Teaching.docx' },
+      ],
+      (index) => uploaded.has(index),
+    );
+
+    expect(groups.map((group) => group.title)).toEqual([
+      'Beta Series',
+      'Alpha Series',
+      'Ungrouped Files',
+    ]);
+    expect(groups.map((group) => group.isFullyUploaded)).toEqual([false, true, true]);
+  });
 });

@@ -31,15 +31,19 @@ export function FileSeriesResults({
 
   useEffect(() => {
     if (groups.length === 0) return;
+    const firstActiveGroup = groups.find((group) => !group.isFullyUploaded);
     if (!initializedOpenGroup.current) {
       initializedOpenGroup.current = true;
-      setOpenGroupId(groups[0]!.id);
+      setOpenGroupId(firstActiveGroup?.id);
       return;
     }
-    if (openGroupId && !groups.some((group) => group.id === openGroupId)) {
-      setOpenGroupId(groups[0]!.id);
-    }
-  }, [groups, openGroupId]);
+    setOpenGroupId((currentGroupId) => {
+      if (!currentGroupId) return currentGroupId;
+      return groups.some((group) => group.id === currentGroupId && !group.isFullyUploaded)
+        ? currentGroupId
+        : firstActiveGroup?.id;
+    });
+  }, [groups]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -83,6 +87,7 @@ export function FileSeriesResults({
             isOpen={isOpen}
             onOpenChange={(open) => setOpenGroupId(open ? group.id : undefined)}
             status={status}
+            isFullyUploaded={group.isFullyUploaded}
             assignment={assignment}
             selectedCount={selectedCount}
             page={page}

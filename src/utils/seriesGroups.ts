@@ -67,6 +67,7 @@ export function groupFilesBySeries(
         isUploaded,
       ),
       isUngrouped: false,
+      isFullyUploaded: tracks.every(([, index]) => isUploaded(index)),
     }));
 
   if (ungrouped.length > 0) {
@@ -75,8 +76,11 @@ export function groupFilesBySeries(
       title: 'Ungrouped Files',
       indices: moveUploadedLast(ungrouped, isUploaded),
       isUngrouped: true,
+      isFullyUploaded: ungrouped.every(isUploaded),
     });
   }
 
-  return groups;
+  return groups.sort(
+    (groupA, groupB) => Number(groupA.isFullyUploaded) - Number(groupB.isFullyUploaded),
+  );
 }

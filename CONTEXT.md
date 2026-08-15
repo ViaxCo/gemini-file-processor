@@ -120,6 +120,10 @@ _Avoid_: Folder placeholder, detected folder
 Files whose Display Names contain the same series title followed by a track number. Matching ignores capitalization and repeated spaces but preserves punctuation differences. A Series Group uses the series title as its label.
 _Avoid_: Folder group, filename group
 
+**Fully Uploaded Group**:
+A Series Group or Ungrouped Files collection in which every file has a successful Document Upload. It is complete work and appears after groups that still need action.
+_Avoid_: Completed group, processed group
+
 **Ungrouped Files**:
 Files whose Display Names do not contain a clear series title and track number. They stay together without an inferred series title.
 _Avoid_: Unknown series, miscellaneous series
