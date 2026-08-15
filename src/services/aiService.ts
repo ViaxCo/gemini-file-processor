@@ -108,53 +108,59 @@ async function streamGemini(
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+  let buffer = '';
   let receivedChunks = false;
   let blockedCode: string | undefined;
   let metadata: AIResponseMetadata = {};
+
+  const processLine = (line: string) => {
+    if (!line.startsWith('data: ')) return;
+
+    const jsonStr = line.slice(6);
+    if (jsonStr.trim() === '[DONE]') return;
+
+    try {
+      const data = JSON.parse(jsonStr);
+      if (data.error) {
+        throw createProviderRequestError(undefined, data);
+      }
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (data.usageMetadata) {
+        metadata = {
+          inputTokens: data.usageMetadata.promptTokenCount,
+        };
+      }
+      const finishReason = data.candidates?.[0]?.finishReason;
+      const responseBlockedCode = data.promptFeedback?.blockReason || finishReason;
+      if (
+        typeof responseBlockedCode === 'string' &&
+        /SAFETY|RECITATION|PROHIBITED_CONTENT|BLOCKLIST|SPII/.test(responseBlockedCode)
+      ) {
+        blockedCode = responseBlockedCode;
+      }
+      if (content) {
+        onChunk(content);
+        receivedChunks = true;
+      }
+    } catch (error) {
+      if (error instanceof ProviderRequestError) throw error;
+      // Skip invalid JSON lines
+    }
+  };
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const text = decoder.decode(value, { stream: true });
-      const lines = text.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const jsonStr = line.slice(6);
-          if (jsonStr.trim() === '[DONE]') continue;
-
-          try {
-            const data = JSON.parse(jsonStr);
-            if (data.error) {
-              throw createProviderRequestError(undefined, data);
-            }
-            const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (data.usageMetadata) {
-              metadata = {
-                inputTokens: data.usageMetadata.promptTokenCount,
-              };
-            }
-            const finishReason = data.candidates?.[0]?.finishReason;
-            const responseBlockedCode = data.promptFeedback?.blockReason || finishReason;
-            if (
-              typeof responseBlockedCode === 'string' &&
-              /SAFETY|RECITATION|PROHIBITED_CONTENT|BLOCKLIST|SPII/.test(responseBlockedCode)
-            ) {
-              blockedCode = responseBlockedCode;
-            }
-            if (content) {
-              onChunk(content);
-              receivedChunks = true;
-            }
-          } catch (error) {
-            if (error instanceof ProviderRequestError) throw error;
-            // Skip invalid JSON lines
-          }
-        }
-      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? '';
+      lines.forEach(processLine);
     }
+
+    buffer += decoder.decode();
+    if (buffer) processLine(buffer);
   } finally {
     reader.releaseLock();
   }
