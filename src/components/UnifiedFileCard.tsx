@@ -12,8 +12,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProcessingFailurePanel } from '@/components/ProcessingFailurePanel';
-import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
+import { FileResult, MAX_LOW_CONFIDENCE_RETRIES, ProcessingProfile } from '@/hooks/useAIProcessor';
 import type { UploadStatus } from '@/hooks/useGoogleDrive';
+import { MAX_PROCESSING_ATTEMPTS } from '@/services/processingErrors';
 import { confidenceColorClass } from '@/utils/confidenceScore';
 import { copyToClipboard, downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
 import {
@@ -134,10 +135,19 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
 
   const failure = result.error ?? result.retryFailure;
   const isCancelled = result.queueStatus === 'cancelled';
+  const retryLabel = result.retryFailure
+    ? result.retryCount
+      ? `API retry ${result.retryCount} of ${MAX_PROCESSING_ATTEMPTS - 1}`
+      : 'Retrying'
+    : result.lowConfidenceRetryCount
+      ? `Low-confidence retry ${result.lowConfidenceRetryCount} of ${MAX_LOW_CONFIDENCE_RETRIES}`
+      : undefined;
 
   const getStatusIcon = () => {
     if (result.error) return <AlertCircle className="h-4 w-4 text-destructive" />;
     if (result.retryFailure) return <Loader2 className="h-4 w-4 animate-spin text-destructive" />;
+    if (result.lowConfidenceRetryCount)
+      return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
     if (result.isCompleted) return <CheckCircle className="h-4 w-4 text-primary" />;
     if (result.isProcessing) return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
     if (isCancelled) return <CircleSlash2 className="h-4 w-4 text-muted-foreground" />;
@@ -285,8 +295,8 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                   {result.error ? (
                     <Badge variant="destructive">Error</Badge>
-                  ) : result.retryFailure ? (
-                    <Badge variant="secondary">Retrying</Badge>
+                  ) : retryLabel ? (
+                    <Badge variant="secondary">{retryLabel}</Badge>
                   ) : result.isCompleted ? (
                     <Badge variant="default">Completed</Badge>
                   ) : result.isProcessing ? (

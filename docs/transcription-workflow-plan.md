@@ -117,6 +117,7 @@ This file is the source of truth for the workflow improvements. A user-visible i
 - [x] A Manual Processing Retry starts a fresh four-attempt cycle.
 - [x] Partial output from a failed attempt is discarded.
 - [x] Recovered Processing shows how many retries were needed.
+- [x] Active automatic retries show their retry type and number; collapsed groups count retrying files separately.
 - [x] Test AI covers temporary recovery, 429 types, overload, network, API key, invalid request, blocked content, unknown errors, and mixed failures without external requests.
 - [x] Automated tests pass.
 - [x] `npm run pretest` passes.

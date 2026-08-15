@@ -27,7 +27,14 @@ export function FileSeriesGroup({
   onToggleSelection: () => void;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  status: { completed: number; active: number; waiting: number; failed: number; uploaded: number };
+  status: {
+    completed: number;
+    active: number;
+    retrying: number;
+    waiting: number;
+    failed: number;
+    uploaded: number;
+  };
   selectedCount: number;
   page: number;
   pageCount: number;
@@ -73,6 +80,7 @@ export function FileSeriesGroup({
                     {itemLabel}
                   </Badge>
                   <span>{status.completed} complete</span>
+                  {status.retrying > 0 ? <span>{status.retrying} retrying</span> : null}
                   {status.active > 0 ? <span>{status.active} active</span> : null}
                   {status.waiting > 0 ? <span>{status.waiting} waiting</span> : null}
                   {status.failed > 0 ? (

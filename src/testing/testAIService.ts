@@ -50,7 +50,10 @@ export async function processFileWithTestAI(
   const error = getTestAIError(model, fileName, attempt);
   if (error) throw error;
 
-  const chunks = [`Test AI processed ${fileName}.\n\n`, fileContent];
+  const chunks =
+    process.env.NODE_ENV !== 'production' && model === 'test-low-confidence'
+      ? [`Test AI returned a short unrelated response for ${fileName}.`]
+      : [`Test AI processed ${fileName}.\n\n`, fileContent];
   for (const chunk of chunks) {
     await new Promise((resolve) => setTimeout(resolve, 10));
     if (signal?.aborted) throw new DOMException('Processing aborted', 'AbortError');

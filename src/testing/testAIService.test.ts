@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { getConfidenceScore } from '../utils/confidenceScore';
 import { getTestAIError, processFileWithTestAI } from './testAIService';
 
 describe('Test AI', () => {
@@ -28,5 +29,21 @@ describe('Test AI', () => {
 
     expect(onChunk).toHaveBeenCalledTimes(2);
     expect(onChunk.mock.calls.flat().join('')).toContain('Short fake transcript.');
+  });
+
+  it('can return a low-confidence response without an external request', async () => {
+    const onChunk = vi.fn();
+
+    await processFileWithTestAI(
+      'test.txt',
+      'A long fake transcript with different source words.',
+      'test-low-confidence',
+      onChunk,
+    );
+
+    const response = onChunk.mock.calls.flat().join('');
+    expect(
+      getConfidenceScore('A long fake transcript with different source words.', response).level,
+    ).toBe('low');
   });
 });

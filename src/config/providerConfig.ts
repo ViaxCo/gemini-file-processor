@@ -164,6 +164,11 @@ const TEST_PROVIDER: ProviderConfig = {
       name: 'Temporary failure, then success',
       rateLimit: { limit: 1000, interval: 1000 },
     },
+    {
+      id: 'test-low-confidence',
+      name: 'Low confidence retries',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
     { id: 'test-mixed', name: 'Mixed results', rateLimit: { limit: 1000, interval: 1000 } },
     {
       id: 'test-rate-limited',

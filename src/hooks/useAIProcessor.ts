@@ -22,6 +22,7 @@ import {
 } from '../utils/processingQueue';
 
 export type ProcessingProfile = 'transcript' | 'book';
+export const MAX_LOW_CONFIDENCE_RETRIES = 3;
 export type QueuePauseReason =
   { kind: 'manual' } | { kind: 'automatic'; failure: ProcessingFailure };
 type ProcessingQueueStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
@@ -64,6 +65,7 @@ export interface FileResult {
   retryFailure?: ProcessingFailure;
   queueStatus?: ProcessingQueueStatus;
   retryCount?: number;
+  lowConfidenceRetryCount?: number;
   nextRetryAt?: number;
   recoveredRetryCount?: number;
   lastRequestDurationMs?: number;
@@ -99,6 +101,7 @@ function restorePreviousResult(result: FileResult): FileResult {
     retryFailure: previous.retryFailure,
     queueStatus: previous.queueStatus,
     retryCount: previous.retryCount,
+    lowConfidenceRetryCount: undefined,
     nextRetryAt: previous.nextRetryAt,
     recoveredRetryCount: previous.recoveredRetryCount,
     confidence: previous.confidence,
@@ -228,6 +231,7 @@ export const useAIProcessor = () => {
             queueStatus: 'cancelled',
             error: undefined,
             retryFailure: undefined,
+            lowConfidenceRetryCount: undefined,
             nextRetryAt: undefined,
             isManuallyRetrying: undefined,
             previousState: undefined,
@@ -270,6 +274,7 @@ export const useAIProcessor = () => {
               queueStatus: 'cancelled',
               error: undefined,
               retryFailure: undefined,
+              lowConfidenceRetryCount: undefined,
               nextRetryAt: undefined,
               isManuallyRetrying: undefined,
               previousState: undefined,
@@ -375,6 +380,7 @@ export const useAIProcessor = () => {
                 retryFailure: undefined,
                 queueStatus: 'pending',
                 retryCount: undefined,
+                lowConfidenceRetryCount: undefined,
                 nextRetryAt: undefined,
                 recoveredRetryCount: undefined,
                 confidence: undefined,
@@ -439,6 +445,7 @@ export const useAIProcessor = () => {
                 retryFailure: undefined,
                 queueStatus: 'pending',
                 retryCount: undefined,
+                lowConfidenceRetryCount: undefined,
                 nextRetryAt: undefined,
                 recoveredRetryCount: undefined,
                 confidence: undefined,
@@ -701,9 +708,9 @@ export const useAIProcessor = () => {
             const { level, score } = confidenceResult;
             confidence = { level, score };
 
-            if (level === 'low' && lowConfidenceRetryCount < 3) {
+            if (level === 'low' && lowConfidenceRetryCount < MAX_LOW_CONFIDENCE_RETRIES) {
               console.log(
-                `Low confidence for file ${file.name}, retrying... (${lowConfidenceRetryCount + 1}/3)`,
+                `Low confidence for file ${file.name}, retrying... (${lowConfidenceRetryCount + 1}/${MAX_LOW_CONFIDENCE_RETRIES})`,
               );
               updateFileResults((prev) =>
                 prev.map((result, i) =>
@@ -714,6 +721,10 @@ export const useAIProcessor = () => {
                         isProcessing: false,
                         isCompleted: false,
                         queueStatus: 'pending',
+                        retryFailure: undefined,
+                        retryCount: undefined,
+                        nextRetryAt: undefined,
+                        lowConfidenceRetryCount: lowConfidenceRetryCount + 1,
                         previousConfidence: {
                           score,
                           level,
@@ -791,6 +802,7 @@ export const useAIProcessor = () => {
                     lastRequestDurationMs: Date.now() - startedAt,
                     confidence,
                     retryCount: undefined,
+                    lowConfidenceRetryCount: undefined,
                     // Clear manual retry flags/snapshot on success
                     isManuallyRetrying: undefined,
                     previousState: undefined,
@@ -826,6 +838,7 @@ export const useAIProcessor = () => {
                   error: undefined,
                   retryFailure: undefined,
                   retryCount: undefined,
+                  lowConfidenceRetryCount: undefined,
                   nextRetryAt: undefined,
                   isManuallyRetrying: undefined,
                   previousState: undefined,
@@ -916,6 +929,7 @@ export const useAIProcessor = () => {
                       retryFailure: undefined,
                       nextRetryAt: undefined,
                       retryCount: retryCount > 0 ? retryCount : undefined,
+                      lowConfidenceRetryCount: undefined,
                       lastRequestDurationMs: Date.now() - startedAt,
                       isManuallyRetrying: undefined,
                       previousState: undefined,

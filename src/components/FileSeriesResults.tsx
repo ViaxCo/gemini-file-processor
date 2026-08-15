@@ -50,6 +50,7 @@ export function FileSeriesResults({
         const status = {
           completed: 0,
           active: 0,
+          retrying: 0,
           waiting: 0,
           failed: 0,
           uploaded: 0,
@@ -60,6 +61,7 @@ export function FileSeriesResults({
           const result = fileResults[index]!;
           if (result.error) status.failed += 1;
           else if (result.isCompleted) status.completed += 1;
+          else if (result.retryFailure || result.lowConfidenceRetryCount) status.retrying += 1;
           else if (result.isProcessing) status.active += 1;
           else if (result.queueStatus !== 'cancelled') status.waiting += 1;
           if (isUploaded(index)) status.uploaded += 1;
