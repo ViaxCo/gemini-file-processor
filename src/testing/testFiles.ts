@@ -22,7 +22,7 @@ function getOrdinal(value: number) {
   return `${value}${suffix}`;
 }
 
-export function createTestFiles(count: 10 | 50 | 100): File[] {
+export function createTestFiles(count: number): File[] {
   const files: File[] = [];
   let seriesIndex = 0;
   let track = 1;

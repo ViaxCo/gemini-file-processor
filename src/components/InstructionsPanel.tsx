@@ -90,6 +90,7 @@ export const InstructionsPanel = ({
               checked={processingProfile === 'book'}
               onCheckedChange={handleProcessingProfileToggle}
               aria-label="Toggle book style mode"
+              disabled={isProcessing}
             />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -98,13 +99,14 @@ export const InstructionsPanel = ({
               variant="outline"
               size="sm"
               className="text-xs sm:text-sm"
+              disabled={isProcessing}
             >
               <span className="hidden sm:inline">Saved Instructions</span>
               <span className="sm:hidden">Saved</span>
             </Button>
             <Button
               onClick={saveInstruction}
-              disabled={!instruction.trim()}
+              disabled={!instruction.trim() || isProcessing}
               variant={isSaved ? 'default' : 'secondary'}
               size="sm"
               className={`text-xs transition-all duration-200 sm:text-sm ${isSaved ? 'bg-primary hover:bg-primary/90' : ''}`}
@@ -144,6 +146,7 @@ export const InstructionsPanel = ({
                   ? 'border-destructive focus-visible:ring-destructive'
                   : ''
               }`}
+              disabled={isProcessing}
             />
             {instruction && !isInstructionValid && validation.error && (
               <p className="text-sm text-destructive">{validation.error}</p>
@@ -179,7 +182,7 @@ export const InstructionsPanel = ({
             <Button
               onClick={handleClearAll}
               variant="secondary"
-              disabled={isDriveUploadBlocking}
+              disabled={isDriveUploadBlocking || isProcessing}
               size="default"
               className="text-sm sm:text-base"
             >

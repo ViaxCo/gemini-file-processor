@@ -1,6 +1,6 @@
 import { AssignFolderModal } from '@/components/AssignFolderModal';
 import { ContextualActionBar } from '@/components/ContextualActionBar';
-import { FileSeriesGroup } from '@/components/FileSeriesGroup';
+import { FileSeriesResults } from '@/components/FileSeriesResults';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,14 +19,13 @@ import { BulkRenameModal } from '@/components/BulkRenameModal';
 import { PREFERRED_ASSIGNMENT_ROOT } from '@/config/googleDriveConfig';
 import { makeFileKey } from '@/services/responseStore';
 import { PROCESSING_FAILURE_LABELS } from '@/services/processingErrors';
-import { getConfidenceScore } from '@/utils/confidenceScore';
 import { suggestSeriesFolderName } from '@/utils/driveFolderName';
-import { downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
+import { downloadProcessedFile } from '@/utils/fileUtils';
 import { groupFilesBySeries } from '@/utils/seriesGroups';
-import { AlertCircle, DownloadCloud, FileText, RotateCcw } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, DownloadCloud, FileText, Pause, Play, RotateCcw } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { FileResult, ProcessingProfile } from '../hooks/useAIProcessor';
+import type { FileResult, ProcessingProfile, QueuePauseReason } from '../hooks/useAIProcessor';
 import {
   DriveDestination,
   DriveFolder,
@@ -55,6 +54,12 @@ interface MultiFileResponseDisplayProps {
   uploadStatuses?: Record<string, UploadStatus>;
   isWaitingForNextBatch?: boolean;
   throttleSecondsRemaining?: number;
+  isProcessing?: boolean;
+  isPaused?: boolean;
+  pauseReason?: QueuePauseReason;
+  estimatedRemainingSeconds?: number;
+  onPause?: () => void;
+  onResume?: () => void;
   // Google Drive integration for inline uploads
   uploadToGoogleDocs?: (
     uploads: DriveUploadRequest[],
@@ -81,6 +86,25 @@ const canStartUpload = (status?: UploadStatus) =>
 const EMPTY_DRIVE_LOCATION: DriveFolder[] = [];
 const EMPTY_DISPLAY_NAMES: Record<string, string> = {};
 
+function formatRemainingTime(seconds: number | undefined, isPaused: boolean) {
+  if (isPaused) return 'Paused';
+  if (seconds === undefined) return 'Calculating…';
+  if (seconds < 60) return 'Less than 1 minute';
+
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `About ${minutes} minutes`;
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `About ${hours}h${remainingMinutes > 0 ? ` ${remainingMinutes}m` : ''}`;
+}
+
+function useStableCallback<T extends (...args: never[]) => unknown>(callback: T): T {
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+  return useCallback(((...args) => callbackRef.current(...args)) as T, []);
+}
+
 export const MultiFileResponseDisplay = ({
   fileResults,
   processingBatchId,
@@ -97,6 +121,12 @@ export const MultiFileResponseDisplay = ({
   uploadStatuses,
   isWaitingForNextBatch = false,
   throttleSecondsRemaining = 0,
+  isProcessing = false,
+  isPaused = false,
+  pauseReason,
+  estimatedRemainingSeconds,
+  onPause,
+  onResume,
   uploadToGoogleDocs,
   isDriveAuthenticated = false,
   isUploadSessionActive = false,
@@ -121,19 +151,23 @@ export const MultiFileResponseDisplay = ({
   const [destinationAssignments, setDestinationAssignments] = useState<
     Record<number, { destination: DriveDestination; location: DriveFolder[] }>
   >({});
-  const [lowConfidenceIndices, setLowConfidenceIndices] = useState<number[]>([]);
+  const lowConfidenceIndices = useMemo(
+    () =>
+      fileResults.flatMap((result, index) => (result.confidence?.level === 'low' ? [index] : [])),
+    [fileResults],
+  );
   const lowConfidenceSet = useMemo(() => new Set(lowConfidenceIndices), [lowConfidenceIndices]);
+  const [sourceFiles] = useState(() => fileResults.map((result) => result.file));
   const uploadKeys = useMemo(
-    () => fileResults.map((result, index) => makeUploadKey(processingBatchId, index, result.file)),
-    [processingBatchId, fileResults],
+    () => sourceFiles.map((file, index) => makeUploadKey(processingBatchId, index, file)),
+    [processingBatchId, sourceFiles],
   );
   const resolvedDisplayNames = useMemo(
     () =>
-      fileResults.map(
-        (result, index) =>
-          displayNames[index] ?? defaultDisplayNames[makeFileKey(result.file)] ?? result.file.name,
+      sourceFiles.map(
+        (file, index) => displayNames[index] ?? defaultDisplayNames[makeFileKey(file)] ?? file.name,
       ),
-    [fileResults, displayNames, defaultDisplayNames],
+    [sourceFiles, displayNames, defaultDisplayNames],
   );
   const initialAssignment = useMemo(() => {
     const assignments = [...selected].map(
@@ -155,46 +189,17 @@ export const MultiFileResponseDisplay = ({
     [selected, resolvedDisplayNames],
   );
 
-  // Compute low-confidence files whenever results change
-  useEffect(() => {
-    let cancelled = false;
-    const compute = async () => {
-      const indices: number[] = [];
-      await Promise.all(
-        fileResults.map(async (r, i) => {
-          if (!r || !r.isCompleted || !!r.error || !r.response || r.processingProfile === 'book') {
-            return;
-          }
-          try {
-            const original = await extractTextFromFile(r.file);
-            if (cancelled) return;
-            const { level } = getConfidenceScore(original, r.response);
-            if (level === 'low') indices.push(i);
-          } catch {
-            // ignore
-          }
-        }),
-      );
-      if (!cancelled) setLowConfidenceIndices(indices);
-    };
-    void compute();
-    return () => {
-      cancelled = true;
-    };
-  }, [fileResults]);
-
   const fileSeriesGroups = useMemo(
     () =>
       groupFilesBySeries(
-        fileResults.map((result, index) => ({
+        sourceFiles.map((file, index) => ({
           index,
-          displayName: resolvedDisplayNames[index] || result.file.name,
+          displayName: resolvedDisplayNames[index] || file.name,
         })),
         (index) => uploadStatuses?.[uploadKeys[index]!] === 'completed',
       ),
-    [fileResults, resolvedDisplayNames, uploadStatuses, uploadKeys],
+    [sourceFiles, resolvedDisplayNames, uploadStatuses, uploadKeys],
   );
-
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
   );
@@ -445,6 +450,111 @@ export const MultiFileResponseDisplay = ({
     }
   };
 
+  const handleCardSelection = useCallback((index: number, checked: boolean) => {
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (checked) next.add(index);
+      else next.delete(index);
+      return next;
+    });
+  }, []);
+  const handleCardName = useCallback((index: number, name: string) => {
+    setDisplayNames((previous) => ({ ...previous, [index]: name }));
+  }, []);
+  const handleCardRetry = useStableCallback((index: number) => {
+    if (!isDriveLifecycleBlockingProcessing) onRetryFile?.(index);
+  });
+  const handleCardAbort = useStableCallback((index: number) => onAbortFile?.(index));
+  const handleCardUpload = useStableCallback((index: number) => handleUploadSingle(index));
+  const handleCardDiscardUpload = useStableCallback((index: number) =>
+    handleDiscardUnknownUpload(index),
+  );
+  const handleViewResponse = useCallback((index: number) => {
+    setViewIndex(index);
+    setIsViewOpen(true);
+  }, []);
+  const isResultUploaded = useCallback(
+    (index: number) => uploadStatuses?.[uploadKeys[index]!] === 'completed',
+    [uploadKeys, uploadStatuses],
+  );
+  const handleToggleGroup = useCallback((indices: number[]) => {
+    setSelected((previous) => {
+      if (!indices.every((index) => previous.has(index))) return new Set(indices);
+
+      const next = new Set(previous);
+      for (const index of indices) next.delete(index);
+      return next;
+    });
+  }, []);
+  const renderFileCard = useCallback(
+    (orderedIndex: number) => {
+      const result = fileResults[orderedIndex]!;
+      const resultProfile = result.processingProfile ?? processingProfile;
+      const uploadStatus = uploadStatuses?.[uploadKeys[orderedIndex]!];
+      return (
+        <UnifiedFileCard
+          key={`${result.file.name}-${orderedIndex}`}
+          result={result}
+          index={orderedIndex}
+          selected={selected.has(orderedIndex)}
+          onSelectChange={handleCardSelection}
+          displayName={resolvedDisplayNames[orderedIndex] || result.file.name}
+          onNameChange={handleCardName}
+          showMarkdown={showMarkdown}
+          onToggleMarkdown={setShowMarkdown}
+          onRetry={
+            onRetryFile && !isProcessing && !isDriveLifecycleBlockingProcessing
+              ? handleCardRetry
+              : undefined
+          }
+          onCheckApiKey={onCheckApiKey}
+          onChooseModel={onChooseModel}
+          onReviewInstructions={onReviewInstructions}
+          onAbort={onAbortFile ? handleCardAbort : undefined}
+          uploadStatus={uploadStatus}
+          destinationFolderName={
+            destinationAssignments[orderedIndex]?.destination.name ?? MY_DRIVE_ROOT.name
+          }
+          onUpload={uploadToGoogleDocs ? handleCardUpload : undefined}
+          onDiscardUpload={
+            uploadStatus === 'unknown' && discardUnknownUpload ? handleCardDiscardUpload : undefined
+          }
+          canUpload={isDriveAuthenticated}
+          uploadDisabled={isUploadSessionActive}
+          onViewResponse={handleViewResponse}
+          processingProfile={resultProfile}
+        />
+      );
+    },
+    [
+      destinationAssignments,
+      discardUnknownUpload,
+      fileResults,
+      handleCardAbort,
+      handleCardDiscardUpload,
+      handleCardName,
+      handleCardRetry,
+      handleCardSelection,
+      handleCardUpload,
+      handleViewResponse,
+      isDriveAuthenticated,
+      isDriveLifecycleBlockingProcessing,
+      isUploadSessionActive,
+      onAbortFile,
+      onCheckApiKey,
+      onChooseModel,
+      onRetryFile,
+      onReviewInstructions,
+      processingProfile,
+      resolvedDisplayNames,
+      selected,
+      showMarkdown,
+      uploadKeys,
+      uploadStatuses,
+      uploadToGoogleDocs,
+    ],
+  );
+
   if (fileResults.length === 0) {
     return (
       <Card className="border-border/70">
@@ -555,16 +665,18 @@ export const MultiFileResponseDisplay = ({
                 {pendingCount > 0 && <Badge variant="outline">{pendingCount} queued</Badge>}
               </div>
             </div>
-            {(isAnyProcessing || hasPending || isWaitingForNextBatch) && (
+            {(isProcessing || isAnyProcessing || hasPending || isWaitingForNextBatch) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Progress</span>
                   <span>{Math.round(progressPercentage)}%</span>
                 </div>
                 <Progress value={progressPercentage} className="h-2" />
-                {(hasPending || isWaitingForNextBatch) && (
+                {(hasPending || isWaitingForNextBatch || isProcessing) && (
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>Pending files: {pendingCount}</span>
+                    <span>
+                      Approx. remaining: {formatRemainingTime(estimatedRemainingSeconds, isPaused)}
+                    </span>
                     {isWaitingForNextBatch && (
                       <span>
                         {Math.ceil(throttleSecondsRemaining || 0) > 0
@@ -574,20 +686,57 @@ export const MultiFileResponseDisplay = ({
                     )}
                   </div>
                 )}
-                {(isAnyProcessing || hasPending) && onAbortAll && (
-                  <div className="flex justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
-                      onClick={() => onAbortAll?.()}
-                    >
-                      Abort All
-                    </Button>
+                {(isProcessing || isAnyProcessing || hasPending) && (
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {!isPaused && onPause ? (
+                      <Button variant="outline" size="sm" onClick={onPause}>
+                        <Pause />
+                        Pause
+                      </Button>
+                    ) : null}
+                    {isPaused && onResume ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={onResume}
+                        disabled={processingCount > 0}
+                      >
+                        <Play />
+                        {processingCount > 0 ? 'Finishing active requests…' : 'Resume'}
+                      </Button>
+                    ) : null}
+                    {onAbortAll ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+                        onClick={() => onAbortAll?.()}
+                      >
+                        Abort All
+                      </Button>
+                    ) : null}
                   </div>
                 )}
               </div>
             )}
+            {isPaused ? (
+              <Alert variant={pauseReason?.kind === 'automatic' ? 'destructive' : 'default'}>
+                <Pause className="h-4 w-4" />
+                <AlertDescription>
+                  {pauseReason?.kind === 'automatic' ? (
+                    <>
+                      <span className="font-medium">
+                        Queue paused: {pauseReason.failure.title}.
+                      </span>{' '}
+                      {pauseReason.failure.message} Correct the provider access or choose another
+                      model, then resume. Provider-wide failed files will retry first.
+                    </>
+                  ) : (
+                    'Queue paused. Waiting files will not start until you resume.'
+                  )}
+                </AlertDescription>
+              </Alert>
+            ) : null}
             {errorCount > 0 && (
               <Alert variant="destructive" className="items-center">
                 <AlertCircle className="h-4 w-4" />
@@ -604,7 +753,7 @@ export const MultiFileResponseDisplay = ({
                           variant="outline"
                           size="sm"
                           className="ml-2 h-7 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
-                          disabled={isDriveLifecycleBlockingProcessing}
+                          disabled={isProcessing || isDriveLifecycleBlockingProcessing}
                         >
                           <RotateCcw className="mr-1 h-3 w-3" />
                           <span className="hidden sm:inline">Retry All</span>
@@ -636,7 +785,7 @@ export const MultiFileResponseDisplay = ({
                           variant="outline"
                           size="sm"
                           className="ml-2"
-                          disabled={isDriveLifecycleBlockingProcessing}
+                          disabled={isProcessing || isDriveLifecycleBlockingProcessing}
                         >
                           <RotateCcw className="mr-1 h-3 w-3" />
                           <span className="hidden sm:inline">Retry Low Confidence</span>
@@ -665,74 +814,14 @@ export const MultiFileResponseDisplay = ({
             </div>
           ) : (
             <>
-              <div className="flex flex-col gap-5">
-                {fileSeriesGroups.map((group) => (
-                  <FileSeriesGroup
-                    key={group.id}
-                    title={group.title}
-                    fileCount={group.indices.length}
-                    isUngrouped={group.isUngrouped}
-                    onSelect={() => setSelected(new Set(group.indices))}
-                  >
-                    {group.indices.map((orderedIndex) => {
-                      const result = fileResults[orderedIndex]!;
-                      const resultProfile = result.processingProfile ?? processingProfile;
-                      const uploadStatus = uploadStatuses?.[uploadKeys[orderedIndex]!];
-                      return (
-                        <UnifiedFileCard
-                          key={`${result.file.name}-${orderedIndex}`}
-                          result={result}
-                          index={orderedIndex}
-                          selected={selected.has(orderedIndex)}
-                          onSelectChange={(checked) => {
-                            setSelected((prev) => {
-                              const next = new Set(prev);
-                              if (checked) next.add(orderedIndex);
-                              else next.delete(orderedIndex);
-                              return next;
-                            });
-                          }}
-                          displayName={resolvedDisplayNames[orderedIndex] || result.file.name}
-                          onNameChange={(newName) =>
-                            setDisplayNames((prev) => ({ ...prev, [orderedIndex]: newName }))
-                          }
-                          showMarkdown={showMarkdown}
-                          onToggleMarkdown={setShowMarkdown}
-                          onRetry={
-                            onRetryFile && !isDriveLifecycleBlockingProcessing
-                              ? () => onRetryFile(orderedIndex)
-                              : undefined
-                          }
-                          onCheckApiKey={onCheckApiKey}
-                          onChooseModel={onChooseModel}
-                          onReviewInstructions={onReviewInstructions}
-                          onAbort={onAbortFile ? () => onAbortFile(orderedIndex) : undefined}
-                          uploadStatus={uploadStatus}
-                          destinationFolderName={
-                            destinationAssignments[orderedIndex]?.destination.name ??
-                            MY_DRIVE_ROOT.name
-                          }
-                          onUpload={
-                            uploadToGoogleDocs ? () => handleUploadSingle(orderedIndex) : undefined
-                          }
-                          onDiscardUpload={
-                            uploadStatus === 'unknown' && discardUnknownUpload
-                              ? () => handleDiscardUnknownUpload(orderedIndex)
-                              : undefined
-                          }
-                          canUpload={isDriveAuthenticated}
-                          uploadDisabled={isUploadSessionActive}
-                          onViewResponse={() => {
-                            setViewIndex(orderedIndex);
-                            setIsViewOpen(true);
-                          }}
-                          processingProfile={resultProfile}
-                        />
-                      );
-                    })}
-                  </FileSeriesGroup>
-                ))}
-              </div>
+              <FileSeriesResults
+                groups={fileSeriesGroups}
+                fileResults={fileResults}
+                selected={selected}
+                isUploaded={isResultUploaded}
+                onToggleGroup={handleToggleGroup}
+                renderFile={renderFileCard}
+              />
 
               <ViewResponseModal
                 open={isViewOpen}
@@ -747,7 +836,10 @@ export const MultiFileResponseDisplay = ({
                     : undefined
                 }
                 onRetry={
-                  viewIndex != null && onRetryFile && !isDriveLifecycleBlockingProcessing
+                  viewIndex != null &&
+                  onRetryFile &&
+                  !isProcessing &&
+                  !isDriveLifecycleBlockingProcessing
                     ? () => onRetryFile(viewIndex)
                     : undefined
                 }
@@ -782,7 +874,9 @@ export const MultiFileResponseDisplay = ({
                 uploadToGoogleDocs && isDriveAuthenticated ? handleUploadSelected : undefined
               }
               onRetrySelected={
-                onRetryFile && !isDriveLifecycleBlockingProcessing ? handleRetrySelected : undefined
+                onRetryFile && !isProcessing && !isDriveLifecycleBlockingProcessing
+                  ? handleRetrySelected
+                  : undefined
               }
               onAbortSelected={onAbortSelected ? () => onAbortSelected([...selected]) : undefined}
               onDownloadSelected={handleDownloadSelected}

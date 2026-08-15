@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ProcessingFailurePanel } from '@/components/ProcessingFailurePanel';
 import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
 import type { UploadStatus } from '@/hooks/useGoogleDrive';
-import { confidenceColorClass, getConfidenceScore } from '@/utils/confidenceScore';
+import { confidenceColorClass } from '@/utils/confidenceScore';
 import { copyToClipboard, downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
 import {
   AlertCircle,
@@ -38,19 +38,19 @@ export interface UnifiedFileCardProps {
   result: FileResult;
   index: number;
   selected: boolean;
-  onSelectChange: (selected: boolean) => void;
+  onSelectChange: (index: number, selected: boolean) => void;
   displayName: string;
-  onNameChange: (newName: string) => void;
+  onNameChange: (index: number, newName: string) => void;
   showMarkdown: boolean;
   onToggleMarkdown: (show: boolean) => void;
-  onRetry?: () => void;
+  onRetry?: (index: number) => void;
   onCheckApiKey?: () => void;
   onChooseModel?: () => void;
   onReviewInstructions?: () => void;
-  onAbort?: () => void;
-  onUpload?: () => void;
-  onDiscardUpload?: () => void;
-  onViewResponse?: () => void; // optional external handler; defaults to local expand
+  onAbort?: (index: number) => void;
+  onUpload?: (index: number) => void;
+  onDiscardUpload?: (index: number) => void;
+  onViewResponse?: (index: number) => void; // optional external handler; defaults to local expand
   uploadStatus?: UploadStatus;
   destinationFolderName?: string | null;
   canUpload?: boolean;
@@ -70,6 +70,7 @@ const UPLOAD_LABELS: Record<UploadStatus, string> = {
 export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   const {
     result,
+    index,
     selected,
     onSelectChange,
     displayName,
@@ -95,10 +96,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [editValue, setEditValue] = useState<string>(displayName);
   const [copyFeedback, setCopyFeedback] = useState<string>('');
-  const [confidence, setConfidence] = useState<{
-    score: number;
-    level: 'high' | 'medium' | 'low';
-  } | null>(null);
+  const confidence = processingProfile === 'book' ? null : (result.confidence ?? null);
   const [lengthRatio, setLengthRatio] = useState<number | null>(null);
   const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
   const [lastResponseLength, setLastResponseLength] = useState<number>(0);
@@ -108,34 +106,6 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   useEffect(() => {
     setEditValue(displayName);
   }, [displayName]);
-
-  // Compute confidence score once response is completed
-  useEffect(() => {
-    let cancelled = false;
-    const compute = async () => {
-      if (processingProfile === 'book') {
-        setConfidence(null);
-        return;
-      }
-      if (!result.isCompleted || !result.response) {
-        setConfidence(null);
-        return;
-      }
-      try {
-        const original = await extractTextFromFile(result.file);
-        if (cancelled) return;
-        const { score, level } = getConfidenceScore(original, result.response);
-        setConfidence({ score, level });
-      } catch {
-        // Ignore errors silently; keep confidence null
-        setConfidence(null);
-      }
-    };
-    void compute();
-    return () => {
-      cancelled = true;
-    };
-  }, [result.isCompleted, result.response, result.file, processingProfile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,7 +164,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   const handleToggleExpand = () => {
     // If a modal view handler is provided, prefer opening the modal and skip inline expansion
     if (onViewResponse) {
-      onViewResponse();
+      onViewResponse(index);
       return;
     }
     setIsExpanded((v) => !v);
@@ -244,7 +214,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
               type="checkbox"
               className="mt-1.5 h-4 w-4 flex-shrink-0 accent-primary"
               checked={selected}
-              onChange={(e) => onSelectChange(e.target.checked)}
+              onChange={(e) => onSelectChange(index, e.target.checked)}
               aria-label="Select file"
             />
             <div className="mt-1 flex-shrink-0">{getStatusIcon()}</div>
@@ -256,7 +226,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                     onChange={(e) => setEditValue(e.target.value)}
                     onBlur={() => {
                       setIsEditingName(false);
-                      if (editValue.trim()) onNameChange(editValue.trim());
+                      if (editValue.trim()) onNameChange(index, editValue.trim());
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -300,7 +270,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                         onClick={() => {
                           setIsEditingName(false);
                           setEditValue(result.file.name);
-                          onNameChange(result.file.name);
+                          onNameChange(index, result.file.name);
                         }}
                         aria-label="Reset to original filename"
                       >
@@ -425,7 +395,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            onClick={onRetry}
+                            onClick={() => onRetry(index)}
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 hover:bg-muted/50"
@@ -441,7 +411,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            onClick={onAbort}
+                            onClick={() => onAbort(index)}
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 text-destructive hover:bg-muted/50"
@@ -465,7 +435,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            onClick={onUpload}
+                            onClick={() => onUpload(index)}
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 hover:bg-muted/50"
@@ -488,7 +458,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            onClick={onDiscardUpload}
+                            onClick={() => onDiscardUpload(index)}
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -532,7 +502,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
             nextRetryAt={result.nextRetryAt}
             isRetrying={!!result.retryFailure}
             isProcessing={result.isProcessing}
-            onRetry={onRetry}
+            onRetry={onRetry ? () => onRetry(index) : undefined}
             onCheckApiKey={onCheckApiKey}
             onChooseModel={onChooseModel}
             onReviewInstructions={onReviewInstructions}

@@ -67,6 +67,12 @@ export function AIFileProcessor() {
     fileResults,
     processingBatchId,
     isProcessing,
+    isPaused,
+    pauseReason,
+    queueProgress,
+    estimatedRemainingSeconds,
+    pauseQueue,
+    resumeQueue,
     abortAll,
     abortFile,
     abortSelected,
@@ -108,6 +114,7 @@ export function AIFileProcessor() {
   };
 
   const handleFilesChange = (nextFiles: File[]): number => {
+    if (isProcessing) return 0;
     const currentKeys = new Set(files.map(makeFileKey));
     const nextDisplayNames = { ...defaultDisplayNames };
     const cleanedEntries: Array<{ key: string; cleaned: string }> = [];
@@ -162,7 +169,18 @@ export function AIFileProcessor() {
   };
 
   const handleClearFiles = (): void => {
+    if (isProcessing) return;
     setFiles([]);
+  };
+
+  const handleResumeQueue = (): void => {
+    if (!hasProviderAccess) {
+      toast.error('API Key Required', {
+        description: 'Correct the API key before resuming this queue.',
+      });
+      return;
+    }
+    resumeQueue(selectedProvider, selectedModel, apiKey);
   };
 
   const handleRetryFile = async (index: number) => {
@@ -261,10 +279,10 @@ export function AIFileProcessor() {
 
   const canProcess =
     files.length > 0 && hasProviderAccess && !googleDrive.isUploadBlockingProcessing;
-  const completedCount = fileResults.filter((result) => result.isCompleted && !result.error).length;
-  const processingCount = fileResults.filter((result) => result.isProcessing).length;
-  const errorCount = fileResults.filter((result) => result.error).length;
-  const cancelledCount = fileResults.filter((result) => result.queueStatus === 'cancelled').length;
+  const completedCount = queueProgress.completed;
+  const processingCount = queueProgress.active;
+  const errorCount = queueProgress.failed;
+  const cancelledCount = queueProgress.cancelled;
   const hasActiveResults = fileResults.length > 0;
 
   useEffect(() => {
@@ -288,6 +306,16 @@ export function AIFileProcessor() {
       console.error('Error saving processing profile:', error);
     }
   }, [processingProfile, isProfileLoaded]);
+
+  useEffect(() => {
+    if (!isProcessing) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [isProcessing]);
 
   return (
     <div className="min-h-screen">
@@ -342,8 +370,8 @@ export function AIFileProcessor() {
                   AI File Processor
                 </h1>
                 <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  Upload up to 20 `.txt`, `.md`, or `.docx` files. Process in queued batches with
-                  live progress, retries, and optional Google Docs export.
+                  Process `.txt`, `.md`, or `.docx` files in a responsive queue with live progress,
+                  retries, and optional Google Docs export.
                 </p>
               </div>
               <div
@@ -367,7 +395,10 @@ export function AIFileProcessor() {
                 {cancelledCount > 0 ? (
                   <Badge variant="outline">{cancelledCount} cancelled</Badge>
                 ) : null}
-                <Badge variant="outline">{files.length}/20 queued</Badge>
+                <Badge variant="outline">
+                  {hasActiveResults ? `${queueProgress.waiting} waiting` : `${files.length} ready`}
+                </Badge>
+                {isPaused ? <Badge variant="secondary">Paused</Badge> : null}
               </div>
             </div>
             <div
@@ -384,6 +415,7 @@ export function AIFileProcessor() {
                 onApiKeyChange={setApiKey}
                 apiKey={apiKey}
                 compact={hasActiveResults}
+                disabled={isProcessing && !isPaused}
               />
               <div className="flex flex-wrap items-center gap-2">
                 <GoogleDriveAuth {...googleDrive} />
@@ -403,6 +435,7 @@ export function AIFileProcessor() {
                 displayNames={defaultDisplayNames}
                 onFilesChange={handleFilesChange}
                 onClearFiles={handleClearFiles}
+                disabled={isProcessing}
               />
               <InstructionsPanel
                 onProcess={handleProcess}
@@ -442,6 +475,12 @@ export function AIFileProcessor() {
                 uploadStatuses={googleDrive.uploadStatuses}
                 isWaitingForNextBatch={isWaitingForNextBatch}
                 throttleSecondsRemaining={throttleSecondsRemaining}
+                isProcessing={isProcessing}
+                isPaused={isPaused}
+                pauseReason={pauseReason}
+                estimatedRemainingSeconds={estimatedRemainingSeconds}
+                onPause={pauseQueue}
+                onResume={handleResumeQueue}
                 uploadToGoogleDocs={googleDrive.uploadToGoogleDocs}
                 isDriveAuthenticated={googleDrive.isAuthenticated}
                 isUploadSessionActive={googleDrive.isUploadSessionActive}

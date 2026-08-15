@@ -19,14 +19,16 @@ import { FlaskConical } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-const BATCH_SIZES = [10, 50, 100] as const;
+const BATCH_SIZES = [10, 50, 100, 341, 1000] as const;
 
 export function TestFileGenerator({
   currentFileCount,
   onFilesGenerated,
+  disabled = false,
 }: {
   currentFileCount: number;
   onFilesGenerated: (files: File[]) => number;
+  disabled?: boolean;
 }) {
   const [pendingCount, setPendingCount] = useState<(typeof BATCH_SIZES)[number]>();
 
@@ -48,7 +50,7 @@ export function TestFileGenerator({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" disabled={disabled}>
             <FlaskConical />
             Generate test files
           </Button>
@@ -76,7 +78,10 @@ export function TestFileGenerator({
             <Button variant="outline" onClick={() => setPendingCount(undefined)}>
               Keep current files
             </Button>
-            <Button onClick={() => pendingCount && void generateFiles(pendingCount)}>
+            <Button
+              onClick={() => pendingCount && void generateFiles(pendingCount)}
+              disabled={disabled}
+            >
               Replace with {pendingCount} test files
             </Button>
           </DialogFooter>

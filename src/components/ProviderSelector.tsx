@@ -23,6 +23,7 @@ interface ProviderSelectorProps {
   onApiKeyChange: (apiKey: string) => void;
   apiKey: string;
   compact?: boolean;
+  disabled?: boolean;
 }
 
 export const ProviderSelector = ({
@@ -33,6 +34,7 @@ export const ProviderSelector = ({
   onApiKeyChange,
   apiKey,
   compact = false,
+  disabled = false,
 }: ProviderSelectorProps) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [tempApiKey, setTempApiKey] = useState(apiKey);
@@ -144,7 +146,7 @@ export const ProviderSelector = ({
               Provider
             </span>
           </div>
-          <Select value={selectedProvider} onValueChange={handleProviderChange}>
+          <Select value={selectedProvider} onValueChange={handleProviderChange} disabled={disabled}>
             <SelectTrigger className="w-full min-w-0" size="sm">
               <SelectValue placeholder="Select provider">{provider?.name}</SelectValue>
             </SelectTrigger>
@@ -175,7 +177,7 @@ export const ProviderSelector = ({
           <Select
             value={selectedModel}
             onValueChange={onModelChange}
-            disabled={isLoadingModels || displayModels.length === 0}
+            disabled={disabled || isLoadingModels || displayModels.length === 0}
           >
             <SelectTrigger className="w-full min-w-0" size="sm" data-recovery-target="model">
               {isLoadingModels ? (
@@ -229,6 +231,7 @@ export const ProviderSelector = ({
                     placeholder={provider?.apiKeyPlaceholder || 'Enter API key'}
                     className="h-8 pr-10 text-sm"
                     data-recovery-target="api-key"
+                    disabled={disabled}
                   />
                   <Button
                     type="button"
@@ -236,6 +239,7 @@ export const ProviderSelector = ({
                     size="sm"
                     className="absolute top-0 right-0 h-8 w-8 p-0"
                     onClick={() => setShowApiKey(!showApiKey)}
+                    disabled={disabled}
                   >
                     {showApiKey ? (
                       <EyeOff className="h-3.5 w-3.5" />
@@ -249,7 +253,7 @@ export const ProviderSelector = ({
                   variant="default"
                   className="h-8 px-3"
                   onClick={handleSaveApiKey}
-                  disabled={!tempApiKey.trim()}
+                  disabled={disabled || !tempApiKey.trim()}
                 >
                   <Check className="h-3.5 w-3.5" />
                 </Button>
@@ -270,6 +274,7 @@ export const ProviderSelector = ({
                   className="h-8 px-2"
                   onClick={() => setIsEditing(true)}
                   data-recovery-target="api-key"
+                  disabled={disabled}
                 >
                   Edit
                 </Button>
@@ -278,6 +283,7 @@ export const ProviderSelector = ({
                   variant="ghost"
                   className="h-8 w-8 p-0 text-destructive"
                   onClick={handleClearApiKey}
+                  disabled={disabled}
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>

@@ -3,14 +3,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { TestFileGenerator } from '@/components/TestFileGenerator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { makeFileKey } from '@/services/responseStore';
 import { isSupportedInputFile } from '@/utils/fileUtils';
-import { AlertTriangle, CheckCircle, Upload, X } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, Upload, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface FileUploadProps {
@@ -18,19 +17,40 @@ interface FileUploadProps {
   displayNames: Record<string, string>;
   onFilesChange: (files: File[]) => number;
   onClearFiles?: () => void;
+  disabled?: boolean;
 }
+
+const FILE_PREVIEW_PAGE_SIZE = 50;
+const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_DOCX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_BATCH_FILES = 1000;
+const MAX_BATCH_BYTES = 100 * 1024 * 1024;
+
+const getFileSizeLimit = (file: File) =>
+  file.name.toLowerCase().endsWith('.docx') ? MAX_DOCX_FILE_BYTES : MAX_TEXT_FILE_BYTES;
 
 export const FileUpload = ({
   files,
   displayNames,
   onFilesChange,
   onClearFiles,
+  disabled = false,
 }: FileUploadProps) => {
   const [pastedName, setPastedName] = useState<string>('');
   const [pastedText, setPastedText] = useState<string>('');
+  const [previewPage, setPreviewPage] = useState(0);
+  const previewPageCount = Math.max(1, Math.ceil(files.length / FILE_PREVIEW_PAGE_SIZE));
+  const safePreviewPage = Math.min(previewPage, previewPageCount - 1);
+  const previewStart = safePreviewPage * FILE_PREVIEW_PAGE_SIZE;
+  const previewFiles = files.slice(previewStart, previewStart + FILE_PREVIEW_PAGE_SIZE);
+
+  useEffect(() => {
+    if (previewPage >= previewPageCount) setPreviewPage(previewPageCount - 1);
+  }, [previewPage, previewPageCount]);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
+    if (disabled) return;
     e.currentTarget.style.borderColor = 'var(--primary)';
     e.currentTarget.style.backgroundColor = 'var(--accent)';
   };
@@ -46,13 +66,13 @@ export const FileUpload = ({
     e.currentTarget.style.borderColor = '';
     e.currentTarget.style.backgroundColor = '';
 
+    if (disabled) return;
     const droppedFiles = Array.from(e.dataTransfer.files);
     addFiles(droppedFiles);
   };
 
-  const MAX_FILES = 20; // Limit to 20 files due to daily API quota
-
   const addFiles = (newFiles: File[]): boolean => {
+    if (disabled) return false;
     const supportedFiles = newFiles.filter((file) => isSupportedInputFile(file));
 
     if (supportedFiles.length !== newFiles.length) {
@@ -62,9 +82,20 @@ export const FileUpload = ({
       return false;
     }
 
+    const oversizedFiles = supportedFiles.filter((file) => file.size > getFileSizeLimit(file));
+    if (oversizedFiles.length > 0) {
+      toast.error(
+        `${oversizedFiles.length} file${oversizedFiles.length === 1 ? '' : 's'} too large`,
+        {
+          description: 'Text and Markdown files can be up to 2 MB. DOCX files can be up to 10 MB.',
+        },
+      );
+    }
+    const allowedFiles = supportedFiles.filter((file) => file.size <= getFileSizeLimit(file));
+
     // Check for duplicates (same name and size)
     const duplicates: string[] = [];
-    const uniqueFiles = supportedFiles.filter((newFile) => {
+    const uniqueFiles = allowedFiles.filter((newFile) => {
       const isDuplicate = files.some(
         (existingFile) => existingFile.name === newFile.name && existingFile.size === newFile.size,
       );
@@ -76,7 +107,10 @@ export const FileUpload = ({
 
     if (duplicates.length > 0) {
       toast.warning('Duplicate files ignored', {
-        description: `The following files are already uploaded: ${duplicates.join(', ')}`,
+        description:
+          duplicates.length <= 3
+            ? `Already selected: ${duplicates.join(', ')}`
+            : `${duplicates.length} files are already selected.`,
       });
     }
 
@@ -84,26 +118,24 @@ export const FileUpload = ({
       return false;
     }
 
-    // Check if adding these files would exceed the maximum limit
-    const totalFiles = files.length + uniqueFiles.length;
-    if (totalFiles > MAX_FILES) {
-      const allowedCount = MAX_FILES - files.length;
-      if (allowedCount <= 0) {
-        toast.error('Maximum file limit reached', {
-          description: `You can only upload up to ${MAX_FILES} files at once due to daily API quota limits.`,
-        });
-        return false;
-      }
-      // Only add files up to the limit
-      const filesToAdd = uniqueFiles.slice(0, allowedCount);
-      onFilesChange([...files, ...filesToAdd]);
-      toast.warning(`Only ${allowedCount} file${allowedCount > 1 ? 's' : ''} added`, {
-        description: `Maximum limit of ${MAX_FILES} files reached. ${uniqueFiles.length - allowedCount} file(s) were not added.`,
+    const nextFiles = [...files, ...uniqueFiles];
+    if (nextFiles.length > MAX_BATCH_FILES) {
+      toast.error('Browser batch is too large', {
+        description: `Use up to ${MAX_BATCH_FILES} files in one browser batch. Process the remaining files in a later batch.`,
       });
-      return filesToAdd.length > 0;
+      return false;
     }
 
-    const cleanedCount = onFilesChange([...files, ...uniqueFiles]);
+    const nextBatchBytes = nextFiles.reduce((total, file) => total + file.size, 0);
+    if (nextBatchBytes > MAX_BATCH_BYTES) {
+      toast.error('Browser batch is too large', {
+        description:
+          'Use up to 100 MB of files in one browser batch. Process the remaining files in a later batch.',
+      });
+      return false;
+    }
+
+    const cleanedCount = onFilesChange(nextFiles);
     if (cleanedCount === 0) {
       toast.success(
         `${uniqueFiles.length} file${uniqueFiles.length > 1 ? 's' : ''} added successfully`,
@@ -117,6 +149,7 @@ export const FileUpload = ({
     if (selectedFiles) {
       addFiles(Array.from(selectedFiles));
     }
+    e.target.value = '';
   };
 
   const removeFile = (index: number): void => {
@@ -152,7 +185,11 @@ export const FileUpload = ({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>Upload or Paste Files</CardTitle>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <TestFileGenerator currentFileCount={files.length} onFilesGenerated={onFilesChange} />
+            <TestFileGenerator
+              currentFileCount={files.length}
+              onFilesGenerated={onFilesChange}
+              disabled={disabled}
+            />
             <Badge variant={files.length > 0 ? 'secondary' : 'outline'}>
               {files.length} file{files.length === 1 ? '' : 's'} selected
             </Badge>
@@ -162,8 +199,8 @@ export const FileUpload = ({
           <Alert variant="default" className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Large batch detected. Files are rate-limited to 5 per minute (Flash) or 10 per minute
-              (Flash Lite).
+              Large batch detected. Requests follow the selected model rate limit, with no more than
+              three active requests at one time.
             </AlertDescription>
           </Alert>
         )}
@@ -178,6 +215,7 @@ export const FileUpload = ({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          aria-disabled={disabled}
         >
           {files.length > 0 ? (
             <div className="space-y-3 sm:space-y-4">
@@ -186,17 +224,14 @@ export const FileUpload = ({
                 {files.length} file{files.length > 1 ? 's' : ''} selected
               </p>
 
-              {/* Batch upload progress (first batch up to 10 files) */}
-              <div className="mx-auto max-w-md space-y-1">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Next batch</span>
-                  <span>{Math.min(files.length, 10)}/10</span>
-                </div>
-                <Progress value={(Math.min(files.length, 10) / 10) * 100} className="h-2" />
-              </div>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {(files.reduce((total, file) => total + file.size, 0) / 1024 / 1024).toFixed(1)} MB
+                total
+              </p>
 
               <div className="max-h-24 w-full max-w-full space-y-2 overflow-y-auto sm:max-h-32">
-                {files.map((file, index) => {
+                {previewFiles.map((file, index) => {
+                  const fileIndex = previewStart + index;
                   const displayName = displayNames[makeFileKey(file)] ?? file.name;
                   return (
                     <div
@@ -217,10 +252,11 @@ export const FileUpload = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            onClick={() => removeFile(index)}
+                            onClick={() => removeFile(fileIndex)}
                             variant="ghost"
                             size="sm"
                             className="ml-1 h-6 w-6 flex-shrink-0 p-0 sm:ml-2"
+                            disabled={disabled}
                           >
                             <X className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
@@ -231,6 +267,35 @@ export const FileUpload = ({
                   );
                 })}
               </div>
+              {previewPageCount > 1 ? (
+                <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewPage((page) => Math.max(0, page - 1))}
+                    disabled={safePreviewPage === 0}
+                  >
+                    <ChevronLeft />
+                    Previous
+                  </Button>
+                  <span className="min-w-24 tabular-nums">
+                    {previewStart + 1}–
+                    {Math.min(previewStart + FILE_PREVIEW_PAGE_SIZE, files.length)} of{' '}
+                    {files.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPreviewPage((page) => Math.min(previewPageCount - 1, page + 1))
+                    }
+                    disabled={safePreviewPage >= previewPageCount - 1}
+                  >
+                    Next
+                    <ChevronRight />
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="space-y-2">
@@ -247,6 +312,7 @@ export const FileUpload = ({
             onChange={handleFileSelect}
             accept=".txt,.md,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             multiple
+            disabled={disabled}
             className="hidden"
             id="file-input"
           />
@@ -257,6 +323,7 @@ export const FileUpload = ({
               className="text-sm sm:text-base"
               variant="default"
               size="sm"
+              disabled={disabled}
             >
               {files.length > 0 ? 'Add More Files' : 'Browse Files'}
             </Button>
@@ -267,6 +334,7 @@ export const FileUpload = ({
                 variant="outline"
                 size="sm"
                 className="text-sm sm:text-base"
+                disabled={disabled}
               >
                 Clear Files
               </Button>
@@ -280,14 +348,21 @@ export const FileUpload = ({
               onChange={(e) => setPastedName(e.target.value)}
               placeholder="Optional filename (without extension)"
               className="text-sm"
+              disabled={disabled}
             />
             <Textarea
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
               placeholder="Paste text content here..."
               className="h-32 max-h-32 min-h-32 resize-none overflow-y-auto text-sm sm:h-40 sm:max-h-40 sm:min-h-40"
+              disabled={disabled}
             />
-            <Button onClick={handleAddPastedText} size="sm" className="w-full sm:w-auto">
+            <Button
+              onClick={handleAddPastedText}
+              size="sm"
+              className="w-full sm:w-auto"
+              disabled={disabled}
+            >
               Add Pasted Text
             </Button>
           </div>
