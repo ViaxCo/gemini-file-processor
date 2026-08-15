@@ -134,7 +134,7 @@ export function ProcessingFailurePanel({
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 border-destructive/40 px-2 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            className="h-7 border-destructive/40 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-foreground dark:hover:bg-destructive/20 dark:hover:text-foreground"
             onClick={recoveryHandler}
           >
             <RecoveryIcon className="h-3.5 w-3.5" />

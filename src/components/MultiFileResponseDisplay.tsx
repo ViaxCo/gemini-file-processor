@@ -831,7 +831,7 @@ export const MultiFileResponseDisplay = ({
                           onClick={onRetryAllFailed}
                           variant="outline"
                           size="sm"
-                          className="ml-2 h-7 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+                          className="ml-2 h-7 border-destructive text-destructive hover:bg-destructive/10 hover:text-foreground dark:hover:bg-destructive/20 dark:hover:text-foreground"
                           disabled={isProcessing || isDriveLifecycleBlockingProcessing}
                         >
                           <RotateCcw className="mr-1 h-3 w-3" />
