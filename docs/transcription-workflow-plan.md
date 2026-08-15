@@ -158,6 +158,7 @@ Browser measurements used realistic fake text files of approximately 65 KB each.
 - [x] The previous single Gemini key migrates into the project list.
 - [x] Saved projects, local usage counts, cooldowns, and daily-limit states survive reloads in this browser.
 - [x] The project manager states that browser storage is not encrypted and that the app cannot detect two keys from the same Google project.
+- [x] Long project lists scroll while the project manager header and footer stay visible.
 - [x] Requests use the project that is available soonest, with round-robin routing when projects are equally available.
 - [x] Gemini processing keeps the browser-wide limit of three active requests.
 - [x] Local RPM scheduling is tracked separately for each project and model.

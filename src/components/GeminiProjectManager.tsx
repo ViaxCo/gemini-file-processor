@@ -199,7 +199,7 @@ export function GeminiProjectManager({
           <span className="shrink-0 text-xs text-muted-foreground">{availableCount} available</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[min(85dvh,720px)] overflow-hidden sm:max-w-2xl">
+      <DialogContent className="max-h-[min(85dvh,720px)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Gemini projects</DialogTitle>
           <DialogDescription>
@@ -207,7 +207,7 @@ export function GeminiProjectManager({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
+        <div className="min-h-0 space-y-3 overflow-y-auto overscroll-contain pr-1">
           {rows.length === 0 ? (
             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
               Add a Gemini project before processing files.
