@@ -236,7 +236,7 @@ const describeFailure = (
         title: 'Content blocked',
         message: 'The provider blocked this request or its output.',
         retryable: false,
-        recoveryAction: 'review_instructions',
+        recoveryAction: 'retry',
       };
     case 'invalid_response':
       return {

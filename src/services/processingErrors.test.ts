@@ -68,6 +68,22 @@ describe('processing errors', () => {
     });
   });
 
+  it('allows a manual retry after content is blocked without retrying automatically', () => {
+    const error = createProviderRequestError(400, {
+      error: {
+        message: 'The provider blocked this content.',
+        status: 'SAFETY',
+      },
+    });
+
+    expect(toProcessingFailure(error, 'gemini', 'gemini-2.5-flash')).toMatchObject({
+      category: 'content_blocked',
+      kind: 'permanent',
+      retryable: false,
+      recoveryAction: 'retry',
+    });
+  });
+
   it.each([
     [503, 'UNAVAILABLE', 'overloaded'],
     [408, 'DEADLINE_EXCEEDED', 'timeout'],
