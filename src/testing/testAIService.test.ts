@@ -3,11 +3,17 @@ import { getTestAIError, processFileWithTestAI } from './testAIService';
 
 describe('Test AI', () => {
   it.each([
-    ['test-rate-limited', '429 RESOURCE_EXHAUSTED'],
-    ['test-overloaded', '503 UNAVAILABLE'],
+    ['test-rate-limited', 'rate limit'],
+    ['test-overloaded', 'overloaded'],
     ['test-network', 'Network request failed'],
   ])('returns the expected %s failure', (model, message) => {
-    expect(getTestAIError(model, 'test.txt')).toContain(message);
+    expect(getTestAIError(model, 'test.txt')?.message).toContain(message);
+  });
+
+  it('recovers from the temporary test failure on the third attempt', () => {
+    expect(getTestAIError('test-temporary', 'test.txt', 1)).toBeInstanceOf(Error);
+    expect(getTestAIError('test-temporary', 'test.txt', 2)).toBeInstanceOf(Error);
+    expect(getTestAIError('test-temporary', 'test.txt', 3)).toBeUndefined();
   });
 
   it('streams a successful local response', async () => {

@@ -18,7 +18,7 @@ This file is the source of truth for the workflow improvements. A user-visible i
 | 2. Faster Drive assignment              | Done        | Assignment opens in the preferred transcript root. A new folder can be created and assigned in one action. Existing Drive items are not changed during testing.                                                                                                     |
 | 3. Series groups                        | Done        | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
 | 4. Viewport workspace                   | Done        | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
-| 5. Structured errors and retries        | Not started | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
+| 5. Structured errors and retries        | Done        | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
 | 6. Large processing queues              | Not started | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
 | 7. Gemini quota pools                   | Not started | The scheduler tracks RPM, TPM, and RPD per project and model. Keys from one Google project share one pool.                                                                                                                                                          |
 
@@ -101,6 +101,26 @@ This file is the source of truth for the workflow improvements. A user-visible i
 - [x] Automated tests pass.
 - [x] `npm run pretest` passes.
 - [x] Desktop browser checks pass with fake files.
+- [x] User workflow test passes.
+
+## Milestone 5 checks
+
+- [x] Every provider uses one structured Processing Failure format.
+- [x] Gemini quota details distinguish short-term rate limits from an identified daily quota.
+- [x] A generic 429 is labelled as a rate limit with an unknown subtype.
+- [x] Temporary failures use up to three Automatic Processing Retries with exponential backoff, jitter, and a longer provider delay when supplied.
+- [x] Deferred and Permanent Processing Failures do not retry automatically.
+- [x] Cancelled Processing is separate from errors and can be retried manually.
+- [x] Failed cards show a compact category, status, explanation, retry state or recovery action, and collapsed safe details.
+- [x] The response summary shows failure category counts.
+- [x] Retry All includes Processing Failures and excludes Cancelled Processing.
+- [x] A Manual Processing Retry starts a fresh four-attempt cycle.
+- [x] Partial output from a failed attempt is discarded.
+- [x] Recovered Processing shows how many retries were needed.
+- [x] Test AI covers temporary recovery, 429 types, overload, network, API key, invalid request, blocked content, unknown errors, and mixed failures without external requests.
+- [x] Automated tests pass.
+- [x] `npm run pretest` passes.
+- [x] Desktop browser checks pass with fake failures.
 - [x] User workflow test passes.
 
 ## Real Google Drive test rules

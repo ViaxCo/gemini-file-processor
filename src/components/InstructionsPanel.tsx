@@ -127,6 +127,7 @@ export const InstructionsPanel = ({
         <CardContent>
           <div className="space-y-2">
             <Textarea
+              data-recovery-target="instructions"
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               onKeyDown={(e) => {

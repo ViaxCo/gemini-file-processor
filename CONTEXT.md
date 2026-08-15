@@ -28,6 +28,38 @@ _Avoid_: No folder, empty selection
 The files and generated results created by one processing action. Selections, display names, upload statuses, and Destination Assignments belong only to that batch.
 _Avoid_: Current files, result list
 
+**Processing Failure**:
+An unsuccessful file-processing outcome with a category, safe provider facts, recovery guidance, and retry state. It does not include Cancelled Processing.
+_Avoid_: Error string, failed response
+
+**Temporary Processing Failure**:
+A Processing Failure caused by a short-lived provider or network condition that is safe to retry automatically.
+_Avoid_: Any error, retryable message
+
+**Deferred Processing Failure**:
+A Processing Failure, such as an identified daily quota limit, that can end later but should not be retried automatically now.
+_Avoid_: Permanent failure, retryable failure
+
+**Permanent Processing Failure**:
+A Processing Failure that needs user correction or a manual decision before another attempt.
+_Avoid_: Fatal error, unrecoverable failure
+
+**Automatic Processing Retry**:
+A bounded new attempt started without user action after a Temporary Processing Failure. It waits according to the provider response or the app's backoff policy.
+_Avoid_: Queue delay, manual retry
+
+**Manual Processing Retry**:
+A new attempt started by the user after reviewing a Processing Failure or correcting its cause.
+_Avoid_: Automatic retry, resume
+
+**Recovered Processing**:
+A completed file-processing outcome that succeeded after one or more Automatic Processing Retries. It retains the number of retries that were needed.
+_Avoid_: Retried failure, eventual success
+
+**Cancelled Processing**:
+A file-processing outcome that the user stopped. It is separate from a Processing Failure and does not increase the error count.
+_Avoid_: Processing Failure, aborted error
+
 **Display Name**:
 The temporary name used in the workspace for a selected file, processed download, or Document Upload. Changing it does not change the original uploaded file.
 _Avoid_: Renamed file, filename

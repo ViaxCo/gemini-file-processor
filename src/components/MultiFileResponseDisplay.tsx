@@ -18,6 +18,7 @@ import { ViewResponseModal } from '@/components/ViewResponseModal';
 import { BulkRenameModal } from '@/components/BulkRenameModal';
 import { PREFERRED_ASSIGNMENT_ROOT } from '@/config/googleDriveConfig';
 import { makeFileKey } from '@/services/responseStore';
+import { PROCESSING_FAILURE_LABELS } from '@/services/processingErrors';
 import { getConfidenceScore } from '@/utils/confidenceScore';
 import { suggestSeriesFolderName } from '@/utils/driveFolderName';
 import { downloadProcessedFile, extractTextFromFile } from '@/utils/fileUtils';
@@ -45,6 +46,9 @@ interface MultiFileResponseDisplayProps {
   defaultDisplayNames?: Record<string, string>;
   onRetryFile?: (index: number) => void;
   onRetryAllFailed?: () => void;
+  onCheckApiKey?: () => void;
+  onChooseModel?: () => void;
+  onReviewInstructions?: () => void;
   onAbortFile?: (index: number) => void;
   onAbortSelected?: (indices: number[]) => void;
   onAbortAll?: () => void;
@@ -84,6 +88,9 @@ export const MultiFileResponseDisplay = ({
   defaultDisplayNames = EMPTY_DISPLAY_NAMES,
   onRetryFile,
   onRetryAllFailed,
+  onCheckApiKey,
+  onChooseModel,
+  onReviewInstructions,
   onAbortFile,
   onAbortSelected,
   onAbortAll,
@@ -206,12 +213,28 @@ export const MultiFileResponseDisplay = ({
   const allCompleted = fileResults.length > 0 && fileResults.every((result) => result.isCompleted);
   const isAnyProcessing = fileResults.some((result) => result.isProcessing);
   const pendingCount = fileResults.filter(
-    (result) => !result.isCompleted && !result.isProcessing && !result.error,
+    (result) =>
+      !result.isCompleted &&
+      !result.isProcessing &&
+      !result.error &&
+      result.queueStatus !== 'cancelled',
   ).length;
   const hasPending = pendingCount > 0;
   const completedCount = fileResults.filter((result) => result.isCompleted).length;
   const errorCount = fileResults.filter((result) => result.error).length;
+  const cancelledCount = fileResults.filter((result) => result.queueStatus === 'cancelled').length;
   const processingCount = fileResults.filter((result) => result.isProcessing).length;
+  const failureSummary = useMemo(() => {
+    const counts = new Map<keyof typeof PROCESSING_FAILURE_LABELS, number>();
+    for (const result of fileResults) {
+      if (!result.error) continue;
+      counts.set(result.error.category, (counts.get(result.error.category) ?? 0) + 1);
+    }
+    return [...counts].map(([category, count]) => {
+      const label = PROCESSING_FAILURE_LABELS[category];
+      return `${label[0]?.toUpperCase()}${label.slice(1)}: ${count}`;
+    });
+  }, [fileResults]);
   const uploadedCount = useMemo(() => {
     if (!uploadStatuses) return 0;
     return fileResults.reduce(
@@ -219,8 +242,8 @@ export const MultiFileResponseDisplay = ({
       0,
     );
   }, [fileResults, uploadStatuses, uploadKeys]);
-  const progressPercentage =
-    fileResults.length > 0 ? (completedCount / fileResults.length) * 100 : 0;
+  const settledCount = completedCount + errorCount + cancelledCount;
+  const progressPercentage = fileResults.length > 0 ? (settledCount / fileResults.length) * 100 : 0;
 
   const allSelected = useMemo(
     () => fileResults.length > 0 && fileResults.every((_, i) => selected.has(i)),
@@ -520,6 +543,7 @@ export const MultiFileResponseDisplay = ({
                     {errorCount} error{errorCount > 1 ? 's' : ''}
                   </Badge>
                 )}
+                {cancelledCount > 0 && <Badge variant="outline">{cancelledCount} cancelled</Badge>}
                 {uploadedCount > 0 && (
                   <Badge
                     variant="secondary"
@@ -569,8 +593,8 @@ export const MultiFileResponseDisplay = ({
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                   <span>
-                    {errorCount} file{errorCount > 1 ? 's' : ''} failed to process. Check individual
-                    files for details.
+                    {errorCount} file{errorCount > 1 ? 's' : ''} failed ·{' '}
+                    {failureSummary.join(' · ')}
                   </span>
                   {onRetryAllFailed && (
                     <Tooltip>
@@ -679,6 +703,9 @@ export const MultiFileResponseDisplay = ({
                               ? () => onRetryFile(orderedIndex)
                               : undefined
                           }
+                          onCheckApiKey={onCheckApiKey}
+                          onChooseModel={onChooseModel}
+                          onReviewInstructions={onReviewInstructions}
                           onAbort={onAbortFile ? () => onAbortFile(orderedIndex) : undefined}
                           uploadStatus={uploadStatus}
                           destinationFolderName={

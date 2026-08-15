@@ -131,7 +131,11 @@ export const ProviderSelector = ({
       : provider?.models.map((m) => ({ id: m.id, name: m.name })) || [];
 
   return (
-    <div className={cn('flex w-full min-w-0 flex-col gap-3', compact && 'lg:gap-2')}>
+    <div
+      id="provider-settings"
+      tabIndex={-1}
+      className={cn('flex w-full min-w-0 flex-col gap-3', compact && 'lg:gap-2')}
+    >
       <div className={cn('grid gap-3 sm:grid-cols-2', compact && 'lg:gap-2')}>
         <div className="min-w-0 space-y-1.5">
           <div className="flex items-center gap-1.5">
@@ -173,7 +177,7 @@ export const ProviderSelector = ({
             onValueChange={onModelChange}
             disabled={isLoadingModels || displayModels.length === 0}
           >
-            <SelectTrigger className="w-full min-w-0" size="sm">
+            <SelectTrigger className="w-full min-w-0" size="sm" data-recovery-target="model">
               {isLoadingModels ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -224,6 +228,7 @@ export const ProviderSelector = ({
                     onKeyDown={handleKeyDown}
                     placeholder={provider?.apiKeyPlaceholder || 'Enter API key'}
                     className="h-8 pr-10 text-sm"
+                    data-recovery-target="api-key"
                   />
                   <Button
                     type="button"
@@ -264,6 +269,7 @@ export const ProviderSelector = ({
                   variant="outline"
                   className="h-8 px-2"
                   onClick={() => setIsEditing(true)}
+                  data-recovery-target="api-key"
                 >
                   Edit
                 </Button>

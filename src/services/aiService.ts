@@ -3,9 +3,11 @@
 
 import { AIProvider, getProvider } from '../config/providerConfig';
 import { extractTextFromFile } from '../utils/fileUtils';
+import { ProviderRequestError, createProviderRequestError } from './processingErrors';
 
 export interface ProcessOptions {
   signal?: AbortSignal;
+  attempt?: number;
 }
 
 /**
@@ -28,7 +30,14 @@ export const processFileWithAI = async (
       throw new Error('Test AI is not available in production.');
     }
     const { processFileWithTestAI } = await import('../testing/testAIService');
-    await processFileWithTestAI(file.name, fileContent, model, onChunk, options?.signal);
+    await processFileWithTestAI(
+      file.name,
+      fileContent,
+      model,
+      onChunk,
+      options?.signal,
+      options?.attempt,
+    );
     return;
   }
 
@@ -73,17 +82,20 @@ async function streamGemini(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-    throw new Error(error.error?.message || `Gemini API error: ${response.status}`);
+    const error = await response.json().catch(() => undefined);
+    throw createProviderRequestError(response.status, error, response.headers.get('Retry-After'));
   }
 
   if (!response.body) {
-    throw new Error('No response body received from Gemini');
+    throw createProviderRequestError(undefined, {
+      error: { message: 'No response body received from Gemini', status: 'INVALID_RESPONSE' },
+    });
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let receivedChunks = false;
+  let blockedCode: string | undefined;
 
   try {
     while (true) {
@@ -100,12 +112,24 @@ async function streamGemini(
 
           try {
             const data = JSON.parse(jsonStr);
+            if (data.error) {
+              throw createProviderRequestError(undefined, data);
+            }
             const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            const finishReason = data.candidates?.[0]?.finishReason;
+            const responseBlockedCode = data.promptFeedback?.blockReason || finishReason;
+            if (
+              typeof responseBlockedCode === 'string' &&
+              /SAFETY|RECITATION|PROHIBITED_CONTENT|BLOCKLIST|SPII/.test(responseBlockedCode)
+            ) {
+              blockedCode = responseBlockedCode;
+            }
             if (content) {
               onChunk(content);
               receivedChunks = true;
             }
-          } catch {
+          } catch (error) {
+            if (error instanceof ProviderRequestError) throw error;
             // Skip invalid JSON lines
           }
         }
@@ -115,8 +139,19 @@ async function streamGemini(
     reader.releaseLock();
   }
 
+  if (blockedCode) {
+    throw createProviderRequestError(undefined, {
+      error: {
+        message: `Gemini blocked the response: ${blockedCode}`,
+        status: blockedCode,
+      },
+    });
+  }
+
   if (!receivedChunks) {
-    throw new Error('No content received from Gemini API');
+    throw createProviderRequestError(undefined, {
+      error: { message: 'No content received from Gemini API', status: 'INVALID_RESPONSE' },
+    });
   }
 }
 
@@ -166,13 +201,17 @@ async function streamOpenAICompatible(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-    const errorMessage = error.error?.message || error.message || `API error: ${response.status}`;
-    throw new Error(errorMessage);
+    const error = await response.json().catch(() => undefined);
+    throw createProviderRequestError(response.status, error, response.headers.get('Retry-After'));
   }
 
   if (!response.body) {
-    throw new Error(`No response body received from ${providerConfig.name}`);
+    throw createProviderRequestError(undefined, {
+      error: {
+        message: `No response body received from ${providerConfig.name}`,
+        code: 'INVALID_RESPONSE',
+      },
+    });
   }
 
   const reader = response.body.getReader();
@@ -194,12 +233,16 @@ async function streamOpenAICompatible(
 
           try {
             const data = JSON.parse(jsonStr);
+            if (data.error) {
+              throw createProviderRequestError(undefined, data);
+            }
             const content = data.choices?.[0]?.delta?.content;
             if (content) {
               onChunk(content);
               receivedChunks = true;
             }
-          } catch {
+          } catch (error) {
+            if (error instanceof ProviderRequestError) throw error;
             // Skip invalid JSON lines
           }
         }
@@ -210,6 +253,11 @@ async function streamOpenAICompatible(
   }
 
   if (!receivedChunks) {
-    throw new Error(`No content received from ${providerConfig.name} API`);
+    throw createProviderRequestError(undefined, {
+      error: {
+        message: `No content received from ${providerConfig.name} API`,
+        code: 'INVALID_RESPONSE',
+      },
+    });
   }
 }

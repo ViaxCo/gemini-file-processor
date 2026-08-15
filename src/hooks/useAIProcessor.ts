@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { AIProvider, getModel } from '../config/providerConfig';
 import { processFileWithAI } from '../services/aiService';
+import {
+  MAX_PROCESSING_ATTEMPTS,
+  ProcessingFailure,
+  getRetryDelayMs,
+  toProcessingFailure,
+} from '../services/processingErrors';
 import { makeFileKey, responseStore } from '../services/responseStore';
 import { extractTextFromFile } from '../utils/fileUtils';
 import { scheduleIdleWork } from '../utils/performance';
 
 export type ProcessingProfile = 'transcript' | 'book';
+type ProcessingQueueStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
 export interface FileResult {
   file: File;
@@ -13,24 +20,27 @@ export interface FileResult {
   isProcessing: boolean;
   isCompleted: boolean;
   processingProfile?: ProcessingProfile;
-  error?: string;
-  // New queue status for Phase 1
-  queueStatus?: 'pending' | 'processing' | 'completed' | 'failed';
-  // Retry tracking for Phase 1
+  error?: ProcessingFailure;
+  retryFailure?: ProcessingFailure;
+  queueStatus?: ProcessingQueueStatus;
   retryCount?: number;
+  nextRetryAt?: number;
+  recoveredRetryCount?: number;
   // Store previous confidence score for retries
   previousConfidence?: {
     score: number;
     level: 'high' | 'medium' | 'low';
   };
-  // Track if file is being retried due to error
-  isRetryingDueToError?: boolean;
   // Snapshot before manual retry; used to restore on abort
   previousState?: {
     response: string;
     isCompleted: boolean;
-    error?: string;
-    queueStatus?: 'pending' | 'processing' | 'completed' | 'failed';
+    error?: ProcessingFailure;
+    retryFailure?: ProcessingFailure;
+    queueStatus?: ProcessingQueueStatus;
+    retryCount?: number;
+    nextRetryAt?: number;
+    recoveredRetryCount?: number;
   };
   // Marks a manual retry attempt
   isManuallyRetrying?: boolean;
@@ -58,6 +68,7 @@ export const useAIProcessor = () => {
   const processingRef = useRef<boolean>(false);
   const abortRef = useRef<boolean>(false);
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
+  const retryTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const throttleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cleanupIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestTimestampsRef = useRef<number[]>([]); // timestamps of requests for token bucket algorithm
@@ -65,9 +76,16 @@ export const useAIProcessor = () => {
   // Default rate limit fallback
   const DEFAULT_RATE_LIMIT = { limit: 10, interval: 60000 };
 
+  const clearRetryTimeout = (index: number): void => {
+    const timeout = retryTimeoutsRef.current.get(index);
+    if (timeout) clearTimeout(timeout);
+    retryTimeoutsRef.current.delete(index);
+  };
+
   // Abort helpers
   const abortFilesByIndices = (indices: number[]): void => {
     if (indices.length === 0) return;
+    indices.forEach(clearRetryTimeout);
     // Remove queued items for these indices
     queueRef.current = queueRef.current.filter((q) => !indices.includes(q.index));
 
@@ -89,7 +107,11 @@ export const useAIProcessor = () => {
             response: snap.response,
             isCompleted: snap.isCompleted,
             error: snap.error,
+            retryFailure: snap.retryFailure,
             queueStatus: snap.queueStatus,
+            retryCount: snap.retryCount,
+            nextRetryAt: snap.nextRetryAt,
+            recoveredRetryCount: snap.recoveredRetryCount,
             isProcessing: false,
             isManuallyRetrying: undefined,
             previousState: undefined,
@@ -99,8 +121,10 @@ export const useAIProcessor = () => {
           ...result,
           isProcessing: false,
           isCompleted: false,
-          queueStatus: 'failed',
-          error: 'Processing cancelled',
+          queueStatus: 'cancelled',
+          error: undefined,
+          retryFailure: undefined,
+          nextRetryAt: undefined,
           isManuallyRetrying: undefined,
           previousState: undefined,
         };
@@ -114,6 +138,8 @@ export const useAIProcessor = () => {
   const abortAll = (): void => {
     abortRef.current = true;
     queueRef.current = [];
+    for (const timeout of retryTimeoutsRef.current.values()) clearTimeout(timeout);
+    retryTimeoutsRef.current.clear();
     // Abort all active controllers
     for (const [, controller] of controllersRef.current) {
       try {
@@ -130,7 +156,11 @@ export const useAIProcessor = () => {
             response: snap.response,
             isCompleted: snap.isCompleted,
             error: snap.error,
+            retryFailure: snap.retryFailure,
             queueStatus: snap.queueStatus,
+            retryCount: snap.retryCount,
+            nextRetryAt: snap.nextRetryAt,
+            recoveredRetryCount: snap.recoveredRetryCount,
             isProcessing: false,
             isManuallyRetrying: undefined,
             previousState: undefined,
@@ -141,8 +171,10 @@ export const useAIProcessor = () => {
             ...result,
             isProcessing: false,
             isCompleted: false,
-            queueStatus: 'failed',
-            error: 'Processing cancelled',
+            queueStatus: 'cancelled',
+            error: undefined,
+            retryFailure: undefined,
+            nextRetryAt: undefined,
             isManuallyRetrying: undefined,
             previousState: undefined,
           };
@@ -213,14 +245,22 @@ export const useAIProcessor = () => {
                 response: result.response,
                 isCompleted: result.isCompleted,
                 error: result.error,
+                retryFailure: result.retryFailure,
                 queueStatus: result.queueStatus,
+                retryCount: result.retryCount,
+                nextRetryAt: result.nextRetryAt,
+                recoveredRetryCount: result.recoveredRetryCount,
               },
               isManuallyRetrying: true,
               response: '',
               isProcessing: false,
               isCompleted: false,
               error: undefined,
+              retryFailure: undefined,
               queueStatus: 'pending',
+              retryCount: undefined,
+              nextRetryAt: undefined,
+              recoveredRetryCount: undefined,
             }
           : result,
       ),
@@ -259,11 +299,26 @@ export const useAIProcessor = () => {
         failedIndices.includes(i)
           ? {
               ...result,
+              previousState: {
+                response: result.response,
+                isCompleted: result.isCompleted,
+                error: result.error,
+                retryFailure: result.retryFailure,
+                queueStatus: result.queueStatus,
+                retryCount: result.retryCount,
+                nextRetryAt: result.nextRetryAt,
+                recoveredRetryCount: result.recoveredRetryCount,
+              },
+              isManuallyRetrying: true,
               response: '',
               isProcessing: false,
               isCompleted: false,
               error: undefined,
+              retryFailure: undefined,
               queueStatus: 'pending',
+              retryCount: undefined,
+              nextRetryAt: undefined,
+              recoveredRetryCount: undefined,
             }
           : result,
       ),
@@ -289,7 +344,7 @@ export const useAIProcessor = () => {
     responseStore.clearAll();
   };
 
-  // Queue management methods (Phase 1)
+  // Queue management methods
   const addToQueue = (
     files: File[],
     overrideIndex?: number,
@@ -361,6 +416,7 @@ export const useAIProcessor = () => {
         if (!streamToUI) {
           responseStore.addResponse(key, '');
         }
+        let discardBufferedResponse = false;
         try {
           let responseBuffer = '';
           let fullResponse = '';
@@ -370,6 +426,7 @@ export const useAIProcessor = () => {
               const currentBuffer = responseBuffer;
               responseBuffer = '';
               scheduleIdleWork(() => {
+                if (discardBufferedResponse) return;
                 setFileResults((prev) =>
                   prev.map((result, i) =>
                     i === index ? { ...result, response: result.response + currentBuffer } : result,
@@ -399,7 +456,7 @@ export const useAIProcessor = () => {
                 responseStore.updateResponse(key, chunk);
               }
             },
-            { signal: controller.signal },
+            { signal: controller.signal, attempt: retryCount + 1 },
           );
           if (streamToUI) flushBufferToUI();
 
@@ -440,8 +497,6 @@ export const useAIProcessor = () => {
                           score,
                           level,
                         },
-                        isRetryingDueToError: false,
-                        retryCount: (result.retryCount || 0) + 1,
                       }
                     : result,
                 ),
@@ -450,14 +505,19 @@ export const useAIProcessor = () => {
               if (!streamToUI) {
                 responseStore.clearResponse(key);
               }
+              discardBufferedResponse = true;
 
               const backoffDelay = Math.pow(2, lowConfidenceRetryCount) * 1000;
-              setTimeout(() => {
+              clearRetryTimeout(index);
+              const timeout = setTimeout(() => {
+                retryTimeoutsRef.current.delete(index);
+                if (abortRef.current) return;
                 addToQueue([file], index, retryCount, lowConfidenceRetryCount + 1, itemProfile);
                 if (!processingRef.current) {
                   void processQueue(instruction, provider, model, apiKey, mode, itemProfile);
                 }
               }, backoffDelay);
+              retryTimeoutsRef.current.set(index, timeout);
               return;
             }
           }
@@ -486,8 +546,10 @@ export const useAIProcessor = () => {
                     processingProfile: itemProfile,
                     queueStatus: 'completed',
                     previousConfidence: undefined, // Clear previous confidence when processing succeeds
-                    isRetryingDueToError: undefined, // Clear retry flags when processing succeeds
-                    retryCount: undefined, // Clear retry count when processing succeeds
+                    retryFailure: undefined,
+                    nextRetryAt: undefined,
+                    recoveredRetryCount: retryCount > 0 ? retryCount : undefined,
+                    retryCount: undefined,
                     // Clear manual retry flags/snapshot on success
                     isManuallyRetrying: undefined,
                     previousState: undefined,
@@ -496,19 +558,18 @@ export const useAIProcessor = () => {
             ),
           );
         } catch (error) {
+          discardBufferedResponse = true;
           console.error(`Error processing file ${file.name}:`, error);
+          controllersRef.current.delete(key);
 
-          // Clear the response from the store since we're done with it
           if (!streamToUI) {
             responseStore.clearResponse(key);
           }
 
-          // If aborted by user, restore snapshot or mark cancelled
           const isAbortError =
-            (error as any)?.name === 'AbortError' ||
+            (error instanceof Error && error.name === 'AbortError') ||
             (error instanceof Error && /abort/i.test(error.message));
           if (isAbortError) {
-            controllersRef.current.delete(key);
             setFileResults((prev) =>
               prev.map((result, i) => {
                 if (i !== index) return result;
@@ -519,7 +580,11 @@ export const useAIProcessor = () => {
                     response: snap.response,
                     isCompleted: snap.isCompleted,
                     error: snap.error,
+                    retryFailure: snap.retryFailure,
                     queueStatus: snap.queueStatus,
+                    retryCount: snap.retryCount,
+                    nextRetryAt: snap.nextRetryAt,
+                    recoveredRetryCount: snap.recoveredRetryCount,
                     isProcessing: false,
                     isManuallyRetrying: undefined,
                     previousState: undefined,
@@ -527,10 +592,14 @@ export const useAIProcessor = () => {
                 }
                 return {
                   ...result,
+                  response: '',
                   isProcessing: false,
                   isCompleted: false,
-                  queueStatus: 'failed',
-                  error: 'Processing cancelled',
+                  queueStatus: 'cancelled',
+                  error: undefined,
+                  retryFailure: undefined,
+                  retryCount: undefined,
+                  nextRetryAt: undefined,
                   isManuallyRetrying: undefined,
                   previousState: undefined,
                 };
@@ -539,47 +608,54 @@ export const useAIProcessor = () => {
             return;
           }
 
-          // If we haven't exceeded retry limit, re-queue with exponential backoff
-          if (retryCount < 3) {
-            console.log(`Retrying file ${file.name}... (${retryCount + 1}/3)`);
+          const failure = toProcessingFailure(error, provider, model);
+          if (failure.retryable && retryCount < MAX_PROCESSING_ATTEMPTS - 1) {
+            const retryDelay = getRetryDelayMs(failure, retryCount);
+            const nextRetryAt = Date.now() + retryDelay;
             setFileResults((prev) =>
               prev.map((result, i) =>
                 i === index
                   ? {
                       ...result,
+                      response: '',
                       isProcessing: false,
                       isCompleted: false,
                       queueStatus: 'pending',
-                      previousConfidence: result.previousConfidence, // Preserve previous confidence if exists
-                      isRetryingDueToError: true,
-                      retryCount: retryCount + 1, // Update retry count for display
+                      error: undefined,
+                      retryFailure: failure,
+                      retryCount: retryCount + 1,
+                      nextRetryAt,
                     }
                   : result,
               ),
             );
 
-            // Add exponential backoff delay before re-queuing
-            const backoffDelay = Math.pow(2, retryCount) * 1000;
-            setTimeout(() => {
+            clearRetryTimeout(index);
+            const timeout = setTimeout(() => {
+              retryTimeoutsRef.current.delete(index);
+              if (abortRef.current) return;
               addToQueue([file], index, retryCount + 1, lowConfidenceRetryCount, itemProfile);
-              // Restart processing if it's not already running
               if (!processingRef.current) {
                 void processQueue(instruction, provider, model, apiKey, mode, itemProfile);
               }
-            }, backoffDelay);
+            }, retryDelay);
+            retryTimeoutsRef.current.set(index, timeout);
           } else {
-            // Mark as permanently failed after 3 retries
             setFileResults((prev) =>
               prev.map((result, i) =>
                 i === index
                   ? {
                       ...result,
+                      response: '',
                       isProcessing: false,
                       isCompleted: false,
                       queueStatus: 'failed',
-                      error: error instanceof Error ? error.message : String(error),
-                      isRetryingDueToError: undefined, // Clear retry flag when permanently failed
-                      // Keep retryCount so user can see how many times it was retried
+                      error: failure,
+                      retryFailure: undefined,
+                      nextRetryAt: undefined,
+                      retryCount: retryCount > 0 ? retryCount : undefined,
+                      isManuallyRetrying: undefined,
+                      previousState: undefined,
                     }
                   : result,
               ),
@@ -591,7 +667,9 @@ export const useAIProcessor = () => {
       // Token bucket scheduler: Process items respecting rate limits
       while (
         !abortRef.current &&
-        (queueRef.current.length > 0 || requestTimestampsRef.current.length > 0)
+        (queueRef.current.length > 0 ||
+          requestTimestampsRef.current.length > 0 ||
+          retryTimeoutsRef.current.size > 0)
       ) {
         if (isPaused) {
           await new Promise((res) => setTimeout(res, 200));
@@ -615,7 +693,9 @@ export const useAIProcessor = () => {
           // Mark as processing in UI
           setFileResults((prev) =>
             prev.map((r, i) =>
-              i === item.index ? { ...r, isProcessing: true, queueStatus: 'processing' } : r,
+              i === item.index
+                ? { ...r, isProcessing: true, queueStatus: 'processing', nextRetryAt: undefined }
+                : r,
             ),
           );
 
@@ -676,15 +756,20 @@ export const useAIProcessor = () => {
       clearInterval(cleanupIntervalRef.current);
       cleanupIntervalRef.current = null;
     }
+  }, [isProcessing]);
+
+  useEffect(() => {
     return () => {
       if (cleanupIntervalRef.current) {
         clearInterval(cleanupIntervalRef.current);
         cleanupIntervalRef.current = null;
       }
+      for (const timeout of retryTimeoutsRef.current.values()) clearTimeout(timeout);
+      retryTimeoutsRef.current.clear();
       // Clean up timestamps when component unmounts
       requestTimestampsRef.current = [];
     };
-  }, [isProcessing]);
+  }, []);
 
   return {
     fileResults,

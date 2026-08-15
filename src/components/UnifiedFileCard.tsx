@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ProcessingFailurePanel } from '@/components/ProcessingFailurePanel';
 import { FileResult, ProcessingProfile } from '@/hooks/useAIProcessor';
 import type { UploadStatus } from '@/hooks/useGoogleDrive';
 import { confidenceColorClass, getConfidenceScore } from '@/utils/confidenceScore';
@@ -18,6 +19,7 @@ import { copyToClipboard, downloadProcessedFile, extractTextFromFile } from '@/u
 import {
   AlertCircle,
   CheckCircle,
+  CircleSlash2,
   Copy,
   Download,
   Eye,
@@ -42,6 +44,9 @@ export interface UnifiedFileCardProps {
   showMarkdown: boolean;
   onToggleMarkdown: (show: boolean) => void;
   onRetry?: () => void;
+  onCheckApiKey?: () => void;
+  onChooseModel?: () => void;
+  onReviewInstructions?: () => void;
   onAbort?: () => void;
   onUpload?: () => void;
   onDiscardUpload?: () => void;
@@ -72,6 +77,9 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     // showMarkdown,
     // onToggleMarkdown,
     onRetry,
+    onCheckApiKey,
+    onChooseModel,
+    onReviewInstructions,
     onAbort,
     onUpload,
     onDiscardUpload,
@@ -154,10 +162,15 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     };
   }, [result.isCompleted, result.response, result.file, processingProfile]);
 
+  const failure = result.error ?? result.retryFailure;
+  const isCancelled = result.queueStatus === 'cancelled';
+
   const getStatusIcon = () => {
     if (result.error) return <AlertCircle className="h-4 w-4 text-destructive" />;
+    if (result.retryFailure) return <Loader2 className="h-4 w-4 animate-spin text-destructive" />;
     if (result.isCompleted) return <CheckCircle className="h-4 w-4 text-primary" />;
     if (result.isProcessing) return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+    if (isCancelled) return <CircleSlash2 className="h-4 w-4 text-muted-foreground" />;
     return <CheckCircle className="h-4 w-4 text-muted-foreground" />;
   };
 
@@ -302,10 +315,14 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                   {result.error ? (
                     <Badge variant="destructive">Error</Badge>
+                  ) : result.retryFailure ? (
+                    <Badge variant="secondary">Retrying</Badge>
                   ) : result.isCompleted ? (
                     <Badge variant="default">Completed</Badge>
                   ) : result.isProcessing ? (
                     <Badge variant="secondary">Processing...</Badge>
+                  ) : isCancelled ? (
+                    <Badge variant="outline">Cancelled</Badge>
                   ) : (
                     <Badge variant="outline">Queued</Badge>
                   )}
@@ -340,65 +357,71 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                       {Math.round(result.previousConfidence.score * 100)}%)
                     </span>
                   )}
-                  {result.isRetryingDueToError && !result.isCompleted && !result.error && (
-                    <span className="text-xs text-rose-600 dark:text-rose-400">
-                      Retrying due to error
-                    </span>
-                  )}
-                  {result.retryCount !== undefined &&
-                    result.retryCount > 0 &&
-                    !result.isCompleted &&
-                    !result.error && <Badge variant="secondary">Retry {result.retryCount}/3</Badge>}
+                  {result.recoveredRetryCount ? (
+                    <Badge variant="secondary">
+                      Recovered after {result.recoveredRetryCount}{' '}
+                      {result.recoveredRetryCount === 1 ? 'retry' : 'retries'}
+                    </Badge>
+                  ) : null}
                 </div>
 
-                {(result.response || result.error || result.isCompleted) && (
+                {(result.response ||
+                  failure ||
+                  result.isCompleted ||
+                  result.isProcessing ||
+                  result.queueStatus === 'pending' ||
+                  isCancelled) && (
                   <div className="flex flex-wrap items-center gap-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={handleCopy}
-                          variant="ghost"
-                          size="sm"
-                          disabled={!result.response || result.isProcessing}
-                          className="h-7 w-7 p-0 hover:bg-muted/50"
-                          aria-label="Copy response"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {copyFeedback || 'Copy response to clipboard'}
-                      </TooltipContent>
-                    </Tooltip>
-                    <DropdownMenu>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex">
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={!result.response || result.isProcessing}
-                                className="h-7 w-7 p-0 hover:bg-muted/50"
-                                aria-label="Download response"
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>Download response</TooltipContent>
-                      </Tooltip>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem onClick={() => handleDownload('markdown')}>
-                          Markdown (.md)
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDownload('docx')}>
-                          Word (.docx)
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    {onRetry && (result.isCompleted || result.error) && (
+                    {result.response ? (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              onClick={handleCopy}
+                              variant="ghost"
+                              size="sm"
+                              disabled={result.isProcessing}
+                              className="h-7 w-7 p-0 hover:bg-muted/50"
+                              aria-label="Copy response"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {copyFeedback || 'Copy response to clipboard'}
+                          </TooltipContent>
+                        </Tooltip>
+                        <DropdownMenu>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex">
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={result.isProcessing}
+                                    className="h-7 w-7 p-0 hover:bg-muted/50"
+                                    aria-label="Download response"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>Download response</TooltipContent>
+                          </Tooltip>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => handleDownload('markdown')}>
+                              Markdown (.md)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownload('docx')}>
+                              Word (.docx)
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </>
+                    ) : null}
+                    {onRetry && (result.isCompleted || isCancelled) && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -478,20 +501,22 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                         <TooltipContent>Discard unconfirmed upload</TooltipContent>
                       </Tooltip>
                     )}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={handleToggleExpand}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 hover:bg-muted/50"
-                          aria-label="View response"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>View Response</TooltipContent>
-                    </Tooltip>
+                    {result.response ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleToggleExpand}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 hover:bg-muted/50"
+                            aria-label="View response"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>View Response</TooltipContent>
+                      </Tooltip>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -500,6 +525,19 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
 
           {/* Removed accordion arrow since responses are viewed in a modal */}
         </div>
+        {failure ? (
+          <ProcessingFailurePanel
+            failure={failure}
+            retryCount={result.retryCount}
+            nextRetryAt={result.nextRetryAt}
+            isRetrying={!!result.retryFailure}
+            isProcessing={result.isProcessing}
+            onRetry={onRetry}
+            onCheckApiKey={onCheckApiKey}
+            onChooseModel={onChooseModel}
+            onReviewInstructions={onReviewInstructions}
+          />
+        ) : null}
       </CardHeader>
     </Card>
   );

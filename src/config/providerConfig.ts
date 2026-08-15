@@ -159,10 +159,20 @@ const TEST_PROVIDER: ProviderConfig = {
   baseUrl: '',
   models: [
     { id: 'test-success', name: 'Success', rateLimit: { limit: 1000, interval: 1000 } },
+    {
+      id: 'test-temporary',
+      name: 'Temporary failure, then success',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
     { id: 'test-mixed', name: 'Mixed results', rateLimit: { limit: 1000, interval: 1000 } },
     {
       id: 'test-rate-limited',
-      name: 'Rate limited (429)',
+      name: 'Short-term rate limit (429)',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
+    {
+      id: 'test-daily-quota',
+      name: 'Daily quota reached (429)',
       rateLimit: { limit: 1000, interval: 1000 },
     },
     {
@@ -173,6 +183,26 @@ const TEST_PROVIDER: ProviderConfig = {
     {
       id: 'test-network',
       name: 'Network failure',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
+    {
+      id: 'test-invalid-key',
+      name: 'Invalid API key',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
+    {
+      id: 'test-invalid-request',
+      name: 'Invalid request',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
+    {
+      id: 'test-content-blocked',
+      name: 'Content blocked',
+      rateLimit: { limit: 1000, interval: 1000 },
+    },
+    {
+      id: 'test-unknown',
+      name: 'Unknown error',
       rateLimit: { limit: 1000, interval: 1000 },
     },
   ],
