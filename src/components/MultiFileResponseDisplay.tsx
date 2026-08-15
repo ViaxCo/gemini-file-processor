@@ -151,6 +151,7 @@ export const MultiFileResponseDisplay = ({
   const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
+  const [isCreatingSeriesFolder, setIsCreatingSeriesFolder] = useState(false);
   const [isBulkRenameOpen, setIsBulkRenameOpen] = useState<boolean>(false);
   const [destinationAssignments, setDestinationAssignments] = useState<
     Record<number, { destination: DriveDestination; location: DriveFolder[] }>
@@ -213,6 +214,25 @@ export const MultiFileResponseDisplay = ({
         (index) => uploadStatuses?.[uploadKeys[index]!] === 'completed',
       ),
     [sourceFiles, resolvedDisplayNames, uploadStatuses, uploadKeys],
+  );
+  const selectedSeriesGroup = useMemo(
+    () =>
+      fileSeriesGroups.find(
+        (group) =>
+          !group.isUngrouped &&
+          group.indices.length === selected.size &&
+          group.indices.every((index) => selected.has(index)),
+      ),
+    [fileSeriesGroups, selected],
+  );
+  const quickFolderName = useMemo(
+    () =>
+      selectedSeriesGroup
+        ? suggestSeriesFolderName(
+            selectedSeriesGroup.indices.map((index) => resolvedDisplayNames[index] || ''),
+          )
+        : '',
+    [resolvedDisplayNames, selectedSeriesGroup],
   );
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
@@ -294,6 +314,15 @@ export const MultiFileResponseDisplay = ({
       0,
     );
   }, [fileResults, uploadStatuses, uploadKeys]);
+  const assignedCount = useMemo(
+    () =>
+      fileResults.reduce(
+        (count, _result, index) => count + (destinationAssignments[index] ? 1 : 0),
+        0,
+      ),
+    [destinationAssignments, fileResults],
+  );
+  const unassignedCount = fileResults.length - assignedCount;
   const settledCount = completedCount + errorCount + cancelledCount;
   const progressPercentage = fileResults.length > 0 ? (settledCount / fileResults.length) * 100 : 0;
 
@@ -526,6 +555,44 @@ export const MultiFileResponseDisplay = ({
     }
   };
 
+  const handleCreateAndAssignSeries = async () => {
+    const preferredRoot = PREFERRED_ASSIGNMENT_ROOT[0];
+    if (
+      !driveCreateFolder ||
+      !preferredRoot ||
+      !selectedSeriesGroup ||
+      !quickFolderName ||
+      isCreatingSeriesFolder
+    ) {
+      return;
+    }
+
+    setIsCreatingSeriesFolder(true);
+    try {
+      const folder = await driveCreateFolder(quickFolderName, preferredRoot.id);
+      setDestinationAssignments((previous) => {
+        const next = { ...previous };
+        for (const index of selectedSeriesGroup.indices) {
+          next[index] = {
+            destination: folder,
+            location: [...PREFERRED_ASSIGNMENT_ROOT, folder],
+          };
+        }
+        return next;
+      });
+      setSelected(new Set());
+      toast.success(
+        `Created “${folder.name}” and assigned ${selectedSeriesGroup.indices.length} files.`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not create and assign the folder.',
+      );
+    } finally {
+      setIsCreatingSeriesFolder(false);
+    }
+  };
+
   const handleCardSelection = useCallback((index: number, checked: boolean) => {
     setSelected((previous) => {
       const next = new Set(previous);
@@ -732,6 +799,15 @@ export const MultiFileResponseDisplay = ({
                     {uploadedCount} uploaded
                   </Badge>
                 )}
+                <Badge variant="outline">{assignedCount} assigned</Badge>
+                {unassignedCount > 0 ? (
+                  <Badge
+                    variant="outline"
+                    className="border-amber-600/35 bg-amber-500/10 text-amber-800 dark:border-amber-400/30 dark:text-amber-300"
+                  >
+                    {unassignedCount} unassigned
+                  </Badge>
+                ) : null}
                 {pendingCount > 0 && <Badge variant="outline">{pendingCount} queued</Badge>}
               </div>
             </div>
@@ -971,6 +1047,15 @@ export const MultiFileResponseDisplay = ({
               allSelected={allSelected}
               onToggleSelectAll={(checked) => toggleSelectAll(checked)}
               uploadSelectedCount={uploadSelectedEligibleCount}
+              quickFolderName={quickFolderName}
+              onCreateAndAssign={selectedSeriesGroup ? handleCreateAndAssignSeries : undefined}
+              isCreateAndAssignDisabled={
+                !isDriveAuthenticated ||
+                !driveCreateFolder ||
+                assignableSelectedIndices.length !== selectedCount ||
+                selectedSeriesGroup?.indices.some((index) => destinationAssignments[index])
+              }
+              isCreatingAndAssigning={isCreatingSeriesFolder}
             />
           )}
         </div>

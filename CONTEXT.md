@@ -132,9 +132,17 @@ _Avoid_: Unknown series, miscellaneous series
 The Destination Assignment coverage shown for every file in a Series Group or Ungrouped Files, including files already uploaded. It is Unassigned when none are assigned, a count when only some are assigned, Assigned when all use one destination, and Assigned with a folder count when all use multiple destinations.
 _Avoid_: Upload status, group destination
 
+**Batch Assignment Summary**:
+The assigned and unassigned file counts for an entire Processing Batch, including Ungrouped Files and files already uploaded.
+_Avoid_: Global assignment, selection summary
+
 **Series Selection**:
 The files selected by the Select Series action. It replaces the previous selection with every file in one Series Group, regardless of processing or upload status.
 _Avoid_: Add series, folder selection
+
+**Quick Series Assignment**:
+The creation of a folder from a Series Folder Name Suggestion inside the Preferred Assignment Root, followed by a Destination Assignment for every file in one eligible Series Selection.
+_Avoid_: Automatic folder, default assignment
 
 **Natural Track Order**:
 The numeric order of tracks with the same upload state inside a Series Group, such as Track 1, Track 2, Track 10. Uploaded tracks appear after tracks that are not uploaded.
