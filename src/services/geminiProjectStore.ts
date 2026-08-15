@@ -19,11 +19,7 @@ export type GeminiQuotaState = {
 };
 
 export type GeminiProjectStatus =
-  | 'available'
-  | 'unverified'
-  | 'cooldown'
-  | 'daily_exhausted'
-  | 'key_problem';
+  'available' | 'unverified' | 'cooldown' | 'daily_exhausted' | 'key_problem';
 
 const PROJECTS_KEY = 'ai-file-processor-gemini-projects-v1';
 const QUOTA_KEY = 'ai-file-processor-gemini-quota-v1';

@@ -142,7 +142,7 @@ export function GoogleDriveFolderSelector({
         </div>
       </div>
 
-      <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-xs text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] sm:text-sm [&::-webkit-scrollbar]:hidden">
+      <div className="flex [scrollbar-width:none] items-center space-x-1 overflow-x-auto pb-1 text-xs text-muted-foreground [-ms-overflow-style:none] sm:text-sm [&::-webkit-scrollbar]:hidden">
         <Button
           variant="ghost"
           size="sm"

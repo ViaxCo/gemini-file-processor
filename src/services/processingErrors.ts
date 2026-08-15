@@ -17,11 +17,7 @@ export type ProcessingFailureCategory =
   | 'unknown';
 
 export type ProcessingRecoveryAction =
-  | 'retry'
-  | 'retry_later'
-  | 'check_api_key'
-  | 'choose_model'
-  | 'review_instructions';
+  'retry' | 'retry_later' | 'check_api_key' | 'choose_model' | 'review_instructions';
 
 export type ProcessingFailure = {
   kind: 'temporary' | 'deferred' | 'permanent';

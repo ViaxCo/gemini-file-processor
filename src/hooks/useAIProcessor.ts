@@ -23,8 +23,7 @@ import {
 
 export type ProcessingProfile = 'transcript' | 'book';
 export type QueuePauseReason =
-  | { kind: 'manual' }
-  | { kind: 'automatic'; failure: ProcessingFailure };
+  { kind: 'manual' } | { kind: 'automatic'; failure: ProcessingFailure };
 type ProcessingQueueStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
 const getEffectiveRateLimit = (
