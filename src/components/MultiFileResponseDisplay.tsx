@@ -1,10 +1,10 @@
 import { AssignFolderModal } from '@/components/AssignFolderModal';
 import { ContextualActionBar } from '@/components/ContextualActionBar';
 import { FileSeriesResults } from '@/components/FileSeriesResults';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +24,15 @@ import { canChangeUploadDestination } from '@/utils/automaticUploads';
 import { suggestSeriesFolderName } from '@/utils/driveFolderName';
 import { downloadProcessedFile } from '@/utils/fileUtils';
 import { groupFilesBySeries } from '@/utils/seriesGroups';
-import { AlertCircle, DownloadCloud, FileText, Pause, Play, RotateCcw } from 'lucide-react';
+import {
+  AlertCircle,
+  ChevronDown,
+  DownloadCloud,
+  FileText,
+  Pause,
+  Play,
+  RotateCcw,
+} from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { FileResult, ProcessingProfile, QueuePauseReason } from '../hooks/useAIProcessor';
@@ -325,6 +333,9 @@ export const MultiFileResponseDisplay = ({
   const unassignedCount = fileResults.length - assignedCount;
   const settledCount = completedCount + errorCount + cancelledCount;
   const progressPercentage = fileResults.length > 0 ? (settledCount / fileResults.length) * 100 : 0;
+  const canControlQueue = isProcessing || isAnyProcessing || hasPending;
+  const showsQueueProgress = canControlQueue || isWaitingForNextBatch;
+  const showsQueueEstimate = hasPending || isWaitingForNextBatch || isProcessing;
 
   const allSelected = useMemo(
     () => fileResults.length > 0 && fileResults.every((_, i) => selected.has(i)),
@@ -775,188 +786,212 @@ export const MultiFileResponseDisplay = ({
       </CardHeader>
       <CardContent className="lg:min-h-0 lg:flex-1">
         <div className="space-y-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-2">
-          <div className="sticky top-0 z-20 space-y-3 border-b border-border/70 bg-card/92 pt-1 pb-3 backdrop-blur-md supports-[backdrop-filter]:bg-card/72">
-            <div className="flex flex-col justify-between gap-2 text-sm sm:flex-row sm:items-center">
-              <span className="text-muted-foreground">
-                Processing Results ({fileResults.length} file{fileResults.length !== 1 ? 's' : ''})
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {completedCount > 0 && <Badge variant="default">{completedCount} completed</Badge>}
-                {processingCount > 0 && (
-                  <Badge variant="secondary">{processingCount} processing</Badge>
-                )}
-                {errorCount > 0 && (
-                  <Badge variant="destructive">
-                    {errorCount} error{errorCount > 1 ? 's' : ''}
-                  </Badge>
-                )}
-                {cancelledCount > 0 && <Badge variant="outline">{cancelledCount} cancelled</Badge>}
-                {uploadedCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="bg-emerald-500 text-white dark:bg-emerald-600 [a&]:hover:bg-emerald-500/90"
-                  >
-                    {uploadedCount} uploaded
-                  </Badge>
-                )}
-                <Badge variant="outline">{assignedCount} assigned</Badge>
-                {unassignedCount > 0 ? (
-                  <Badge
-                    variant="outline"
-                    className="border-amber-600/35 bg-amber-500/10 text-amber-800 dark:border-amber-400/30 dark:text-amber-300"
-                  >
-                    {unassignedCount} unassigned
-                  </Badge>
-                ) : null}
-                {pendingCount > 0 && <Badge variant="outline">{pendingCount} queued</Badge>}
-              </div>
-            </div>
-            {(isProcessing || isAnyProcessing || hasPending || isWaitingForNextBatch) && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Progress</span>
-                  <span>{Math.round(progressPercentage)}%</span>
-                </div>
-                <Progress value={progressPercentage} className="h-2" />
-                {(hasPending || isWaitingForNextBatch || isProcessing) && (
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>
-                      Approx. remaining: {formatRemainingTime(estimatedRemainingSeconds, isPaused)}
+          <div className="sticky top-0 z-20 space-y-2 border-b border-border/70 bg-card/92 pt-1 pb-2 backdrop-blur-md supports-[backdrop-filter]:bg-card/72">
+            <Collapsible className="group/details">
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium">Processing Results</span>
+                    <span className="text-muted-foreground tabular-nums">
+                      {fileResults.length} file{fileResults.length === 1 ? '' : 's'}
                     </span>
-                    {isWaitingForNextBatch && (
+                    {showsQueueProgress ? (
+                      <span className="ml-auto font-medium tabular-nums sm:ml-0">
+                        {Math.round(progressPercentage)}%
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+                    {isPaused ? <span className="font-medium text-foreground">Paused</span> : null}
+                    {processingCount > 0 ? <span>{processingCount} active</span> : null}
+                    {pendingCount > 0 ? <span>{pendingCount} queued</span> : null}
+                    {!showsQueueProgress ? <span>{completedCount} complete</span> : null}
+                    {showsQueueEstimate ? (
+                      <span>{formatRemainingTime(estimatedRemainingSeconds, isPaused)}</span>
+                    ) : null}
+                    {isWaitingForNextBatch ? (
                       <span>
                         {Math.ceil(throttleSecondsRemaining || 0) > 0
                           ? `Next batch in ${Math.ceil(throttleSecondsRemaining || 0)}s`
                           : 'Scheduling next batch…'}
                       </span>
-                    )}
+                    ) : null}
                   </div>
-                )}
-                {(isProcessing || isAnyProcessing || hasPending) && (
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {!isPaused && onPause ? (
-                      <Button variant="outline" size="sm" onClick={onPause}>
-                        <Pause />
-                        Pause
-                      </Button>
+                </div>
+                <div className="flex items-center justify-end gap-1.5">
+                  {!isPaused && onPause && canControlQueue ? (
+                    <Button variant="outline" size="sm" onClick={onPause}>
+                      <Pause />
+                      Pause
+                    </Button>
+                  ) : null}
+                  {isPaused && onResume ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={onResume}
+                      disabled={processingCount > 0}
+                    >
+                      <Play />
+                      {processingCount > 0 ? 'Finishing…' : 'Resume'}
+                    </Button>
+                  ) : null}
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="px-2 text-muted-foreground">
+                      Details
+                      <ChevronDown className="transition-transform group-data-[state=open]/details:rotate-180" />
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
+              </div>
+              {showsQueueProgress ? (
+                <Progress value={progressPercentage} className="mt-2 h-1.5" />
+              ) : null}
+              <CollapsibleContent>
+                <div className="mt-2 space-y-2 border-t border-border/60 pt-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {completedCount > 0 ? (
+                      <Badge variant="default">{completedCount} completed</Badge>
                     ) : null}
-                    {isPaused && onResume ? (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={onResume}
-                        disabled={processingCount > 0}
+                    {processingCount > 0 ? (
+                      <Badge variant="secondary">{processingCount} processing</Badge>
+                    ) : null}
+                    {errorCount > 0 ? (
+                      <Badge variant="destructive">
+                        {errorCount} error{errorCount > 1 ? 's' : ''}
+                      </Badge>
+                    ) : null}
+                    {cancelledCount > 0 ? (
+                      <Badge variant="outline">{cancelledCount} cancelled</Badge>
+                    ) : null}
+                    {uploadedCount > 0 ? (
+                      <Badge
+                        variant="secondary"
+                        className="bg-emerald-500 text-white dark:bg-emerald-600 [a&]:hover:bg-emerald-500/90"
                       >
-                        <Play />
-                        {processingCount > 0 ? 'Finishing active requests…' : 'Resume'}
-                      </Button>
+                        {uploadedCount} uploaded
+                      </Badge>
                     ) : null}
-                    {onAbortAll ? (
-                      <Button
+                    <Badge variant="outline">{assignedCount} assigned</Badge>
+                    {unassignedCount > 0 ? (
+                      <Badge
                         variant="outline"
+                        className="border-amber-600/35 bg-amber-500/10 text-amber-800 dark:border-amber-400/30 dark:text-amber-300"
+                      >
+                        {unassignedCount} unassigned
+                      </Badge>
+                    ) : null}
+                    {pendingCount > 0 ? (
+                      <Badge variant="outline">{pendingCount} queued</Badge>
+                    ) : null}
+                  </div>
+                  {isPaused ? (
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {pauseReason?.kind === 'automatic' ? (
+                        <>
+                          <span className="font-medium text-foreground">
+                            Queue paused: {pauseReason.failure.title}.
+                          </span>{' '}
+                          {pauseReason.failure.message}{' '}
+                          {pauseReason.failure.category === 'daily_quota'
+                            ? 'The queue will resume automatically.'
+                            : 'Correct the provider access or choose another model, then resume. Provider-wide failed files will retry first.'}
+                        </>
+                      ) : (
+                        'Queue paused. Waiting files will not start until you resume.'
+                      )}
+                    </p>
+                  ) : null}
+                  {onAbortAll && canControlQueue ? (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
                         size="sm"
-                        className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
-                        onClick={() => onAbortAll?.()}
+                        className="h-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={onAbortAll}
                       >
                         Abort All
                       </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {errorCount > 0 || lowConfidenceIndices.length > 0 ? (
+              <Collapsible className="group/attention rounded-md border border-border/70 bg-muted/35">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-8 w-full justify-start gap-2 px-2.5 text-xs hover:bg-muted/60"
+                  >
+                    <AlertCircle
+                      className={errorCount > 0 ? 'text-destructive' : 'text-muted-foreground'}
+                    />
+                    <span className="font-medium">Needs attention</span>
+                    <span
+                      className="min-w-0 truncate text-muted-foreground"
+                      role={errorCount > 0 ? 'alert' : 'status'}
+                    >
+                      {errorCount > 0
+                        ? `${errorCount} failed${lowConfidenceIndices.length > 0 ? ' · ' : ''}`
+                        : ''}
+                      {lowConfidenceIndices.length > 0
+                        ? `${lowConfidenceIndices.length} low confidence`
+                        : ''}
+                    </span>
+                    <ChevronDown className="ml-auto transition-transform group-data-[state=open]/attention:rotate-180" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-1 border-t border-border/60 p-2">
+                    {errorCount > 0 ? (
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="min-w-0 text-destructive">
+                          {errorCount} file{errorCount > 1 ? 's' : ''} failed ·{' '}
+                          {failureSummary.join(' · ')}
+                        </span>
+                        {onRetryAllFailed ? (
+                          <Button
+                            onClick={onRetryAllFailed}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 shrink-0 border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            disabled={isProcessing || isDriveLifecycleBlockingProcessing}
+                          >
+                            <RotateCcw />
+                            Retry All
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {lowConfidenceIndices.length > 0 ? (
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="min-w-0 text-muted-foreground">
+                          {lowConfidenceIndices.length} file
+                          {lowConfidenceIndices.length > 1 ? 's have' : ' has'} low confidence.
+                        </span>
+                        {onRetryFile ? (
+                          <Button
+                            onClick={() => {
+                              lowConfidenceIndices.forEach((index) => onRetryFile(index));
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 shrink-0"
+                            disabled={isDriveLifecycleBlockingProcessing}
+                          >
+                            <RotateCcw />
+                            <span className="hidden sm:inline">Retry Low Confidence</span>
+                            <span className="sm:hidden">Retry</span>
+                          </Button>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
-                )}
-              </div>
-            )}
-            {isPaused ? (
-              <Alert variant={pauseReason?.kind === 'automatic' ? 'destructive' : 'default'}>
-                <Pause className="h-4 w-4" />
-                <AlertDescription>
-                  {pauseReason?.kind === 'automatic' ? (
-                    pauseReason.failure.category === 'daily_quota' ? (
-                      <>
-                        <span className="font-medium">
-                          Queue paused: {pauseReason.failure.title}.
-                        </span>{' '}
-                        {pauseReason.failure.message} The queue will resume automatically.
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-medium">
-                          Queue paused: {pauseReason.failure.title}.
-                        </span>{' '}
-                        {pauseReason.failure.message} Correct the provider access or choose another
-                        model, then resume. Provider-wide failed files will retry first.
-                      </>
-                    )
-                  ) : (
-                    'Queue paused. Waiting files will not start until you resume.'
-                  )}
-                </AlertDescription>
-              </Alert>
+                </CollapsibleContent>
+              </Collapsible>
             ) : null}
-            {errorCount > 0 && (
-              <Alert variant="destructive" className="items-center">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                  <span>
-                    {errorCount} file{errorCount > 1 ? 's' : ''} failed ·{' '}
-                    {failureSummary.join(' · ')}
-                  </span>
-                  {onRetryAllFailed && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={onRetryAllFailed}
-                          variant="outline"
-                          size="sm"
-                          className="ml-2 h-7 border-destructive text-destructive hover:bg-destructive/10 hover:text-foreground dark:hover:bg-destructive/20 dark:hover:text-foreground"
-                          disabled={isProcessing || isDriveLifecycleBlockingProcessing}
-                        >
-                          <RotateCcw className="mr-1 h-3 w-3" />
-                          <span className="hidden sm:inline">Retry All</span>
-                          <span className="sm:hidden">Retry</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Retry all failed files</TooltipContent>
-                    </Tooltip>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-            {lowConfidenceIndices.length > 0 && (
-              <Alert className="items-center">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                  <span>
-                    {lowConfidenceIndices.length} file{lowConfidenceIndices.length > 1 ? 's' : ''}{' '}
-                    have low confidence. Review and retry if needed.
-                  </span>
-                  {onRetryFile && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={() => {
-                            // Retry all low-confidence files without confirmation
-                            lowConfidenceIndices.forEach((index) => onRetryFile(index));
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="ml-2"
-                          disabled={isDriveLifecycleBlockingProcessing}
-                        >
-                          <RotateCcw className="mr-1 h-3 w-3" />
-                          <span className="hidden sm:inline">Retry Low Confidence</span>
-                          <span className="sm:hidden">Retry</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {isProcessing
-                          ? 'Add all low-confidence files to the processing queue'
-                          : 'Retry all low-confidence files'}
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
 
           {fileResults.length === 0 ? (

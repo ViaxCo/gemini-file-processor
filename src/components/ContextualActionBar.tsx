@@ -6,9 +6,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FolderPlus, Loader2 } from 'lucide-react';
+import { Ellipsis, FolderPlus, Loader2 } from 'lucide-react';
 
 interface ContextualActionBarProps {
   selectedCount: number;
@@ -50,48 +51,45 @@ export function ContextualActionBar({
   if (selectedCount <= 0) return null;
 
   return (
-    <div className="sticky bottom-0 mt-4 grid gap-2 rounded-md border bg-card/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-card/60 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-      <div className="min-w-0 space-y-1.5">
-        <div className="flex items-center gap-2">
-          {onToggleSelectAll && (
-            <label className="flex cursor-pointer items-center gap-2 text-xs select-none">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-primary"
-                checked={allSelected}
-                onChange={(e) => onToggleSelectAll?.(e.target.checked)}
-              />
-              <span className="text-muted-foreground">Select All - </span>
-            </label>
-          )}
-          <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
-        </div>
+    <div className="sticky bottom-0 z-30 mt-3 grid gap-2 rounded-lg border bg-card/95 p-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/85 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+        {onToggleSelectAll ? (
+          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 select-none">
+            <input
+              type="checkbox"
+              className="size-4 accent-primary"
+              checked={allSelected}
+              onChange={(event) => onToggleSelectAll(event.target.checked)}
+            />
+            <span>All</span>
+          </label>
+        ) : null}
+        <span className="shrink-0 font-medium text-foreground tabular-nums">
+          {selectedCount} selected
+        </span>
         {quickFolderName ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <span
-                className="block truncate rounded-sm text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="min-w-0 truncate rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 aria-label={`New folder: ${quickFolderName}`}
                 tabIndex={0}
               >
-                New folder: <span className="font-medium text-foreground">{quickFolderName}</span>
+                <span aria-hidden="true">·</span> New folder:{' '}
+                <span className="font-medium text-foreground">{quickFolderName}</span>
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs break-words">{quickFolderName}</TooltipContent>
           </Tooltip>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {onBulkRename && (
-          <Button variant="outline" size="sm" onClick={onBulkRename}>
-            Bulk Rename
-          </Button>
-        )}
-        {onAssignFolder && (
+      <div className="flex items-center justify-end gap-1.5">
+        {onAssignFolder ? (
           <Button variant="outline" size="sm" onClick={onAssignFolder}>
-            Assign Folder
+            <span className="sm:hidden">Assign</span>
+            <span className="hidden sm:inline">Assign Folder</span>
           </Button>
-        )}
+        ) : null}
         {onCreateAndAssign && quickFolderName ? (
           <Button
             size="sm"
@@ -99,53 +97,58 @@ export function ContextualActionBar({
             disabled={isCreateAndAssignDisabled || isCreatingAndAssigning}
           >
             {isCreatingAndAssigning ? <Loader2 className="animate-spin" /> : <FolderPlus />}
-            {isCreatingAndAssigning ? 'Creating…' : 'Create & Assign'}
+            <span className="sm:hidden">{isCreatingAndAssigning ? 'Creating…' : 'Create'}</span>
+            <span className="hidden sm:inline">
+              {isCreatingAndAssigning ? 'Creating…' : 'Create & Assign'}
+            </span>
           </Button>
         ) : null}
-        {onUploadSelected && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onUploadSelected}
-            disabled={
-              !isDriveAuthenticated || isUploadSessionActive || (uploadSelectedCount ?? 0) === 0
-            }
-          >
-            {`Upload Selected${typeof uploadSelectedCount === 'number' ? ` (${uploadSelectedCount})` : ''}`}
-          </Button>
-        )}
-        {onRetrySelected && (
-          <Button variant="outline" size="sm" onClick={onRetrySelected}>
-            Retry Selected
-          </Button>
-        )}
-        {onAbortSelected && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
-            onClick={onAbortSelected}
-          >
-            Abort Selected
-          </Button>
-        )}
-        {onDownloadSelected && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="default" size="sm">
-                Download Selected
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onDownloadSelected('markdown')}>
-                Markdown (.md)
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" aria-label="More actions for selected files">
+              <Ellipsis />
+              <span className="hidden sm:inline">Actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {onBulkRename ? (
+              <DropdownMenuItem onSelect={onBulkRename}>Bulk Rename</DropdownMenuItem>
+            ) : null}
+            {onUploadSelected ? (
+              <DropdownMenuItem
+                onSelect={onUploadSelected}
+                disabled={
+                  !isDriveAuthenticated || isUploadSessionActive || (uploadSelectedCount ?? 0) === 0
+                }
+              >
+                Upload Selected
+                {typeof uploadSelectedCount === 'number' ? ` (${uploadSelectedCount})` : ''}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDownloadSelected('docx')}>
-                Word (.docx)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+            ) : null}
+            {onRetrySelected ? (
+              <DropdownMenuItem onSelect={onRetrySelected}>Retry Selected</DropdownMenuItem>
+            ) : null}
+            {onDownloadSelected ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => onDownloadSelected('markdown')}>
+                  Download as Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onDownloadSelected('docx')}>
+                  Download as Word
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {onAbortSelected ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onSelect={onAbortSelected}>
+                  Abort Selected
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
