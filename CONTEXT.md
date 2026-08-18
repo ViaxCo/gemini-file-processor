@@ -137,11 +137,11 @@ The assigned and unassigned file counts for an entire Processing Batch, includin
 _Avoid_: Global assignment, selection summary
 
 **Series Selection**:
-The files selected by the Select Series action. It replaces the previous selection with every file in one Series Group, regardless of processing or upload status.
+The files selected by one or more Select Series actions. Each action adds or removes every file in one Series Group, regardless of processing or upload status.
 _Avoid_: Add series, folder selection
 
 **Quick Series Assignment**:
-The creation of a folder from a Series Folder Name Suggestion inside the Preferred Assignment Root, followed by a Destination Assignment for every file in one eligible Series Selection.
+The sequential creation of one folder from each Series Folder Name Suggestion inside the Preferred Assignment Root, followed by a Destination Assignment for every eligible file in each selected Series Group.
 _Avoid_: Automatic folder, default assignment
 
 **Natural Track Order**:

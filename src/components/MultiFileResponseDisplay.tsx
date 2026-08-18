@@ -24,6 +24,7 @@ import { canChangeUploadDestination } from '@/utils/automaticUploads';
 import { suggestSeriesFolderName } from '@/utils/driveFolderName';
 import { downloadProcessedFile } from '@/utils/fileUtils';
 import { groupFilesBySeries } from '@/utils/seriesGroups';
+import { createAndAssignSeriesGroups } from '@/utils/seriesAssignments';
 import {
   AlertCircle,
   ChevronDown,
@@ -159,7 +160,11 @@ export const MultiFileResponseDisplay = ({
   const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
-  const [isCreatingSeriesFolder, setIsCreatingSeriesFolder] = useState(false);
+  const [createAndAssignProgress, setCreateAndAssignProgress] = useState<{
+    current: number;
+    total: number;
+    title: string;
+  } | null>(null);
   const [isBulkRenameOpen, setIsBulkRenameOpen] = useState<boolean>(false);
   const [destinationAssignments, setDestinationAssignments] = useState<
     Record<number, { destination: DriveDestination; location: DriveFolder[] }>
@@ -223,25 +228,58 @@ export const MultiFileResponseDisplay = ({
       ),
     [sourceFiles, resolvedDisplayNames, uploadStatuses, uploadKeys],
   );
-  const selectedSeriesGroup = useMemo(
+  const selectedSeriesGroups = useMemo(
     () =>
-      fileSeriesGroups.find(
+      fileSeriesGroups.filter(
         (group) =>
           !group.isUngrouped &&
-          group.indices.length === selected.size &&
+          group.indices.length > 0 &&
           group.indices.every((index) => selected.has(index)),
       ),
     [fileSeriesGroups, selected],
   );
-  const quickFolderName = useMemo(
-    () =>
-      selectedSeriesGroup
-        ? suggestSeriesFolderName(
-            selectedSeriesGroup.indices.map((index) => resolvedDisplayNames[index] || ''),
-          )
-        : '',
-    [resolvedDisplayNames, selectedSeriesGroup],
+  const selectedSeriesGroupIndices = useMemo(
+    () => selectedSeriesGroups.flatMap((group) => group.indices),
+    [selectedSeriesGroups],
   );
+  const selectedSeriesAssignmentPlans = useMemo(
+    () =>
+      selectedSeriesGroups.map((group) => ({
+        title: group.title,
+        indices: group.indices,
+        folderName: suggestSeriesFolderName(
+          group.indices.map((index) => resolvedDisplayNames[index] || ''),
+        ),
+      })),
+    [resolvedDisplayNames, selectedSeriesGroups],
+  );
+  const isCompleteSeriesGroupSelection =
+    selectedSeriesGroups.length > 0 && selectedSeriesGroupIndices.length === selected.size;
+  const hasCreateAndAssignSelection =
+    isCompleteSeriesGroupSelection &&
+    selectedSeriesAssignmentPlans.length > 0 &&
+    selectedSeriesAssignmentPlans.every((plan) => plan.folderName);
+  const canCreateAndAssignSeries =
+    hasCreateAndAssignSelection &&
+    assignableSelectedIndices.length === selected.size &&
+    selectedSeriesGroupIndices.every((index) => !destinationAssignments[index]);
+  const createAndAssignSummary = useMemo(() => {
+    if (createAndAssignProgress) {
+      return `Creating ${createAndAssignProgress.current} of ${createAndAssignProgress.total}: ${createAndAssignProgress.title}`;
+    }
+
+    if (!hasCreateAndAssignSelection) return '';
+    if (selectedSeriesAssignmentPlans.length === 1) {
+      return `New folder: ${selectedSeriesAssignmentPlans[0]!.folderName}`;
+    }
+
+    return `${selectedSeriesAssignmentPlans.length} new folders for selected groups`;
+  }, [createAndAssignProgress, hasCreateAndAssignSelection, selectedSeriesAssignmentPlans]);
+  const createAndAssignLabel = createAndAssignProgress
+    ? `Creating ${createAndAssignProgress.current}/${createAndAssignProgress.total}…`
+    : selectedSeriesAssignmentPlans.length > 1
+      ? 'Create & Assign Groups'
+      : 'Create & Assign';
   const completedResults = fileResults.filter(
     (result) => result.isCompleted && !result.error && result.response,
   );
@@ -571,36 +609,67 @@ export const MultiFileResponseDisplay = ({
     if (
       !driveCreateFolder ||
       !preferredRoot ||
-      !selectedSeriesGroup ||
-      !quickFolderName ||
-      isCreatingSeriesFolder
+      !canCreateAndAssignSeries ||
+      createAndAssignProgress
     ) {
       return;
     }
 
-    setIsCreatingSeriesFolder(true);
+    const completedIndices = new Set<number>();
     try {
-      const folder = await driveCreateFolder(quickFolderName, preferredRoot.id);
-      setDestinationAssignments((previous) => {
-        const next = { ...previous };
-        for (const index of selectedSeriesGroup.indices) {
-          next[index] = {
-            destination: folder,
-            location: [...PREFERRED_ASSIGNMENT_ROOT, folder],
-          };
-        }
+      const result = await createAndAssignSeriesGroups(
+        selectedSeriesAssignmentPlans,
+        driveCreateFolder,
+        preferredRoot.id,
+        setCreateAndAssignProgress,
+        (indices, folder) => {
+          for (const index of indices) completedIndices.add(index);
+          setDestinationAssignments((previous) => {
+            const next = { ...previous };
+            for (const index of indices) {
+              next[index] = {
+                destination: folder,
+                location: [...PREFERRED_ASSIGNMENT_ROOT, folder],
+              };
+            }
+            return next;
+          });
+        },
+      );
+
+      setSelected((previous) => {
+        const next = new Set(previous);
+        for (const index of completedIndices) next.delete(index);
         return next;
       });
-      setSelected(new Set());
-      toast.success(
-        `Created “${folder.name}” and assigned ${selectedSeriesGroup.indices.length} files.`,
+
+      const assignedFileCount = result.completed.reduce(
+        (count, group) => count + group.fileCount,
+        0,
       );
+      const completedGroupLabel = `${result.completed.length} group${
+        result.completed.length === 1 ? '' : 's'
+      }`;
+
+      if (result.failed.length === 0) {
+        toast.success(`Created and assigned ${completedGroupLabel} (${assignedFileCount} files).`);
+      } else {
+        const failedGroupNames = result.failed.map((group) => `“${group.title}”`).join(', ');
+        const message = `Could not create folders for ${failedGroupNames}.`;
+        if (result.completed.length > 0) {
+          toast.warning(
+            `Created and assigned ${completedGroupLabel} (${assignedFileCount} files). ${message}`,
+          );
+        } else {
+          toast.error(message);
+        }
+      }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Could not create and assign the folder.',
+        error instanceof Error ? error.message : 'Could not create and assign the folders.',
       );
     } finally {
-      setIsCreatingSeriesFolder(false);
+      setCreateAndAssignProgress(null);
     }
   };
 
@@ -633,10 +702,12 @@ export const MultiFileResponseDisplay = ({
   );
   const handleToggleGroup = useCallback((indices: number[]) => {
     setSelected((previous) => {
-      if (!indices.every((index) => previous.has(index))) return new Set(indices);
-
       const next = new Set(previous);
-      for (const index of indices) next.delete(index);
+      const isFullySelected = indices.every((index) => previous.has(index));
+      for (const index of indices) {
+        if (isFullySelected) next.delete(index);
+        else next.add(index);
+      }
       return next;
     });
   }, []);
@@ -1082,15 +1153,15 @@ export const MultiFileResponseDisplay = ({
               allSelected={allSelected}
               onToggleSelectAll={(checked) => toggleSelectAll(checked)}
               uploadSelectedCount={uploadSelectedEligibleCount}
-              quickFolderName={quickFolderName}
-              onCreateAndAssign={selectedSeriesGroup ? handleCreateAndAssignSeries : undefined}
-              isCreateAndAssignDisabled={
-                !isDriveAuthenticated ||
-                !driveCreateFolder ||
-                assignableSelectedIndices.length !== selectedCount ||
-                selectedSeriesGroup?.indices.some((index) => destinationAssignments[index])
+              createAndAssignSummary={createAndAssignSummary}
+              createAndAssignLabel={createAndAssignLabel}
+              onCreateAndAssign={
+                hasCreateAndAssignSelection ? handleCreateAndAssignSeries : undefined
               }
-              isCreatingAndAssigning={isCreatingSeriesFolder}
+              isCreateAndAssignDisabled={
+                !isDriveAuthenticated || !driveCreateFolder || !canCreateAndAssignSeries
+              }
+              isCreatingAndAssigning={createAndAssignProgress !== null}
             />
           )}
         </div>

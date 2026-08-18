@@ -24,7 +24,8 @@ interface ContextualActionBarProps {
   allSelected?: boolean;
   onToggleSelectAll?: (checked: boolean) => void;
   uploadSelectedCount?: number;
-  quickFolderName?: string;
+  createAndAssignSummary?: string;
+  createAndAssignLabel?: string;
   onCreateAndAssign?: () => void;
   isCreateAndAssignDisabled?: boolean;
   isCreatingAndAssigning?: boolean;
@@ -43,7 +44,8 @@ export function ContextualActionBar({
   allSelected = false,
   onToggleSelectAll,
   uploadSelectedCount,
-  quickFolderName,
+  createAndAssignSummary,
+  createAndAssignLabel = 'Create & Assign',
   onCreateAndAssign,
   isCreateAndAssignDisabled = false,
   isCreatingAndAssigning = false,
@@ -67,19 +69,21 @@ export function ContextualActionBar({
         <span className="shrink-0 font-medium text-foreground tabular-nums">
           {selectedCount} selected
         </span>
-        {quickFolderName ? (
+        {createAndAssignSummary ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <span
                 className="min-w-0 truncate rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                aria-label={`New folder: ${quickFolderName}`}
+                aria-label={createAndAssignSummary}
                 tabIndex={0}
               >
-                <span aria-hidden="true">·</span> New folder:{' '}
-                <span className="font-medium text-foreground">{quickFolderName}</span>
+                <span aria-hidden="true">·</span>{' '}
+                <span className="font-medium text-foreground">{createAndAssignSummary}</span>
               </span>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs break-words">{quickFolderName}</TooltipContent>
+            <TooltipContent className="max-w-xs break-words">
+              {createAndAssignSummary}
+            </TooltipContent>
           </Tooltip>
         ) : null}
       </div>
@@ -90,7 +94,7 @@ export function ContextualActionBar({
             <span className="hidden sm:inline">Assign Folder</span>
           </Button>
         ) : null}
-        {onCreateAndAssign && quickFolderName ? (
+        {onCreateAndAssign && createAndAssignSummary ? (
           <Button
             size="sm"
             onClick={onCreateAndAssign}
@@ -98,9 +102,7 @@ export function ContextualActionBar({
           >
             {isCreatingAndAssigning ? <Loader2 className="animate-spin" /> : <FolderPlus />}
             <span className="sm:hidden">{isCreatingAndAssigning ? 'Creating…' : 'Create'}</span>
-            <span className="hidden sm:inline">
-              {isCreatingAndAssigning ? 'Creating…' : 'Create & Assign'}
-            </span>
+            <span className="hidden sm:inline">{createAndAssignLabel}</span>
           </Button>
         ) : null}
         <DropdownMenu>
