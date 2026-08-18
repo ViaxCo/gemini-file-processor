@@ -61,6 +61,7 @@ export function FileSeriesGroup({
           ? `Assigned · ${assignment.destinationCount} folders`
           : 'Assigned';
   const isFullyAssigned = assignment.assignedCount === fileCount;
+  const selectionLabel = isUngrouped ? 'Select Files' : 'Select Series';
 
   return (
     <Collapsible open={isOpen} onOpenChange={onOpenChange} asChild>
@@ -124,22 +125,20 @@ export function FileSeriesGroup({
               </span>
             </Button>
           </CollapsibleTrigger>
-          {!isUngrouped ? (
-            <Button
-              variant={isFullySelected ? 'default' : isPartlySelected ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={onToggleSelection}
-              className="w-full sm:w-auto"
-              aria-pressed={isPartlySelected ? 'mixed' : isFullySelected}
-            >
-              {isFullySelected ? <Check /> : null}
-              {isFullySelected
-                ? 'Selected'
-                : isPartlySelected
-                  ? `${selectedCount} of ${fileCount} selected`
-                  : 'Select Series'}
-            </Button>
-          ) : null}
+          <Button
+            variant={isFullySelected ? 'default' : isPartlySelected ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={onToggleSelection}
+            className="w-full sm:w-auto"
+            aria-pressed={isPartlySelected ? 'mixed' : isFullySelected}
+          >
+            {isFullySelected ? <Check /> : null}
+            {isFullySelected
+              ? 'Selected'
+              : isPartlySelected
+                ? `${selectedCount} of ${fileCount} selected`
+                : selectionLabel}
+          </Button>
         </header>
 
         <CollapsibleContent>
