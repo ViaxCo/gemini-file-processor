@@ -44,18 +44,15 @@ const GEMINI_PAUSE_DETAILS = {
   daily_quota: {
     kind: 'deferred',
     title: 'All Gemini daily quotas reached',
-    recoveryAction: 'retry_later',
     quotaType: 'rpd',
   },
   authentication: {
     kind: 'permanent',
     title: 'No usable Gemini key',
-    recoveryAction: 'check_api_key',
   },
   model_unavailable: {
     kind: 'permanent',
     title: 'Model unavailable in all projects',
-    recoveryAction: 'choose_model',
   },
 } as const;
 

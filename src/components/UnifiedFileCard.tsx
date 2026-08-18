@@ -45,9 +45,6 @@ export interface UnifiedFileCardProps {
   showMarkdown: boolean;
   onToggleMarkdown: (show: boolean) => void;
   onRetry?: (index: number) => void;
-  onCheckApiKey?: () => void;
-  onChooseModel?: () => void;
-  onReviewInstructions?: () => void;
   onAbort?: (index: number) => void;
   onUpload?: (index: number) => void;
   onDiscardUpload?: (index: number) => void;
@@ -79,9 +76,6 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     // showMarkdown,
     // onToggleMarkdown,
     onRetry,
-    onCheckApiKey,
-    onChooseModel,
-    onReviewInstructions,
     onAbort,
     onUpload,
     onDiscardUpload,
@@ -513,9 +507,6 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
             isRetrying={!!result.retryFailure}
             isProcessing={result.isProcessing}
             onRetry={onRetry ? () => onRetry(index) : undefined}
-            onCheckApiKey={onCheckApiKey}
-            onChooseModel={onChooseModel}
-            onReviewInstructions={onReviewInstructions}
           />
         ) : null}
       </CardHeader>

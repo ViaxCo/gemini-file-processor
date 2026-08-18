@@ -36,19 +36,6 @@ const ThemeToggle = dynamic(
   },
 );
 
-const focusRecoveryTarget = (target: 'api-key' | 'model' | 'instructions'): void => {
-  const element =
-    document.querySelector<HTMLElement>(`[data-recovery-target="${target}"]`) ??
-    document.querySelector<HTMLElement>('#provider-settings');
-  if (!element) return;
-  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  setTimeout(() => element.focus(), 300);
-};
-
-const focusApiKey = () => focusRecoveryTarget('api-key');
-const focusModel = () => focusRecoveryTarget('model');
-const focusInstructions = () => focusRecoveryTarget('instructions');
-
 export function AIFileProcessor() {
   const PROCESSING_PROFILE_KEY = 'ai-file-processor-processing-profile';
   const [files, setFiles] = useState<File[]>([]);
@@ -508,9 +495,6 @@ export function AIFileProcessor() {
                 defaultDisplayNames={defaultDisplayNames}
                 onRetryFile={handleRetryFile}
                 onRetryAllFailed={handleRetryAllFailed}
-                onCheckApiKey={focusApiKey}
-                onChooseModel={focusModel}
-                onReviewInstructions={focusInstructions}
                 onAbortAll={abortAll}
                 onAbortFile={(i) => abortFile(i)}
                 onAbortSelected={(indices) => abortSelected(indices)}

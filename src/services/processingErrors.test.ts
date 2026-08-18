@@ -48,7 +48,6 @@ describe('processing errors', () => {
       category: 'daily_quota',
       kind: 'deferred',
       retryable: false,
-      recoveryAction: 'retry_later',
     });
   });
 
@@ -64,7 +63,6 @@ describe('processing errors', () => {
     expect(toProcessingFailure(error, 'gemini', 'gemini-2.5-flash')).toMatchObject({
       category: 'authentication',
       retryable: false,
-      recoveryAction: 'check_api_key',
     });
   });
 
@@ -80,7 +78,6 @@ describe('processing errors', () => {
       category: 'content_blocked',
       kind: 'temporary',
       retryable: true,
-      recoveryAction: 'retry',
     });
   });
 
@@ -96,7 +93,6 @@ describe('processing errors', () => {
       category: 'invalid_response',
       kind: 'temporary',
       retryable: true,
-      recoveryAction: 'retry',
     });
   });
 

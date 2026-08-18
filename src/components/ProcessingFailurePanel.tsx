@@ -4,39 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { getProvider } from '@/config/providerConfig';
-import {
-  MAX_PROCESSING_ATTEMPTS,
-  ProcessingFailure,
-  ProcessingRecoveryAction,
-} from '@/services/processingErrors';
+import { MAX_PROCESSING_ATTEMPTS, ProcessingFailure } from '@/services/processingErrors';
 import { copyToClipboard } from '@/utils/fileUtils';
-import {
-  ChevronDown,
-  Clock3,
-  Copy,
-  KeyRound,
-  PencilLine,
-  RotateCcw,
-  Settings2,
-} from 'lucide-react';
+import { ChevronDown, Copy, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-
-const RECOVERY_LABELS: Record<ProcessingRecoveryAction, string> = {
-  retry: 'Retry',
-  retry_later: 'Retry Later',
-  check_api_key: 'Check API Key',
-  choose_model: 'Choose Model',
-  review_instructions: 'Review Instructions',
-};
-
-const RECOVERY_ICONS = {
-  retry: RotateCcw,
-  retry_later: Clock3,
-  check_api_key: KeyRound,
-  choose_model: Settings2,
-  review_instructions: PencilLine,
-} satisfies Record<ProcessingRecoveryAction, typeof RotateCcw>;
 
 type ProcessingFailurePanelProps = {
   failure: ProcessingFailure;
@@ -45,9 +17,6 @@ type ProcessingFailurePanelProps = {
   isRetrying: boolean;
   isProcessing: boolean;
   onRetry?: () => void;
-  onCheckApiKey?: () => void;
-  onChooseModel?: () => void;
-  onReviewInstructions?: () => void;
 };
 
 export function ProcessingFailurePanel({
@@ -57,9 +26,6 @@ export function ProcessingFailurePanel({
   isRetrying,
   isProcessing,
   onRetry,
-  onCheckApiKey,
-  onChooseModel,
-  onReviewInstructions,
 }: ProcessingFailurePanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -80,15 +46,6 @@ export function ProcessingFailurePanel({
     : isRetrying && isProcessing
       ? `Attempt ${nextAttempt} of ${MAX_PROCESSING_ATTEMPTS}`
       : undefined;
-  const recoveryHandlers: Record<ProcessingRecoveryAction, (() => void) | undefined> = {
-    retry: onRetry,
-    retry_later: onRetry,
-    check_api_key: onCheckApiKey,
-    choose_model: onChooseModel,
-    review_instructions: onReviewInstructions,
-  };
-  const recoveryHandler = recoveryHandlers[failure.recoveryAction];
-  const RecoveryIcon = RECOVERY_ICONS[failure.recoveryAction];
   const details = [
     `Provider: ${providerName}`,
     `Model: ${failure.model}`,
@@ -129,16 +86,16 @@ export function ProcessingFailurePanel({
             {retryState}
           </span>
         ) : null}
-        {!isRetrying && recoveryHandler ? (
+        {!isRetrying && onRetry ? (
           <Button
             type="button"
             variant="outline"
             size="sm"
             className="h-7 border-destructive/40 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-foreground dark:hover:bg-destructive/20 dark:hover:text-foreground"
-            onClick={recoveryHandler}
+            onClick={onRetry}
           >
-            <RecoveryIcon className="h-3.5 w-3.5" />
-            {RECOVERY_LABELS[failure.recoveryAction]}
+            <RotateCcw className="h-3.5 w-3.5" />
+            Retry
           </Button>
         ) : null}
         <CollapsibleTrigger asChild>

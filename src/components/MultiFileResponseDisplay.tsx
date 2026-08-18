@@ -56,9 +56,6 @@ interface MultiFileResponseDisplayProps {
   defaultDisplayNames?: Record<string, string>;
   onRetryFile?: (index: number) => void;
   onRetryAllFailed?: () => void;
-  onCheckApiKey?: () => void;
-  onChooseModel?: () => void;
-  onReviewInstructions?: () => void;
   onAbortFile?: (index: number) => void;
   onAbortSelected?: (indices: number[]) => void;
   onAbortAll?: () => void;
@@ -124,9 +121,6 @@ export const MultiFileResponseDisplay = ({
   defaultDisplayNames = EMPTY_DISPLAY_NAMES,
   onRetryFile,
   onRetryAllFailed,
-  onCheckApiKey,
-  onChooseModel,
-  onReviewInstructions,
   onAbortFile,
   onAbortSelected,
   onAbortAll,
@@ -741,9 +735,6 @@ export const MultiFileResponseDisplay = ({
           showMarkdown={showMarkdown}
           onToggleMarkdown={setShowMarkdown}
           onRetry={onRetryFile && !isDriveLifecycleBlockingProcessing ? handleCardRetry : undefined}
-          onCheckApiKey={onCheckApiKey}
-          onChooseModel={onChooseModel}
-          onReviewInstructions={onReviewInstructions}
           onAbort={onAbortFile ? handleCardAbort : undefined}
           uploadStatus={uploadStatus}
           destinationFolderName={destinationAssignments[orderedIndex]?.destination.name}
@@ -773,10 +764,7 @@ export const MultiFileResponseDisplay = ({
       isDriveLifecycleBlockingProcessing,
       isUploadSessionActive,
       onAbortFile,
-      onCheckApiKey,
-      onChooseModel,
       onRetryFile,
-      onReviewInstructions,
       processingProfile,
       resolvedDisplayNames,
       selected,

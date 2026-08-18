@@ -16,9 +16,6 @@ export type ProcessingFailureCategory =
   | 'server_error'
   | 'unknown';
 
-export type ProcessingRecoveryAction =
-  'retry' | 'retry_later' | 'check_api_key' | 'choose_model' | 'review_instructions';
-
 export type ProcessingFailure = {
   kind: 'temporary' | 'deferred' | 'permanent';
   category: ProcessingFailureCategory;
@@ -28,7 +25,6 @@ export type ProcessingFailure = {
   model: string;
   technicalMessage: string;
   retryable: boolean;
-  recoveryAction: ProcessingRecoveryAction;
   httpStatus?: number;
   providerCode?: string;
   retryAfterMs?: number;
@@ -164,7 +160,7 @@ const sanitizeProviderMessage = (message: string): string =>
 
 const describeFailure = (
   category: ProcessingFailureCategory,
-): Pick<ProcessingFailure, 'kind' | 'title' | 'message' | 'retryable' | 'recoveryAction'> => {
+): Pick<ProcessingFailure, 'kind' | 'title' | 'message' | 'retryable'> => {
   switch (category) {
     case 'rate_limit':
       return {
@@ -172,7 +168,6 @@ const describeFailure = (
         title: 'Rate limited',
         message: 'The provider is limiting requests.',
         retryable: true,
-        recoveryAction: 'retry',
       };
     case 'daily_quota':
       return {
@@ -180,7 +175,6 @@ const describeFailure = (
         title: 'Daily quota reached',
         message: 'The provider daily quota has been reached.',
         retryable: false,
-        recoveryAction: 'retry_later',
       };
     case 'overloaded':
       return {
@@ -188,7 +182,6 @@ const describeFailure = (
         title: 'Model overloaded',
         message: 'The selected model is temporarily overloaded.',
         retryable: true,
-        recoveryAction: 'retry',
       };
     case 'network':
       return {
@@ -196,7 +189,6 @@ const describeFailure = (
         title: 'Network error',
         message: 'The provider could not be reached.',
         retryable: true,
-        recoveryAction: 'retry',
       };
     case 'timeout':
       return {
@@ -204,7 +196,6 @@ const describeFailure = (
         title: 'Request timed out',
         message: 'The provider took too long to respond.',
         retryable: true,
-        recoveryAction: 'retry',
       };
     case 'authentication':
       return {
@@ -212,7 +203,6 @@ const describeFailure = (
         title: 'API key problem',
         message: 'The API key is invalid or does not have access.',
         retryable: false,
-        recoveryAction: 'check_api_key',
       };
     case 'invalid_request':
       return {
@@ -220,7 +210,6 @@ const describeFailure = (
         title: 'Invalid request',
         message: 'The provider rejected the request.',
         retryable: false,
-        recoveryAction: 'review_instructions',
       };
     case 'model_unavailable':
       return {
@@ -228,7 +217,6 @@ const describeFailure = (
         title: 'Model unavailable',
         message: 'The selected model is unavailable.',
         retryable: false,
-        recoveryAction: 'choose_model',
       };
     case 'content_blocked':
       return {
@@ -236,7 +224,6 @@ const describeFailure = (
         title: 'Content blocked',
         message: 'The provider blocked this request or its output.',
         retryable: true,
-        recoveryAction: 'retry',
       };
     case 'invalid_response':
       return {
@@ -244,7 +231,6 @@ const describeFailure = (
         title: 'Invalid response',
         message: 'The provider returned no usable content.',
         retryable: true,
-        recoveryAction: 'retry',
       };
     case 'server_error':
       return {
@@ -252,7 +238,6 @@ const describeFailure = (
         title: 'Provider error',
         message: 'The provider had a temporary server error.',
         retryable: true,
-        recoveryAction: 'retry',
       };
     default:
       return {
@@ -260,7 +245,6 @@ const describeFailure = (
         title: 'Unknown error',
         message: 'The request failed for an unknown reason.',
         retryable: false,
-        recoveryAction: 'retry',
       };
   }
 };

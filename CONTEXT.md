@@ -29,7 +29,7 @@ The fixed set of source files and generated results created by one processing ac
 _Avoid_: Current files, result list
 
 **Processing Failure**:
-An unsuccessful file-processing outcome with a category, safe provider facts, recovery guidance, and retry state. It does not include Cancelled Processing.
+An unsuccessful file-processing outcome with a category, safe provider facts, an explanation, and retry state. It does not include Cancelled Processing.
 _Avoid_: Error string, failed response
 
 **Temporary Processing Failure**:

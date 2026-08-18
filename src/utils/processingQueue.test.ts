@@ -19,18 +19,25 @@ const failure = (category: ProcessingFailure['category']): ProcessingFailure => 
   model: 'test-success',
   technicalMessage: 'Test failure',
   retryable: false,
-  recoveryAction: 'retry',
   httpStatus: 429,
   providerCode: 'TEST',
 });
 
 describe('processing queue policy', () => {
-  it('allows only settled results to enter the queue for a manual retry', () => {
+  it('allows completed, failed, and cancelled results to enter the queue for a manual retry', () => {
     expect(
       canRetryProcessingResult({
         isCompleted: true,
         isProcessing: false,
         queueStatus: 'completed',
+      }),
+    ).toBe(true);
+    expect(
+      canRetryProcessingResult({
+        isCompleted: false,
+        isProcessing: false,
+        error: failure('invalid_request'),
+        queueStatus: 'failed',
       }),
     ).toBe(true);
     expect(

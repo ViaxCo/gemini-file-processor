@@ -18,7 +18,7 @@ This file is the source of truth for the workflow improvements. A user-visible i
 | 2. Faster Drive assignment              | Done                | Assignment opens in the preferred transcript root. A new folder can be created and assigned in one action. Existing Drive items are not changed during testing.                                                                                                     |
 | 3. Series groups                        | Done                | Files are grouped by series, tracks use natural order, uncertain files are separate, and one action selects a series.                                                                                                                                               |
 | 4. Viewport workspace                   | Done                | Desktop uses one results scroll area that fits the viewport. Mobile uses one normal page scroll.                                                                                                                                                                    |
-| 5. Structured errors and retries        | Done                | Failures show a category, status, provider code, recovery action, retry state, and safe details. Only temporary failures retry automatically.                                                                                                                       |
+| 5. Structured errors and retries        | Done                | Failures show a category, status, retry action, retry state, and safe details. Users can manually retry every failure; only temporary failures retry automatically.                                                                                                 |
 | 6. Large processing queues              | Done                | The quota-based 20-file cap is removed after queue safeguards exist. Large queues show progress and estimated completion state.                                                                                                                                     |
 | 7. Gemini quota pools                   | Done                | Gemini requests route across one key per Google project. Local request and input-token usage is tracked per project and model. RPM, TPM, RPD, and invalid-key failures affect only the relevant project when possible.                                              |
 | 8. Automatic assigned uploads           | Ready for your test | A successful medium- or high-confidence result uploads automatically after it has a Destination Assignment. Upload Sessions contain at most ten documents, wait for Drive reconnection, and pause behind an unknown outcome.                                        |
@@ -112,7 +112,7 @@ This file is the source of truth for the workflow improvements. A user-visible i
 - [x] Temporary failures use up to three Automatic Processing Retries with exponential backoff, jitter, and a longer provider delay when supplied.
 - [x] Deferred and Permanent Processing Failures do not retry automatically.
 - [x] Cancelled Processing is separate from errors and can be retried manually.
-- [x] Failed cards show a compact category, status, explanation, retry state or recovery action, and collapsed safe details.
+- [x] Failed cards show a compact category, status, explanation, Retry action, retry state, and collapsed safe details.
 - [x] The response summary shows failure category counts.
 - [x] Retry All includes Processing Failures and excludes Cancelled Processing.
 - [x] A Manual Processing Retry starts a fresh four-attempt cycle.

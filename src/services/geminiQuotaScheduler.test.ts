@@ -39,7 +39,6 @@ const failure = (
   model: 'gemini-2.5-flash',
   technicalMessage: category,
   retryable: category === 'rate_limit',
-  recoveryAction: category === 'authentication' ? 'check_api_key' : 'retry',
   retryAfterMs,
 });
 
