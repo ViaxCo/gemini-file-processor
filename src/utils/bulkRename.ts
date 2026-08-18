@@ -16,7 +16,6 @@ export const DEFAULT_BULK_RENAME_RULES: BulkRenameRules = {
   formatTrackTitles: true,
 };
 
-const PLUS_DELIMITED_TRACK_NAME = /\+Track\+\d+\b/i;
 const INPUT_EXTENSION = /\.(txt|md|docx)$/i;
 
 export function applyBulkRenameRules(name: string, rules: BulkRenameRules): string {
@@ -57,6 +56,6 @@ export function applyBulkRenameRules(name: string, rules: BulkRenameRules): stri
 }
 
 export function getAutomaticDisplayName(name: string): string {
-  if (!PLUS_DELIMITED_TRACK_NAME.test(name) || !INPUT_EXTENSION.test(name)) return name;
+  if (!INPUT_EXTENSION.test(name)) return name;
   return applyBulkRenameRules(name, DEFAULT_BULK_RENAME_RULES);
 }

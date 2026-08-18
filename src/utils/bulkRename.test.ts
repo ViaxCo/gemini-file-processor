@@ -52,9 +52,15 @@ describe('applyBulkRenameRules', () => {
     );
   });
 
-  it('leaves an unrecognized filename unchanged', () => {
+  it('automatically cleans a supported filename without a track number', () => {
     expect(getAutomaticDisplayName('Meeting+Notes+1st+Jan+2024.txt')).toBe(
-      'Meeting+Notes+1st+Jan+2024.txt',
+      'Meeting Notes 1st Jan 2024',
+    );
+  });
+
+  it('leaves unsupported file types unchanged', () => {
+    expect(getAutomaticDisplayName('Meeting+Notes+1st+Jan+2024.pdf')).toBe(
+      'Meeting+Notes+1st+Jan+2024.pdf',
     );
   });
 
