@@ -140,8 +140,8 @@ _Avoid_: Global assignment, selection summary
 The files selected by one or more Select Series actions. Each action adds or removes every file in one Series Group, regardless of processing or upload status.
 _Avoid_: Add series, folder selection
 
-**Quick Series Assignment**:
-The sequential creation of one folder from each Series Folder Name Suggestion inside the Preferred Assignment Root, followed by a Destination Assignment for every eligible file in each selected Series Group.
+**Quick Folder Assignment**:
+The sequential creation of one folder from each Series Folder Name Suggestion inside the Preferred Assignment Root, followed by a Destination Assignment for every eligible file in each selected Series Group or for one selected Ungrouped File.
 _Avoid_: Automatic folder, default assignment
 
 **Natural Track Order**:

@@ -255,29 +255,45 @@ export const MultiFileResponseDisplay = ({
   );
   const isCompleteSeriesGroupSelection =
     selectedSeriesGroups.length > 0 && selectedSeriesGroupIndices.length === selected.size;
+  const selectedUngroupedAssignmentPlans = useMemo(() => {
+    if (selected.size !== 1) return [];
+
+    const [index] = selected;
+    const ungroupedGroup = fileSeriesGroups.find((group) => group.isUngrouped);
+    if (index == null || !ungroupedGroup?.indices.includes(index)) return [];
+
+    const displayName = resolvedDisplayNames[index] || '';
+    const folderName = suggestSeriesFolderName([displayName]);
+    return folderName ? [{ title: displayName, indices: [index], folderName }] : [];
+  }, [fileSeriesGroups, resolvedDisplayNames, selected]);
+  const createAndAssignPlans = isCompleteSeriesGroupSelection
+    ? selectedSeriesAssignmentPlans
+    : selectedUngroupedAssignmentPlans;
+  const createAndAssignIndices = useMemo(
+    () => createAndAssignPlans.flatMap((plan) => plan.indices),
+    [createAndAssignPlans],
+  );
   const hasCreateAndAssignSelection =
-    isCompleteSeriesGroupSelection &&
-    selectedSeriesAssignmentPlans.length > 0 &&
-    selectedSeriesAssignmentPlans.every((plan) => plan.folderName);
-  const canCreateAndAssignSeries =
+    createAndAssignPlans.length > 0 && createAndAssignPlans.every((plan) => plan.folderName);
+  const canCreateAndAssign =
     hasCreateAndAssignSelection &&
     assignableSelectedIndices.length === selected.size &&
-    selectedSeriesGroupIndices.every((index) => !destinationAssignments[index]);
+    createAndAssignIndices.every((index) => !destinationAssignments[index]);
   const createAndAssignSummary = useMemo(() => {
     if (createAndAssignProgress) {
       return `Creating ${createAndAssignProgress.current} of ${createAndAssignProgress.total}: ${createAndAssignProgress.title}`;
     }
 
     if (!hasCreateAndAssignSelection) return '';
-    if (selectedSeriesAssignmentPlans.length === 1) {
-      return `New folder: ${selectedSeriesAssignmentPlans[0]!.folderName}`;
+    if (createAndAssignPlans.length === 1) {
+      return `New folder: ${createAndAssignPlans[0]!.folderName}`;
     }
 
-    return `${selectedSeriesAssignmentPlans.length} new folders for selected groups`;
-  }, [createAndAssignProgress, hasCreateAndAssignSelection, selectedSeriesAssignmentPlans]);
+    return `${createAndAssignPlans.length} new folders for selected groups`;
+  }, [createAndAssignPlans, createAndAssignProgress, hasCreateAndAssignSelection]);
   const createAndAssignLabel = createAndAssignProgress
     ? `Creating ${createAndAssignProgress.current}/${createAndAssignProgress.total}…`
-    : selectedSeriesAssignmentPlans.length > 1
+    : createAndAssignPlans.length > 1
       ? 'Create & Assign Groups'
       : 'Create & Assign';
   const completedResults = fileResults.filter(
@@ -604,21 +620,16 @@ export const MultiFileResponseDisplay = ({
     }
   };
 
-  const handleCreateAndAssignSeries = async () => {
+  const handleCreateAndAssign = async () => {
     const preferredRoot = PREFERRED_ASSIGNMENT_ROOT[0];
-    if (
-      !driveCreateFolder ||
-      !preferredRoot ||
-      !canCreateAndAssignSeries ||
-      createAndAssignProgress
-    ) {
+    if (!driveCreateFolder || !preferredRoot || !canCreateAndAssign || createAndAssignProgress) {
       return;
     }
 
     const completedIndices = new Set<number>();
     try {
       const result = await createAndAssignSeriesGroups(
-        selectedSeriesAssignmentPlans,
+        createAndAssignPlans,
         driveCreateFolder,
         preferredRoot.id,
         setCreateAndAssignProgress,
@@ -647,18 +658,20 @@ export const MultiFileResponseDisplay = ({
         (count, group) => count + group.fileCount,
         0,
       );
-      const completedGroupLabel = `${result.completed.length} group${
+      const completedFolderLabel = `${result.completed.length} folder${
         result.completed.length === 1 ? '' : 's'
       }`;
 
       if (result.failed.length === 0) {
-        toast.success(`Created and assigned ${completedGroupLabel} (${assignedFileCount} files).`);
+        toast.success(
+          `Created and assigned ${completedFolderLabel} (${assignedFileCount} file${assignedFileCount === 1 ? '' : 's'}).`,
+        );
       } else {
         const failedGroupNames = result.failed.map((group) => `“${group.title}”`).join(', ');
         const message = `Could not create folders for ${failedGroupNames}.`;
         if (result.completed.length > 0) {
           toast.warning(
-            `Created and assigned ${completedGroupLabel} (${assignedFileCount} files). ${message}`,
+            `Created and assigned ${completedFolderLabel} (${assignedFileCount} file${assignedFileCount === 1 ? '' : 's'}). ${message}`,
           );
         } else {
           toast.error(message);
@@ -1155,11 +1168,9 @@ export const MultiFileResponseDisplay = ({
               uploadSelectedCount={uploadSelectedEligibleCount}
               createAndAssignSummary={createAndAssignSummary}
               createAndAssignLabel={createAndAssignLabel}
-              onCreateAndAssign={
-                hasCreateAndAssignSelection ? handleCreateAndAssignSeries : undefined
-              }
+              onCreateAndAssign={hasCreateAndAssignSelection ? handleCreateAndAssign : undefined}
               isCreateAndAssignDisabled={
-                !isDriveAuthenticated || !driveCreateFolder || !canCreateAndAssignSeries
+                !isDriveAuthenticated || !driveCreateFolder || !canCreateAndAssign
               }
               isCreatingAndAssigning={createAndAssignProgress !== null}
             />
