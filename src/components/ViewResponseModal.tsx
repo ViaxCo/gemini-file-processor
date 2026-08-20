@@ -33,7 +33,7 @@ const UPLOAD_LABELS: Record<UploadStatus, string> = {
   verifying: 'Verifying…',
   completed: 'Uploaded',
   error: 'Retry upload',
-  unknown: 'Check upload',
+  unknown: 'Check Drive',
 };
 
 interface ViewResponseModalProps {

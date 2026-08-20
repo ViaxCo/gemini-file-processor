@@ -20,7 +20,7 @@ import { PREFERRED_ASSIGNMENT_ROOT } from '@/config/googleDriveConfig';
 import { useAutomaticDriveUploads } from '@/hooks/useAutomaticDriveUploads';
 import { makeFileKey } from '@/services/responseStore';
 import { PROCESSING_FAILURE_LABELS } from '@/services/processingErrors';
-import { canChangeUploadDestination } from '@/utils/automaticUploads';
+import { canChangeUploadDestination, getUploadFailureCopy } from '@/utils/automaticUploads';
 import { suggestSeriesFolderName } from '@/utils/driveFolderName';
 import { downloadProcessedFile } from '@/utils/fileUtils';
 import { groupFilesBySeries } from '@/utils/seriesGroups';
@@ -153,6 +153,7 @@ export const MultiFileResponseDisplay = ({
   const [downloadAllFeedback, setDownloadAllFeedback] = useState<string>('');
   const [isViewOpen, setIsViewOpen] = useState<boolean>(false);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
+  const [focusedUploadIndex, setFocusedUploadIndex] = useState<number>();
   const [isAssignOpen, setIsAssignOpen] = useState<boolean>(false);
   const [createAndAssignProgress, setCreateAndAssignProgress] = useState<{
     current: number;
@@ -174,6 +175,14 @@ export const MultiFileResponseDisplay = ({
     () => sourceFiles.map((file, index) => makeUploadKey(processingBatchId, index, file)),
     [processingBatchId, sourceFiles],
   );
+  const handleShowUpload = useCallback(
+    (uploadKey: string) => {
+      const index = uploadKeys.indexOf(uploadKey);
+      if (index >= 0) setFocusedUploadIndex(index);
+    },
+    [uploadKeys],
+  );
+  const handleUploadFocusComplete = useCallback(() => setFocusedUploadIndex(undefined), []);
   const assignableSelectedIndices = useMemo(
     () =>
       [...selected].filter((index) =>
@@ -337,6 +346,7 @@ export const MultiFileResponseDisplay = ({
     isUploadSessionActive,
     uploadToGoogleDocs,
     onWaitingForConnectionChange: onAutomaticUploadWaitingChange,
+    onShowUpload: handleShowUpload,
   });
   const allCompleted = fileResults.length > 0 && fileResults.every((result) => result.isCompleted);
   const isAnyProcessing = fileResults.some((result) => result.isProcessing);
@@ -514,11 +524,15 @@ export const MultiFileResponseDisplay = ({
   const finishBulkUpload = (
     results: PromiseSettledResult<number>[],
     successMessage: (count: number) => string,
+    items: Array<{ result: FileResult; index: number }>,
   ) => {
     const succeeded = results
       .filter((result): result is PromiseFulfilledResult<number> => result.status === 'fulfilled')
       .map((result) => result.value);
     const failed = results.length - succeeded.length;
+    const firstFailure = results.flatMap((result, index) =>
+      result.status === 'rejected' ? [{ reason: result.reason, item: items[index]! }] : [],
+    )[0];
 
     if (succeeded.length > 0) {
       setSelected((previous) => {
@@ -528,10 +542,32 @@ export const MultiFileResponseDisplay = ({
       });
     }
 
-    if (failed === 0) toast.success(successMessage(succeeded.length));
-    else if (succeeded.length > 0) {
-      toast.warning(`${succeeded.length} uploaded; ${failed} need attention.`);
-    } else toast.error('No files were uploaded. Check their statuses and try again.');
+    if (failed === 0) {
+      toast.success(successMessage(succeeded.length));
+      return;
+    }
+
+    const copy = firstFailure
+      ? getUploadFailureCopy(
+          resolvedDisplayNames[firstFailure.item.index] || firstFailure.item.result.file.name,
+          firstFailure.reason,
+          failed,
+        )
+      : undefined;
+    const options =
+      firstFailure && copy
+        ? {
+            description: copy.description,
+            action: {
+              label: 'Show file',
+              onClick: () => setFocusedUploadIndex(firstFailure.item.index),
+            },
+          }
+        : undefined;
+    const message = copy?.title || `${failed} uploads need attention`;
+
+    if (succeeded.length > 0) toast.warning(message, options);
+    else toast.error(message, options);
   };
 
   const handleDiscardUnknownUpload = (index: number) => {
@@ -569,7 +605,12 @@ export const MultiFileResponseDisplay = ({
         return next;
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Upload failed');
+      const fileName = resolvedDisplayNames[index] || result.file.name;
+      const copy = getUploadFailureCopy(fileName, error);
+      toast.error(copy.title, {
+        description: copy.description,
+        action: { label: 'Show file', onClick: () => setFocusedUploadIndex(index) },
+      });
     }
   };
 
@@ -589,6 +630,7 @@ export const MultiFileResponseDisplay = ({
       finishBulkUpload(
         results,
         (count) => `Uploaded ${count} selected file${count === 1 ? '' : 's'}`,
+        selectedUploadItems,
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Upload failed');
@@ -608,7 +650,11 @@ export const MultiFileResponseDisplay = ({
 
     try {
       const results = await uploadItems(uploadEligible);
-      finishBulkUpload(results, (count) => `Uploaded ${count} file${count === 1 ? '' : 's'}`);
+      finishBulkUpload(
+        results,
+        (count) => `Uploaded ${count} file${count === 1 ? '' : 's'}`,
+        uploadEligible,
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Upload failed');
     }
@@ -696,15 +742,16 @@ export const MultiFileResponseDisplay = ({
   });
   const handleCardAbort = useStableCallback((index: number) => onAbortFile?.(index));
   const handleCardUpload = useStableCallback((index: number) => handleUploadSingle(index));
-  const handleCardDiscardUpload = useStableCallback((index: number) =>
-    handleDiscardUnknownUpload(index),
-  );
   const handleViewResponse = useCallback((index: number) => {
     setViewIndex(index);
     setIsViewOpen(true);
   }, []);
   const isResultUploaded = useCallback(
     (index: number) => uploadStatuses?.[uploadKeys[index]!] === 'completed',
+    [uploadKeys, uploadStatuses],
+  );
+  const getUploadStatus = useCallback(
+    (index: number) => uploadStatuses?.[uploadKeys[index]!],
     [uploadKeys, uploadStatuses],
   );
   const handleToggleGroup = useCallback((indices: number[]) => {
@@ -739,9 +786,6 @@ export const MultiFileResponseDisplay = ({
           uploadStatus={uploadStatus}
           destinationFolderName={destinationAssignments[orderedIndex]?.destination.name}
           onUpload={uploadToGoogleDocs ? handleCardUpload : undefined}
-          onDiscardUpload={
-            uploadStatus === 'unknown' && discardUnknownUpload ? handleCardDiscardUpload : undefined
-          }
           canUpload={isDriveAuthenticated}
           uploadDisabled={isUploadSessionActive}
           onViewResponse={handleViewResponse}
@@ -751,10 +795,8 @@ export const MultiFileResponseDisplay = ({
     },
     [
       destinationAssignments,
-      discardUnknownUpload,
       fileResults,
       handleCardAbort,
-      handleCardDiscardUpload,
       handleCardName,
       handleCardRetry,
       handleCardSelection,
@@ -1085,9 +1127,12 @@ export const MultiFileResponseDisplay = ({
                 fileResults={fileResults}
                 selected={selected}
                 isUploaded={isResultUploaded}
+                getUploadStatus={getUploadStatus}
                 destinationAssignments={destinationAssignments}
                 onToggleGroup={handleToggleGroup}
                 renderFile={renderFileCard}
+                focusIndex={focusedUploadIndex}
+                onFocusHandled={handleUploadFocusComplete}
               />
 
               <ViewResponseModal

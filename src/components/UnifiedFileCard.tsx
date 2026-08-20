@@ -27,7 +27,6 @@ import {
   Loader2,
   PencilLine,
   RotateCcw,
-  Trash2,
   Undo2,
   UploadCloud,
 } from 'lucide-react';
@@ -47,7 +46,6 @@ export interface UnifiedFileCardProps {
   onRetry?: (index: number) => void;
   onAbort?: (index: number) => void;
   onUpload?: (index: number) => void;
-  onDiscardUpload?: (index: number) => void;
   onViewResponse?: (index: number) => void; // optional external handler; defaults to local expand
   uploadStatus?: UploadStatus;
   destinationFolderName?: string | null;
@@ -78,7 +76,6 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
     onRetry,
     onAbort,
     onUpload,
-    onDiscardUpload,
     onViewResponse,
     uploadStatus,
     destinationFolderName,
@@ -208,9 +205,17 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
   // Note: Inline scroll handling removed in favor of modal view
   const isUploadPending = uploadStatus === 'uploading' || uploadStatus === 'verifying';
   const uploadLabel = UPLOAD_LABELS[uploadStatus || 'idle'];
+  const showUnknownUploadAction = !!onUpload && canUpload && uploadStatus === 'unknown';
+  const showFailedUploadAction = !!onUpload && canUpload && uploadStatus === 'error';
+  const showDefaultUploadAction =
+    !!onUpload && canUpload && uploadStatus !== 'unknown' && uploadStatus !== 'error';
 
   return (
-    <Card className="w-full gap-0 py-3 shadow-sm">
+    <Card
+      className="w-full gap-0 py-3 shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      data-file-result-index={index}
+      tabIndex={-1}
+    >
       <CardHeader className="px-3 pb-0 sm:px-4">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -309,9 +314,17 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                     </Badge>
                   )}
                   <Badge variant="outline">{destinationFolderName || 'Unassigned'}</Badge>
-                  {uploadStatus === 'unknown' && (
-                    <Badge variant="destructive">Upload unconfirmed</Badge>
-                  )}
+                  {uploadStatus === 'unknown' ? (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-600/35 bg-amber-500/10 text-amber-800 dark:border-amber-400/30 dark:text-amber-300"
+                    >
+                      Upload unconfirmed
+                    </Badge>
+                  ) : null}
+                  {uploadStatus === 'error' ? (
+                    <Badge variant="destructive">Upload failed</Badge>
+                  ) : null}
                   {confidence && result.isCompleted && !result.error && (
                     <span className={`text-xs ${confidenceColorClass(confidence.level)}`}>
                       Confidence {confidence.level} ({Math.round(confidence.score * 100)}%)
@@ -435,11 +448,35 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                         <TooltipContent>Abort this file</TooltipContent>
                       </Tooltip>
                     )}
-                    {onUpload && canUpload && (
+                    {showUnknownUploadAction ? (
+                      <Button
+                        onClick={() => onUpload?.(index)}
+                        variant="outline"
+                        size="sm"
+                        className="h-7 border-amber-600/35 px-2 text-xs text-amber-900 hover:bg-amber-500/10 dark:border-amber-400/30 dark:text-amber-200"
+                        disabled={uploadDisabled}
+                      >
+                        <UploadCloud className="h-3.5 w-3.5" />
+                        Check Drive
+                      </Button>
+                    ) : null}
+                    {showFailedUploadAction ? (
+                      <Button
+                        onClick={() => onUpload?.(index)}
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        disabled={uploadDisabled}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Retry upload
+                      </Button>
+                    ) : null}
+                    {showDefaultUploadAction ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            onClick={() => onUpload(index)}
+                            onClick={() => onUpload?.(index)}
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 hover:bg-muted/50"
@@ -457,24 +494,7 @@ export const UnifiedFileCard = memo((props: UnifiedFileCardProps) => {
                         </TooltipTrigger>
                         <TooltipContent>{uploadLabel}</TooltipContent>
                       </Tooltip>
-                    )}
-                    {onDiscardUpload && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={() => onDiscardUpload(index)}
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            aria-label="Discard unconfirmed upload"
-                            disabled={uploadDisabled}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Discard unconfirmed upload</TooltipContent>
-                      </Tooltip>
-                    )}
+                    ) : null}
                     {result.response ? (
                       <Tooltip>
                         <TooltipTrigger asChild>

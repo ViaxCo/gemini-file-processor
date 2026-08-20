@@ -66,7 +66,7 @@ const TOKEN_STORAGE_KEY = 'google_drive_token';
 const READ_TIMEOUT_MS = 15000;
 const WRITE_TIMEOUT_MS = 30000;
 const UPLOAD_OPERATION_PROPERTY = 'geminiFileProcessorUploadId';
-const UNKNOWN_UPLOAD_MESSAGE = 'Drive could not confirm this upload. Check again before retrying.';
+const UNKNOWN_UPLOAD_MESSAGE = 'Drive could not confirm this upload. Check Drive before you retry.';
 
 export class GoogleDriveService {
   private initializationPromise: Promise<void> | null = null;

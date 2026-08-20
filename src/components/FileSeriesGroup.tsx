@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function FileSeriesGroup({
@@ -36,6 +36,7 @@ export function FileSeriesGroup({
     waiting: number;
     failed: number;
     uploaded: number;
+    uploadIssues: number;
   };
   isFullyUploaded: boolean;
   assignment: { assignedCount: number; destinationCount: number };
@@ -113,6 +114,15 @@ export function FileSeriesGroup({
                   >
                     {assignmentLabel}
                   </Badge>
+                  {status.uploadIssues > 0 ? (
+                    <Badge
+                      variant="outline"
+                      className="h-5 border-amber-600/35 bg-amber-500/10 px-1.5 text-[11px] text-amber-800 tabular-nums dark:border-amber-400/30 dark:text-amber-300"
+                    >
+                      <AlertTriangle />
+                      {status.uploadIssues} upload {status.uploadIssues === 1 ? 'issue' : 'issues'}
+                    </Badge>
+                  ) : null}
                   <span>{status.completed} complete</span>
                   {status.retrying > 0 ? <span>{status.retrying} retrying</span> : null}
                   {status.active > 0 ? <span>{status.active} active</span> : null}

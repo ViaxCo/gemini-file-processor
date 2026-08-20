@@ -12,7 +12,7 @@ interface GoogleDriveAuthProps {
   connect: () => void;
   refresh: () => void;
   logout: () => Promise<void>;
-  error: string | null;
+  connectionError: string | null;
   tokenExpiryInfo: TokenExpiryInfo;
 }
 
@@ -24,7 +24,7 @@ export function GoogleDriveAuth({
   connect,
   refresh,
   logout,
-  error,
+  connectionError,
   tokenExpiryInfo,
 }: GoogleDriveAuthProps): React.ReactElement {
   const wasAuthenticatingRef = useRef(false);
@@ -47,9 +47,13 @@ export function GoogleDriveAuth({
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
-      {error && (
-        <span role="alert" title={error} className="max-w-48 truncate text-xs text-destructive">
-          {error}
+      {connectionError && (
+        <span
+          role="alert"
+          title={connectionError}
+          className="max-w-48 truncate text-xs text-destructive"
+        >
+          {connectionError}
         </span>
       )}
       <span
@@ -79,7 +83,7 @@ export function GoogleDriveAuth({
               disabled={isAuthenticating}
             >
               {isAuthenticating && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-              Refresh
+              Renew session
             </Button>
           )}
           {isAuthenticated ? (

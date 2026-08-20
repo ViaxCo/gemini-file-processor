@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { GoogleDriveUnknownUploadError } from '../services/googleDriveService';
 import {
   AUTOMATIC_UPLOAD_BATCH_SIZE,
   canChangeUploadDestination,
+  getUploadFailureCopy,
   selectAutomaticUploadBatch,
 } from './automaticUploads';
 
@@ -53,5 +55,21 @@ describe('selectAutomaticUploadBatch', () => {
         'another-upload': 'unknown',
       }),
     ).toEqual([]);
+  });
+});
+
+describe('getUploadFailureCopy', () => {
+  it('warns that an unconfirmed file might already exist', () => {
+    expect(getUploadFailureCopy('Lesson 1', new GoogleDriveUnknownUploadError())).toEqual({
+      title: 'Could not confirm "Lesson 1"',
+      description: 'The file might already exist in Drive. Check Drive before you retry.',
+    });
+  });
+
+  it('names the first file when multiple uploads fail', () => {
+    expect(getUploadFailureCopy('Lesson 1', new Error('Failed'), 3)).toEqual({
+      title: '3 uploads need attention',
+      description: 'First file: "Lesson 1".',
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { FileSeriesGroup } from '@/components/FileSeriesGroup';
 import type { FileResult } from '@/hooks/useAIProcessor';
-import type { DriveDestination } from '@/hooks/useGoogleDrive';
+import type { DriveDestination, UploadStatus } from '@/hooks/useGoogleDrive';
 import { summarizeDestinationAssignments } from '@/utils/destinationAssignments';
 import type { groupFilesBySeries } from '@/utils/seriesGroups';
 import type { ReactNode } from 'react';
@@ -13,17 +13,23 @@ export function FileSeriesResults({
   fileResults,
   selected,
   isUploaded,
+  getUploadStatus,
   destinationAssignments,
   onToggleGroup,
   renderFile,
+  focusIndex,
+  onFocusHandled,
 }: {
   groups: ReturnType<typeof groupFilesBySeries>;
   fileResults: FileResult[];
   selected: ReadonlySet<number>;
   isUploaded: (index: number) => boolean;
+  getUploadStatus: (index: number) => UploadStatus | undefined;
   destinationAssignments: Readonly<Record<number, { destination: DriveDestination }>>;
   onToggleGroup: (indices: number[]) => void;
   renderFile: (index: number) => ReactNode;
+  focusIndex?: number;
+  onFocusHandled?: () => void;
 }) {
   const [openGroupId, setOpenGroupId] = useState<string>();
   const [groupPages, setGroupPages] = useState<Record<string, number>>({});
@@ -45,6 +51,34 @@ export function FileSeriesResults({
     });
   }, [groups]);
 
+  useEffect(() => {
+    if (focusIndex === undefined) return;
+
+    const group = groups.find((candidate) => candidate.indices.includes(focusIndex));
+    if (!group) return;
+
+    const page = Math.floor(group.indices.indexOf(focusIndex) / GROUP_PAGE_SIZE);
+    setOpenGroupId(group.id);
+    setGroupPages((previous) => ({ ...previous, [group.id]: page }));
+
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        const fileCard = document.querySelector<HTMLElement>(
+          `[data-file-result-index="${focusIndex}"]`,
+        );
+        fileCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        fileCard?.focus({ preventScroll: true });
+        onFocusHandled?.();
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [focusIndex, groups, onFocusHandled]);
+
   return (
     <div className="flex flex-col gap-3">
       {groups.map((group) => {
@@ -62,6 +96,7 @@ export function FileSeriesResults({
           waiting: 0,
           failed: 0,
           uploaded: 0,
+          uploadIssues: 0,
         };
         let selectedCount = 0;
         const assignment = summarizeDestinationAssignments(group.indices, destinationAssignments);
@@ -74,6 +109,8 @@ export function FileSeriesResults({
           else if (result.isProcessing) status.active += 1;
           else if (result.queueStatus !== 'cancelled') status.waiting += 1;
           if (isUploaded(index)) status.uploaded += 1;
+          const uploadStatus = getUploadStatus(index);
+          if (uploadStatus === 'error' || uploadStatus === 'unknown') status.uploadIssues += 1;
           if (selected.has(index)) selectedCount += 1;
         }
 
